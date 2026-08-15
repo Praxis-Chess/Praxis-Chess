@@ -7,6 +7,8 @@ import com.praxis.dto.AnalysisProgressDto;
 import com.praxis.dto.MoveErrorDto;
 import com.praxis.pipeline.AnalysisPipelineOrchestrator;
 import com.praxis.pipeline.AnalysisProgressTracker;
+import com.praxis.repository.AttemptRepository;
+import com.praxis.repository.CardRepository;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
 import org.springframework.http.ResponseEntity;
@@ -23,17 +25,23 @@ public class AnalysisController {
 
     private final MoveErrorRepository moveErrorRepository;
     private final GameRepository gameRepository;
+    private final CardRepository cardRepository;
+    private final AttemptRepository attemptRepository;
     private final AnalysisPipelineOrchestrator pipelineOrchestrator;
     private final AppProperties appProperties;
     private final AnalysisProgressTracker progressTracker;
 
     public AnalysisController(MoveErrorRepository moveErrorRepository,
                               GameRepository gameRepository,
+                              CardRepository cardRepository,
+                              AttemptRepository attemptRepository,
                               AnalysisPipelineOrchestrator pipelineOrchestrator,
                               AppProperties appProperties,
                               AnalysisProgressTracker progressTracker) {
         this.moveErrorRepository = moveErrorRepository;
         this.gameRepository = gameRepository;
+        this.cardRepository = cardRepository;
+        this.attemptRepository = attemptRepository;
         this.pipelineOrchestrator = pipelineOrchestrator;
         this.appProperties = appProperties;
         this.progressTracker = progressTracker;
@@ -93,6 +101,12 @@ public class AnalysisController {
     public ResponseEntity<Map<String, Object>> reanalyzeAll() {
         String username = appProperties.chessCom().username();
         List<Game> games = gameRepository.findByUsernameOrderByPlayedAtDesc(username);
+
+        // Delete in FK order: attempts → cards → move_errors → reset game status.
+        // Cards hold a non-null FK to move_errors; attempts hold a non-null FK to cards.
+        // Skipping this order would cause a DataIntegrityViolationException.
+        attemptRepository.deleteByCardUsername(username);
+        cardRepository.deleteByUsername(username);
 
         for (Game game : games) {
             moveErrorRepository.deleteByGameId(game.getId());

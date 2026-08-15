@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAnalysisProgress } from '../hooks/useAnalysisProgress'
 import type { AnalysisStatus, GameSummary } from '../api/types'
+import { LoadingSpinner } from '../components/LoadingSpinner'
 
 type FilterKey = 'wins' | 'losses' | 'blunders' | 'white' | 'black' | 'rapid' | 'bullet' | 'blitz' | 'last30'
 
@@ -87,7 +88,7 @@ export function GameList() {
     return applyFilter(list, activeFilters)
   }, [games, activeFilters, progress?.running])
 
-  if (isLoading) return <p style={{ color: 'var(--text-muted)' }}>Loading games...</p>
+  if (isLoading) return <LoadingSpinner label="Loading games…" />
   if (!games?.length) return <p style={{ color: 'var(--text-muted)' }}>No games synced yet. Use "Sync Now" above.</p>
 
   return (

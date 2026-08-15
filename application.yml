@@ -1,0 +1,68 @@
+spring:
+  application:
+    name: praxis-chess
+
+  datasource:
+    # Matches docker-compose.yml — no changes needed if you used docker-compose up
+    url: jdbc:postgresql://localhost:5432/praxis_chess?ApplicationName=praxis-chess
+    username: praxis_chess_user
+    password: praxis_chess_pass
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: praxis-chess-hikari
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update   # auto-creates tables on first run
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          time-zone: UTC
+          batch_size: 500
+
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    time-zone: UTC
+
+server:
+  port: 8086
+
+# ── EDIT THESE TWO FIELDS ──────────────────────────────────────────────────────
+
+praxis-chess:
+  chess-com:
+    username: YOUR_CHESS_COM_USERNAME   # ← your Chess.com username
+
+  stockfish:
+    # Download from https://stockfishchess.org/download/
+    # Windows: rename the .exe to stockfish.exe, paste the full path below
+    # Mac/Linux: run `which stockfish` after `brew install stockfish` / apt install
+    path: ""                            # ← e.g. C:/tools/stockfish/stockfish.exe
+
+  ollama:
+    base-url: http://localhost:11434
+    model: qwen2.5:7b
+    move-model: qwen2.5:7b
+    report-model: qwen2.5:7b
+
+# ──────────────────────────────────────────────────────────────────────────────
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.praxis: INFO

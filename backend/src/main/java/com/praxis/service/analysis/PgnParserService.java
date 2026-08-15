@@ -77,9 +77,13 @@ public class PgnParserService {
         while (m.find()) {
             String raw = m.group(1);
             if (raw.startsWith("#")) {
-                // Mate score: #5 = White mates in 5 (+100), #-3 = Black mates in 3 (-100)
+                // Mate sentinel: ±(10000 − N) centipawns converted to pawns.
+                // Mate in 1 = ±99.99, mate in 5 = ±99.95. This preserves ordinality
+                // across win% calculations without the ±100 sentinel blowing up ACPL.
                 int mateIn = Integer.parseInt(raw.substring(1));
-                evals.add(mateIn >= 0 ? 100.0 : -100.0);
+                int absN   = Math.abs(mateIn);
+                double sentinel = (10000.0 - Math.min(absN, 9999)) / 100.0;
+                evals.add(mateIn >= 0 ? sentinel : -sentinel);
             } else {
                 evals.add(Double.parseDouble(raw));
             }

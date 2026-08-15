@@ -1,11 +1,16 @@
 import type {
   AnalysisProgress,
+  AttemptRequest,
+  Card,
   DashboardStats,
   GameSummary,
   MoveError,
   Pattern,
+  Progress,
   RatingPoint,
+  Session,
   SyncStatus,
+  TodayInsight,
   TrainingPlan,
 } from './types'
 
@@ -38,6 +43,8 @@ export const api = {
         body: JSON.stringify({ months }),
       }),
     status: () => request<SyncStatus>('/sync/status'),
+    /** One Chess.com call per 10 min (server-cached). Returns games played but not yet in DB. */
+    newCount: () => request<{ count: number }>('/sync/new-count'),
   },
 
   games: {
@@ -69,5 +76,24 @@ export const api = {
     latest: () => request<TrainingPlan | null>('/training-plan'),
     generate: () =>
       request<TrainingPlan>('/training-plan/generate', { method: 'POST' }),
+  },
+
+  today: {
+    insight: () => request<TodayInsight>('/today'),
+  },
+
+  sessions: {
+    start: () => request<Session>('/sessions', { method: 'POST' }),
+    get: (id: string) => request<Session>(`/sessions/${id}`),
+    nextCard: (id: string) => request<Card | null>(`/sessions/${id}/next`),
+    recordAttempt: (id: string, req: AttemptRequest) =>
+      request<Session>(`/sessions/${id}/attempt`, {
+        method: 'POST',
+        body: JSON.stringify(req),
+      }),
+  },
+
+  progress: {
+    get: () => request<Progress>('/progress'),
   },
 }

@@ -19,8 +19,10 @@ backend/infra/dev-postgresql/postgres_data/
 
 # Frontend
 frontend/node_modules/
+frontend/node/
 frontend/dist/
 
 # OS
 .DS_Store
 Thumbs.db
+"application.yml" 

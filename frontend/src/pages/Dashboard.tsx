@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
@@ -7,23 +8,24 @@ import { BestWorstOpenings } from '../components/BestWorstOpenings'
 import { RecentGames } from '../components/RecentGames'
 import { usePatternReport } from '../hooks/usePatternReport'
 import type { TimeControlStat } from '../api/types'
+import { LoadingSpinner } from '../components/LoadingSpinner'
 
-const tile = (icon: string, label: string, value: React.ReactNode, sub?: React.ReactNode, color = 'var(--text)') => (
-  <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-    <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>{icon}</span>
-    <div style={{ flex: 1 }}>
-      <div style={{ fontSize: '1.4rem', fontWeight: 700, color, lineHeight: 1.1 }}>{value}</div>
-      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>{label}</div>
-      {sub && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>}
-    </div>
+const tile = (label: string, value: React.ReactNode, sub?: React.ReactNode, color = 'var(--text)') => (
+  <div className="card" style={{ padding: '16px 18px' }}>
+    <div className="micro-label">{label}</div>
+    <div className="stat-value" style={{
+      fontSize: '2rem', fontWeight: 500, color, lineHeight: 1.05,
+      marginTop: 10, letterSpacing: '-0.02em',
+    }}>{value}</div>
+    {sub && <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: 5, fontFamily: 'var(--font-mono)' }}>{sub}</div>}
   </div>
 )
 
 const statRow = (label: string, value: React.ReactNode, valueColor = 'var(--text)') => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{label}</span>
-    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: valueColor }}>{value}</span>
+                padding: '8px 0', borderBottom: '1px solid var(--hairline)' }}>
+    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{label}</span>
+    <span className="stat-value" style={{ fontSize: '0.9rem', fontWeight: 500, color: valueColor }}>{value}</span>
   </div>
 )
 
@@ -32,7 +34,7 @@ function FormStreakBadge({ streak }: { streak: number }) {
   const isWin = streak > 0
   const abs = Math.abs(streak)
   return (
-    <span style={{ color: isWin ? 'var(--green)' : 'var(--red)', fontWeight: 700, fontSize: '1.1rem' }}>
+    <span className="stat-value" style={{ color: isWin ? 'var(--warn)' : 'var(--loss)', fontWeight: 500, fontSize: '1.1rem' }}>
       {isWin ? `W${abs}` : `L${abs}`}
     </span>
   )
@@ -43,13 +45,13 @@ function TimeControlBar({ tc }: { tc: TimeControlStat }) {
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.8rem' }}>
         <span style={{ textTransform: 'capitalize', fontWeight: 500 }}>{tc.time_class}</span>
-        <span style={{ color: 'var(--text-muted)' }}>{tc.games}g · {tc.win_pct}% WR</span>
+        <span className="stat-value" style={{ color: 'var(--text-tertiary)' }}>{tc.games}g · {tc.win_pct}% WR</span>
       </div>
-      <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 4, overflow: 'hidden' }}>
+      <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
         <div style={{
           height: '100%', width: `${tc.win_pct}%`,
-          background: tc.win_pct >= 55 ? 'var(--green)' : tc.win_pct >= 45 ? 'var(--accent)' : 'var(--red)',
-          borderRadius: 4,
+          background: tc.win_pct >= 55 ? 'var(--gain)' : tc.win_pct >= 45 ? 'var(--orchid)' : 'var(--loss)',
+          borderRadius: 2,
         }} />
       </div>
     </div>
@@ -60,9 +62,9 @@ function WinSideCard({ label, games, winPct }: { label: string; games: number; w
   const color = winPct >= 55 ? 'var(--green)' : winPct >= 45 ? 'var(--accent)' : 'var(--red)'
   return (
     <div style={{ textAlign: 'center', flex: 1 }}>
-      <div style={{ fontSize: '1.5rem', fontWeight: 700, color }}>{winPct}%</div>
-      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{label} WR</div>
-      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{games} games</div>
+      <div className="stat-value" style={{ fontSize: '1.5rem', fontWeight: 500, color, letterSpacing: '-0.02em' }}>{winPct}%</div>
+      <div className="micro-label" style={{ marginTop: 5 }}>{label} WR</div>
+      <div className="stat-value" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: 3 }}>{games} games</div>
     </div>
   )
 }
@@ -83,7 +85,7 @@ export function Dashboard() {
     },
   })
 
-  if (isLoading) return <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
+  if (isLoading) return <LoadingSpinner label="Loading dashboard…" />
   if (!stats)    return <p style={{ color: 'var(--text-muted)' }}>No data yet. Sync your games first.</p>
 
   const total   = stats.total_games || 1
@@ -107,24 +109,31 @@ export function Dashboard() {
     : 0
   const focusPct = Math.round((focusCount / totalMistakes) * 100)
 
-  const phaseEmoji: Record<string, string> = { opening: '📖', middlegame: '⚔️', endgame: '♟' }
   const phaseLabel = focusPhase
     ? focusPhase.charAt(0).toUpperCase() + focusPhase.slice(1)
     : null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="dashboard-field" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* Today's Focus Banner */}
       {pattern && focusPhase && (
         <div className="card" style={{
-          borderLeft: '3px solid var(--accent)',
+          borderLeft: '2px solid var(--orchid)',
           display: 'flex', alignItems: 'center', gap: 18,
           padding: '14px 18px',
         }}>
-          <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>{phaseEmoji[focusPhase]}</span>
+          {/* Three phase nodes on a spine — the active phase is lit */}
+          <div style={{ display: 'flex', alignItems: 'center', width: 62, flexShrink: 0 }}>
+            {(['opening', 'middlegame', 'endgame'] as const).map((p, i) => (
+              <Fragment key={p}>
+                {i > 0 && <div className="node-spine" />}
+                <div className={`node${p === focusPhase ? ' active' : ''}`} />
+              </Fragment>
+            ))}
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '0.65rem', color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+            <div className="micro-label" style={{ color: 'var(--orchid)', marginBottom: 5 }}>
               Today's Focus
             </div>
             <div style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>
@@ -138,10 +147,10 @@ export function Dashboard() {
           <Link
             to="/training"
             style={{
-              display: 'inline-block', padding: '8px 16px', borderRadius: 6,
-              background: 'var(--accent)', color: '#fff', fontWeight: 600,
+              display: 'inline-block', padding: '7px 15px', borderRadius: 3,
+              background: 'var(--orchid)', color: 'var(--canvas)', fontWeight: 600,
               fontSize: '0.82rem', textDecoration: 'none', flexShrink: 0,
-              whiteSpace: 'nowrap',
+              whiteSpace: 'nowrap', letterSpacing: '-0.01em',
             }}
           >
             Start Training →
@@ -151,52 +160,43 @@ export function Dashboard() {
 
       {/* Row 1 — stat tiles */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
-        {tile('♟', 'Total Games',  stats.total_games)}
-        {tile('↗', 'Wins',         `${stats.wins} (${winPct}%)`,  undefined, 'var(--green)')}
-        {tile('↘', 'Losses',       `${stats.losses} (${lossPct}%)`, undefined, 'var(--red)')}
-        {tile('↔', 'Draws',        `${stats.draws} (${drawPct}%)`,  undefined, 'var(--text-muted)')}
-        {tile('🔍', 'Analyzed',    stats.games_analyzed, undefined, 'var(--accent)')}
+        {tile('Total Games', stats.total_games)}
+        {tile('Wins',     `${stats.wins} (${winPct}%)`,    undefined, 'var(--gain)')}
+        {tile('Losses',   `${stats.losses} (${lossPct}%)`, undefined, 'var(--loss)')}
+        {tile('Draws',    `${stats.draws} (${drawPct}%)`,  undefined, 'var(--neutral)')}
+        {tile('Analyzed', stats.games_analyzed, undefined, 'var(--orchid)')}
       </div>
 
       {/* Row 2 — Coach cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ fontSize: '1.4rem' }}>🔥</span>
-          <div>
-            <div style={{ lineHeight: 1.1 }}><FormStreakBadge streak={stats.form_streak} /></div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>Current Streak</div>
-          </div>
+        <div className="card">
+          <div className="micro-label">Current Streak</div>
+          <div style={{ lineHeight: 1.1, marginTop: 10 }}><FormStreakBadge streak={stats.form_streak} /></div>
         </div>
 
         <div className="card">
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 10, fontWeight: 600 }}>Win Rate by Side</div>
+          <div className="micro-label" style={{ marginBottom: 12 }}>Win Rate by Side</div>
           <div style={{ display: 'flex', gap: 12 }}>
             <WinSideCard label="White" games={stats.white_games} winPct={stats.white_win_pct} />
-            <div style={{ width: 1, background: 'var(--border)' }} />
+            <div style={{ width: 1, background: 'var(--hairline)' }} />
             <WinSideCard label="Black" games={stats.black_games} winPct={stats.black_win_pct} />
           </div>
         </div>
 
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ fontSize: '1.4rem' }}>🎯</span>
-          <div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent)', lineHeight: 1.1 }}>
-              {stats.avg_accuracy != null ? `${stats.avg_accuracy}%` : '—'}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>Avg Accuracy</div>
-            {stats.best_accuracy != null && (
-              <div style={{ fontSize: '0.7rem', color: 'var(--green)', marginTop: 2 }}>Best: {stats.best_accuracy}%</div>
-            )}
+        <div className="card">
+          <div className="micro-label">Avg Accuracy</div>
+          <div className="stat-value" style={{ fontSize: '2rem', fontWeight: 500, color: 'var(--orchid)', lineHeight: 1.05, marginTop: 10, letterSpacing: '-0.02em' }}>
+            {stats.avg_accuracy != null ? `${stats.avg_accuracy}%` : '—'}
           </div>
+          {stats.best_accuracy != null && (
+            <div className="stat-value" style={{ fontSize: '0.7rem', color: 'var(--gain)', marginTop: 5 }}>Best: {stats.best_accuracy}%</div>
+          )}
         </div>
 
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ fontSize: '1.4rem' }}>⚠</span>
-          <div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--red)', lineHeight: 1.1 }}>
-              {stats.blunder_count}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>Total Blunders</div>
+        <div className="card">
+          <div className="micro-label">Total Blunders</div>
+          <div className="stat-value" style={{ fontSize: '2rem', fontWeight: 500, color: 'var(--loss)', lineHeight: 1.05, marginTop: 10, letterSpacing: '-0.02em' }}>
+            {stats.blunder_count}
           </div>
         </div>
       </div>

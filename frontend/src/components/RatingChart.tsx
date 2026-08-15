@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import type { RatingPoint } from '../api/types'
 
 interface Props {
@@ -37,50 +37,57 @@ export function RatingChart({ data, currentRating, ratingDelta }: Props) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
         {currentRating != null && currentRating > 0 && (
           <>
-            <span style={{ fontSize: '1.6rem', fontWeight: 700 }}>{currentRating}</span>
+            <span className="stat-value" style={{ fontSize: '1.75rem', fontWeight: 500, letterSpacing: '-0.02em' }}>{currentRating}</span>
             {deltaLabel && (
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: deltaColor }}>{deltaLabel}</span>
+              <span className="stat-value" style={{ fontSize: '0.85rem', fontWeight: 500, color: deltaColor }}>{deltaLabel}</span>
             )}
           </>
         )}
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>Current Rating</span>
+        <span className="micro-label" style={{ marginLeft: 'auto' }}>Current Rating</span>
       </div>
 
       <ResponsiveContainer width="100%" height={155}>
-        <LineChart data={formatted} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} interval="preserveStartEnd" />
-          <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} domain={['auto', 'auto']} />
+        <AreaChart data={formatted} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+          <defs>
+            <linearGradient id="ratingFade" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#E7A6D6" stopOpacity={0.12} />
+              <stop offset="100%" stopColor="#E7A6D6" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="2 2" stroke="var(--hairline)" vertical={false} />
+          <XAxis dataKey="date" tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} tickLine={false} axisLine={{ stroke: 'var(--hairline)' }} interval="preserveStartEnd" />
+          <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
           <Tooltip
-            contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6 }}
-            labelStyle={{ color: 'var(--text-muted)', fontSize: 11 }}
-            itemStyle={{ color: 'var(--accent)', fontWeight: 600 }}
+            contentStyle={{ background: 'rgba(18,17,16,0.92)', border: '1px solid var(--hairline-lit)', borderRadius: 3 }}
+            labelStyle={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase' }}
+            itemStyle={{ color: 'var(--orchid)', fontWeight: 500 }}
           />
-          <Line type="monotone" dataKey="rating" stroke="var(--accent)" strokeWidth={2} dot={false} />
-        </LineChart>
+          <Area type="monotone" dataKey="rating" stroke="var(--orchid)" strokeWidth={1.25}
+                fill="url(#ratingFade)" dot={false} activeDot={{ r: 2.5, fill: 'var(--orchid)', stroke: 'none' }} />
+        </AreaChart>
       </ResponsiveContainer>
 
       {/* Derived stat chips */}
       {deltas.length > 0 && (
         <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
           {highestClimb > 0 && (
-            <div style={{ flex: 1, background: 'var(--surface-2)', borderRadius: 6, padding: '6px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--green)' }}>+{highestClimb}</div>
-              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2 }}>Best climb</div>
+            <div style={{ flex: 1, border: '1px solid var(--hairline)', borderRadius: 3, padding: '7px 10px', textAlign: 'center' }}>
+              <div className="stat-value" style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--gain)' }}>+{highestClimb}</div>
+              <div className="micro-label" style={{ marginTop: 4 }}>Best climb</div>
             </div>
           )}
           {worstSlump < 0 && (
-            <div style={{ flex: 1, background: 'var(--surface-2)', borderRadius: 6, padding: '6px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--red)' }}>{worstSlump}</div>
-              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2 }}>Worst slump</div>
+            <div style={{ flex: 1, border: '1px solid var(--hairline)', borderRadius: 3, padding: '7px 10px', textAlign: 'center' }}>
+              <div className="stat-value" style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--loss)' }}>{worstSlump}</div>
+              <div className="micro-label" style={{ marginTop: 4 }}>Worst slump</div>
             </div>
           )}
           {avgPerWeek !== null && (
-            <div style={{ flex: 1, background: 'var(--surface-2)', borderRadius: 6, padding: '6px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: avgPerWeek >= 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
+            <div style={{ flex: 1, border: '1px solid var(--hairline)', borderRadius: 3, padding: '7px 10px', textAlign: 'center' }}>
+              <div className="stat-value" style={{ fontSize: '0.95rem', fontWeight: 500, color: avgPerWeek >= 0 ? 'var(--orchid)' : 'var(--text-secondary)' }}>
                 {avgPerWeek >= 0 ? '+' : ''}{avgPerWeek}
               </div>
-              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2 }}>Avg / week</div>
+              <div className="micro-label" style={{ marginTop: 4 }}>Avg / week</div>
             </div>
           )}
         </div>

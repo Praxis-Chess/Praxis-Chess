@@ -1,10 +1,11 @@
 import { usePatternReport } from '../hooks/usePatternReport'
 import { PatternHeatmap } from '../components/PatternHeatmap'
+import { LoadingSpinner } from '../components/LoadingSpinner'
 
 export function PatternReport() {
   const { data: pattern, isLoading } = usePatternReport()
 
-  if (isLoading) return <p style={{ color: 'var(--text-muted)' }}>Loading patterns...</p>
+  if (isLoading) return <LoadingSpinner label="Analysing patterns…" />
   if (!pattern) {
     return (
       <div>
@@ -45,7 +46,7 @@ export function PatternReport() {
             { rank: 2, label: 'Secondary Weakness',  text: pattern.secondary_weakness, color: 'var(--yellow)' },
             { rank: 3, label: 'Tertiary Weakness',   text: pattern.tertiary_weakness,  color: 'var(--accent)' },
           ].filter(w => w.text).map(({ rank, label, text, color }) => (
-            <div key={rank} className="card" style={{ borderLeft: `3px solid ${color}` }}>
+            <div key={rank} className="card" style={{ borderLeft: `2px solid ${color}` }}>
               <div style={{ fontSize: '0.7rem', color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                 #{rank} {label}
               </div>

@@ -1,6 +1,6 @@
 # Praxis-Chess
 
-<img src="Socrates_Louvre.jpeg" width="10%">
+<img src="frontend/asset/praxis_logo.png" width="10%">
 
 A personal, fully offline chess analytics and improvement system. Connect your Chess.com account, let the AI analyze your games, identify your recurring weaknesses, and generate a training plan tailored to your actual play — not generic advice.
 

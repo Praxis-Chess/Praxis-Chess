@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { TrainingPlanJson, TrainingPriority } from '../api/types'
+import { LoadingSpinner } from '../components/LoadingSpinner'
 
-const MISSION_ICONS = ['🎯', '♟', '🔍']
-const MISSION_COLORS = ['var(--red)', 'var(--yellow)', 'var(--accent)']
+const MISSION_COLORS = ['var(--loss)', 'var(--warn)', 'var(--orchid)']
 
 function MissionCard({
   num, priority, done, onToggle,
@@ -14,8 +14,8 @@ function MissionCard({
   done: boolean
   onToggle: () => void
 }) {
-  const color = MISSION_COLORS[num - 1] ?? 'var(--accent)'
-  const icon  = MISSION_ICONS[num - 1] ?? '•'
+  const color = MISSION_COLORS[num - 1] ?? 'var(--orchid)'
+  const rank  = String(num).padStart(2, '0')
 
   return (
     <div
@@ -31,10 +31,10 @@ function MissionCard({
         <button
           onClick={onToggle}
           style={{
-            width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-            border: `2px solid ${done ? color : 'var(--border)'}`,
+            width: 22, height: 22, borderRadius: 2, flexShrink: 0,
+            border: `1px solid ${done ? color : 'var(--hairline)'}`,
             background: done ? color : 'transparent',
-            color: '#0f1117', cursor: 'pointer',
+            color: 'var(--canvas)', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.75rem', fontWeight: 700, marginTop: 2,
           }}
@@ -44,7 +44,7 @@ function MissionCard({
 
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: '1rem' }}>{icon}</span>
+            <span className="stat-value" style={{ fontSize: '0.72rem', color, letterSpacing: '0.08em' }}>{rank}</span>
             <h3 style={{
               fontSize: '0.95rem', fontWeight: 600,
               textDecoration: done ? 'line-through' : 'none',
@@ -172,7 +172,7 @@ export function TrainingPlan() {
         </button>
       </div>
 
-      {isLoading && <p style={{ color: 'var(--text-muted)' }}>Loading...</p>}
+      {isLoading && <LoadingSpinner label="Loading training plan…" />}
 
       {!isLoading && !plan && (
         <div className="card">

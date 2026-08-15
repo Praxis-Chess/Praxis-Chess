@@ -33,11 +33,12 @@ export function ChessBoard({ fen, playerColor = 'white', arrows }: Props) {
       position={safeFen}
       boardOrientation={playerColor === 'black' ? 'black' : 'white'}
       arePiecesDraggable={false}
-      customDarkSquareStyle={{ backgroundColor: '#3d5a80' }}
-      customLightSquareStyle={{ backgroundColor: '#98c1d9' }}
+      customDarkSquareStyle={{ backgroundColor: '#4A4340' }}
+      customLightSquareStyle={{ backgroundColor: '#E3DBD1' }}
+      customBoardStyle={{ borderRadius: '2px', border: '1px solid rgba(255,255,255,0.08)' }}
       boardWidth={360}
       customArrows={customArrows}
-      customArrowColor="rgba(255,0,0,0.8)"
+      customArrowColor="rgba(226,102,74,0.85)"
     />
   )
 }
