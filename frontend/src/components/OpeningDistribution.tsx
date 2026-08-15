@@ -6,6 +6,9 @@ interface Props {
   totalGames: number
 }
 
+// Chart sequence: accent pair, then signal hues, then grayscale for the long tail.
+const SERIES = ['#E7A6D6', '#B0679F', '#B9D96C', '#E5B04B', '#E2664A', '#7A736E', '#635C58', '#423C39']
+
 export function OpeningDistribution({ data, totalGames }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
 
@@ -48,7 +51,7 @@ export function OpeningDistribution({ data, totalGames }: Props) {
                 </div>
                 <div style={{ height: 6, borderRadius: 3, background: 'var(--surface-2)', overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${barW}%`, borderRadius: 3,
-                                background: `hsl(${210 + i * 12}, 55%, ${50 - i * 3}%)`, transition: 'width 0.4s' }} />
+                                background: SERIES[i % SERIES.length], transition: 'width 0.4s' }} />
                 </div>
               </div>
               <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', width: 38, textAlign: 'right', flexShrink: 0 }}>

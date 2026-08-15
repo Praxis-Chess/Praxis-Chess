@@ -1,75 +1,301 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ============================================================================
+   PRAXIS — instrument-panel minimalism
+   Warm near-black canvas, orchid accent, hairline geometry, frosted surfaces.
+   Zero blue anywhere in the system.
+   ========================================================================== */
+
 :root {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --surface-2: #252836;
-  --border: #2d3148;
-  --text: #e2e8f0;
-  --text-muted: #8892a4;
-  --accent: #7bafd4;
-  --accent-dim: #1e2a3a;
-  --green: #4ade80;
-  --red: #f87171;
-  --yellow: #fbbf24;
-  --orange: #fb923c;
+  /* --- Surfaces (warm neutral, hue-shifted to brown/graphite) --- */
+  --canvas:        #121110;
+  --canvas-deep:   #0C0B0A;
+  --surface-1:     rgba(255, 255, 255, 0.035);
+  --hairline:      rgba(255, 255, 255, 0.08);
+  --hairline-lit:  rgba(231, 166, 214, 0.28);
+
+  /* --- Text --- */
+  --text-primary:   #F2EDEA;
+  --text-secondary: #A29B96;
+  --text-tertiary:  #6D6662;
+
+  /* --- Accent --- */
+  --orchid:      #E7A6D6;
+  --mauve-deep:  #B0679F;
+  --accent-wash: rgba(231, 166, 214, 0.12);
+
+  /* --- Signal (desaturated, filmic) --- */
+  --gain:    #B9D96C;   /* win  — acid lime-chartreuse */
+  --warn:    #E5B04B;   /* mistake — amber */
+  --loss:    #E2664A;   /* blunder — burnt coral */
+  --neutral: #8A847E;   /* draw */
+
+  /* --- Chart long-tail greys --- */
+  --grey-1: #7A736E;
+  --grey-2: #635C58;
+  --grey-3: #423C39;
+
+  /* --- Chessboard --- */
+  --board-light: #E3DBD1;   /* bone */
+  --board-dark:  #4A4340;   /* warm graphite */
+
+  /* --- Legacy aliases: existing components inherit the new system --- */
+  --bg:         var(--canvas);
+  --surface:    var(--surface-1);
+  --surface-2:  rgba(255, 255, 255, 0.06);
+  --border:     var(--hairline);
+  --text:       var(--text-primary);
+  --text-muted: var(--text-secondary);
+  --accent:     var(--orchid);
+  --accent-dim: var(--accent-wash);
+  --green:      var(--gain);
+  --red:        var(--loss);
+  --yellow:     var(--warn);
+  --orange:     #D98A54;
+
+  /* --- Type stacks (offline-safe: named faces first, system fallbacks) --- */
+  --font-display: 'Inter Tight', 'Archivo', 'Neue Haas Grotesk Display',
+                  'Segoe UI Variable Display', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'Cascadia Code',
+               Consolas, ui-monospace, SFMono-Regular, monospace;
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--canvas);
+  color: var(--text-primary);
+  font-family: var(--font-display);
   font-size: 14px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+/* --- Global grain: makes translucency read as material, not CSS opacity --- */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
 
+/* --- Headings: tight-tracked grotesk --- */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* --- All numerals and tabular data are mono --- */
+table, td, th, input, .mono, .stat-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* --- Micro-label: section eyebrows, stat captions, axis legends --- */
+.micro-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-tertiary);
+}
+
+a { color: var(--orchid); text-decoration: none; }
+a:hover { color: var(--mauve-deep); text-decoration: none; border-bottom: 1px solid var(--hairline-lit); }
+
+/* --- Buttons: ghost by default; .solid reserved for the primary sync action --- */
 button {
   cursor: pointer;
-  border: none;
-  background: var(--accent);
-  color: #0f1117;
+  background: transparent;
+  color: var(--orchid);
+  border: 1px solid var(--hairline-lit);
+  font-family: var(--font-display);
   font-weight: 600;
-  font-size: 0.85rem;
-  padding: 8px 16px;
-  border-radius: 6px;
-  transition: opacity 0.15s;
+  font-size: 0.82rem;
+  letter-spacing: -0.01em;
+  padding: 7px 15px;
+  border-radius: 3px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-button:hover { opacity: 0.85; }
-button:disabled { opacity: 0.4; cursor: not-allowed; }
+button:hover:not(:disabled) {
+  background: var(--accent-wash);
+  border-color: var(--orchid);
+}
+button:disabled { opacity: 0.35; cursor: not-allowed; }
+button:focus-visible { outline: 1px solid var(--orchid); outline-offset: 2px; }
+
+button.solid {
+  background: var(--orchid);
+  color: var(--canvas);
+  border-color: var(--orchid);
+}
+button.solid:hover:not(:disabled) { background: var(--mauve-deep); border-color: var(--mauve-deep); }
 
 button.secondary {
-  background: var(--surface-2);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--hairline);
+}
+button.secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--text-primary);
 }
 
+/* --- Cards: frosted mineral scrim over canvas, sharp 4px corners --- */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  position: relative;
+  background: var(--surface-1);
+  backdrop-filter: blur(18px) saturate(115%);
+  -webkit-backdrop-filter: blur(18px) saturate(115%);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
   padding: 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+/* Registration crosshair — decorative tick near the top-right corner */
+.card::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  opacity: 0.4;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--text-tertiary), var(--text-tertiary)),
+    linear-gradient(var(--text-tertiary), var(--text-tertiary));
+  background-size: 7px 1px, 1px 7px;
+  background-position: center center, center center;
+  background-repeat: no-repeat;
+}
+.card.no-mark::after { display: none; }
+
+/* --- Hairline + dotted rules replace filled dividers --- */
+hr {
+  border: none;
+  border-top: 1px solid var(--hairline);
+}
+.rule-dotted {
+  border: none;
+  border-top: 1px dashed var(--hairline);
+}
+
+/* --- Tags: 1px colored border + 10% tinted fill, squared not pill --- */
 .badge {
   display: inline-block;
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 99px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 2px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.1em;
+  border: 1px solid transparent;
 }
 
-.badge-blunder  { background: #3b1a1a; color: var(--red); }
-.badge-mistake  { background: #3a2d0e; color: var(--yellow); }
-.badge-inaccuracy { background: #1a2d3a; color: var(--accent); }
-.badge-win   { background: #0a2e1a; color: var(--green); }
-.badge-loss  { background: #3b1a1a; color: var(--red); }
-.badge-draw  { background: #1e2030; color: var(--text-muted); }
-.badge-analyzed { background: #0a2e1a; color: var(--green); }
-.badge-pending  { background: #1e2030; color: var(--text-muted); }
-.badge-analyzing { background: #1a2d3a; color: var(--accent); }
-.badge-failed   { background: #3b1a1a; color: var(--red); }
+.badge-blunder    { background: rgba(226, 102, 74, 0.10);  color: var(--loss);    border-color: rgba(226, 102, 74, 0.45); }
+.badge-mistake    { background: rgba(229, 176, 75, 0.10);  color: var(--warn);    border-color: rgba(229, 176, 75, 0.45); }
+.badge-inaccuracy { background: var(--accent-wash);        color: var(--orchid);  border-color: var(--hairline-lit); }
+.badge-win        { background: rgba(185, 217, 108, 0.10); color: var(--gain);    border-color: rgba(185, 217, 108, 0.45); }
+.badge-loss       { background: rgba(226, 102, 74, 0.10);  color: var(--loss);    border-color: rgba(226, 102, 74, 0.45); }
+.badge-draw       { background: rgba(138, 132, 126, 0.10); color: var(--neutral); border-color: rgba(138, 132, 126, 0.40); }
+.badge-analyzed   { background: rgba(185, 217, 108, 0.10); color: var(--gain);    border-color: rgba(185, 217, 108, 0.45); }
+.badge-pending    { background: transparent;               color: var(--text-tertiary); border-color: var(--hairline); }
+.badge-analyzing  { background: var(--accent-wash);        color: var(--orchid);  border-color: var(--hairline-lit); }
+.badge-failed     { background: rgba(226, 102, 74, 0.10);  color: var(--loss);    border-color: rgba(226, 102, 74, 0.45); }
+
+/* --- Tables: hairline separators, no zebra striping --- */
+table { border-collapse: collapse; width: 100%; }
+thead th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-tertiary);
+  border-bottom: 1px solid var(--hairline);
+  padding: 8px 10px;
+  text-align: left;
+}
+tbody tr { border-bottom: 1px solid var(--hairline); transition: background 0.12s; }
+tbody tr:hover { background: var(--accent-wash); }
+tbody td { padding: 9px 10px; }
+
+/* --- Prax: the companion. One full-viewport layer hosting both its forms:
+       the slime in the left gutter, the resting wave along the bottom edge. --- */
+.prax {
+  position: fixed;
+  inset: 0;
+  z-index: 50;          /* above the translucent sync bar, below the nav (100) */
+  pointer-events: none; /* every interaction arrives via window listeners */
+  display: block;
+}
+
+/* --- Node field: ambient analytical network, sits under every UI layer --- */
+.node-field {
+  position: fixed;
+  inset: 0;
+  z-index: -1;          /* above the canvas background, below all content */
+  pointer-events: none; /* never intercepts clicks */
+  display: block;
+}
+
+/* --- Dashboard ambient field: concentric dotted rings, orchid-tinted, 5% --- */
+.dashboard-field {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1100' height='1100' viewBox='0 0 1100 1100'%3E%3Cg fill='none' stroke='%23E7A6D6' stroke-opacity='0.055' stroke-width='1' stroke-dasharray='1 7'%3E%3Ccircle cx='550' cy='550' r='140'/%3E%3Ccircle cx='550' cy='550' r='230'/%3E%3Ccircle cx='550' cy='550' r='320'/%3E%3Ccircle cx='550' cy='550' r='410'/%3E%3Ccircle cx='550' cy='550' r='500'/%3E%3C/g%3E%3Cg stroke='%23E7A6D6' stroke-opacity='0.055' stroke-width='1' stroke-dasharray='1 11'%3E%3Cline x1='550' y1='50' x2='550' y2='1050'/%3E%3Cline x1='50' y1='550' x2='1050' y2='550'/%3E%3Cline x1='196' y1='196' x2='904' y2='904'/%3E%3Cline x1='904' y1='196' x2='196' y2='904'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center -60px;
+  background-size: 1100px 1100px;
+}
+
+/* --- Node-graph motif: 3px nodes joined by hairlines --- */
+.node {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.node.active {
+  background: var(--orchid);
+  box-shadow: 0 0 2px 1px rgba(231, 166, 214, 0.55);
+}
+.node-spine {
+  flex: 1;
+  height: 1px;
+  background: var(--hairline);
+}
+
+/* --- Recharts overrides: thin strokes, dotted grid, no blue --- */
+.recharts-cartesian-grid line {
+  stroke: var(--hairline);
+  stroke-dasharray: 2 2;
+}
+.recharts-cartesian-axis-line, .recharts-cartesian-axis-tick-line { stroke: var(--hairline); }
+.recharts-text {
+  fill: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: rgba(18, 17, 16, 0.92) !important;
+  backdrop-filter: blur(18px) saturate(115%);
+  border: 1px solid var(--hairline-lit) !important;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+::selection { background: var(--accent-wash); color: var(--text-primary); }
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--canvas-deep); }
+::-webkit-scrollbar-thumb { background: #2A2624; border-radius: 0; border: 3px solid var(--canvas-deep); }
+::-webkit-scrollbar-thumb:hover { background: #3A3532; }

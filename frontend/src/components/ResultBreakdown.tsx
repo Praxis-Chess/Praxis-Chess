@@ -9,9 +9,9 @@ interface Props {
 export function ResultBreakdown({ wins, losses, draws }: Props) {
   const total = wins + losses + draws || 1
   const data = [
-    { name: 'Wins',   value: wins,   color: '#4ade80' },
-    { name: 'Losses', value: losses, color: '#f87171' },
-    { name: 'Draws',  value: draws,  color: '#8892a4' },
+    { name: 'Wins',   value: wins,   color: '#B9D96C' },
+    { name: 'Losses', value: losses, color: '#E2664A' },
+    { name: 'Draws',  value: draws,  color: '#8A847E' },
   ].filter(d => d.value > 0)
 
   return (

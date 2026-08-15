@@ -15,11 +15,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -38,6 +41,11 @@ public class SyncService {
     // In-memory sync state
     private volatile boolean syncing = false;
     private volatile boolean syncQueued = false;
+
+    // Cached "new games available on Chess.com" check — avoids hammering the API
+    private volatile int cachedNewGamesCount = 0;
+    private volatile long newGamesCacheTimestamp = 0L;
+    private static final long NEW_GAMES_CACHE_TTL_MS = 10 * 60 * 60 * 1000L; // 10 hours
     private final AtomicInteger gamesFetched  = new AtomicInteger(0);
     private final AtomicInteger gamesQueued   = new AtomicInteger(0);
     private final AtomicReference<String> lastSyncedAt = new AtomicReference<>("Never");
@@ -144,7 +152,36 @@ public class SyncService {
                 gamesFetched.get(), (int) analyzed, (int) pending, lastSync);
     }
 
-    public void enqueueSyncFlag() { this.syncQueued = true; }
+    public void enqueueSyncFlag() {
+        this.syncQueued = true;
+        // Invalidate the cache so next check sees fresh data after a sync
+        this.newGamesCacheTimestamp = 0L;
+    }
+
+    /**
+     * Checks Chess.com for games in the current month that aren't in our DB yet.
+     * Result is cached for {@link #NEW_GAMES_CACHE_TTL_MS} to stay well within rate limits.
+     */
+    public int countNewGamesAvailable() {
+        long now = System.currentTimeMillis();
+        if (now - newGamesCacheTimestamp < NEW_GAMES_CACHE_TTL_MS) return cachedNewGamesCount;
+
+        String username = appProperties.chessCom().username();
+        LocalDate today = LocalDate.now();
+        try {
+            List<ChessComGame> chessComGames = apiClient.fetchGames(username, today.getYear(), today.getMonthValue());
+            Set<String> knownIds = new HashSet<>(gameRepository.findAllChessComIdsByUsername(username));
+            int newCount = (int) chessComGames.stream()
+                    .filter(g -> g.uuid() != null && !knownIds.contains(g.uuid()))
+                    .count();
+            cachedNewGamesCount = newCount;
+            newGamesCacheTimestamp = now;
+            return newCount;
+        } catch (Exception e) {
+            log.warn("Failed to check for new Chess.com games: {}", e.getMessage());
+            return 0;
+        }
+    }
 
     public void clearSyncHistory(String username, int months) {
         YearMonth current = YearMonth.now();

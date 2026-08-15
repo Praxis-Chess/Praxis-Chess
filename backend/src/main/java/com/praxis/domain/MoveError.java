@@ -65,6 +65,18 @@ public class MoveError {
     @Column(name = "clock_remaining")
     private Integer clockRemaining;
 
+    /** Position evaluation (White's POV, pawns) immediately before the player's move. */
+    @Column(name = "eval_before")
+    private Double evalBefore;
+
+    /** Position evaluation (White's POV, pawns) immediately after the player's move. */
+    @Column(name = "eval_after")
+    private Double evalAfter;
+
+    /** Chess.com win-percentage drop caused by this move (player's POV, 0–100). */
+    @Column(name = "win_pct_drop")
+    private Double winPctDrop;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "analysis_state", length = 16)
     private AnalysisState analysisState;

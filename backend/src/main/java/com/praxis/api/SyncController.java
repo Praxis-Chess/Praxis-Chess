@@ -39,6 +39,16 @@ public class SyncController {
                 status.lastSyncedAt()));
     }
 
+    /**
+     * Counts games on Chess.com (current month) that are not yet in our database.
+     * Chess.com call is cached server-side for 10 minutes to stay within rate limits.
+     */
+    @GetMapping("/new-count")
+    public ResponseEntity<Map<String, Integer>> countNewGames() {
+        int count = syncService.countNewGamesAvailable();
+        return ResponseEntity.ok(Map.of("count", count));
+    }
+
     @PostMapping("/force-resync")
     public ResponseEntity<Map<String, Object>> forceResync(@RequestBody(required = false) SyncRequestDto request) {
         int months = request != null ? request.effectiveMonths() : 3;

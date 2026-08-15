@@ -8,6 +8,7 @@ import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.domain.enums.TacticalMotif;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
+import com.praxis.service.EcoTable;
 import com.praxis.service.ai.OllamaAnalysisClient;
 import com.praxis.service.ai.PromptTemplates;
 import com.praxis.service.ai.dto.MoveAnalysisResult;
@@ -50,6 +51,7 @@ public class GameAnalysisTransactionService {
     private final GameRepository gameRepository;
     private final MoveErrorRepository moveErrorRepository;
     private final AppProperties appProperties;
+    private final EcoTable ecoTable;
 
     public GameAnalysisTransactionService(PgnParserService pgnParserService,
                                           PositionEvaluator positionEvaluator,
@@ -58,7 +60,8 @@ public class GameAnalysisTransactionService {
                                           OllamaAnalysisClient ollamaClient,
                                           GameRepository gameRepository,
                                           MoveErrorRepository moveErrorRepository,
-                                          AppProperties appProperties) {
+                                          AppProperties appProperties,
+                                          EcoTable ecoTable) {
         this.pgnParserService = pgnParserService;
         this.positionEvaluator = positionEvaluator;
         this.candidateFilter = candidateFilter;
@@ -67,6 +70,7 @@ public class GameAnalysisTransactionService {
         this.gameRepository = gameRepository;
         this.moveErrorRepository = moveErrorRepository;
         this.appProperties = appProperties;
+        this.ecoTable = ecoTable;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -88,7 +92,12 @@ public class GameAnalysisTransactionService {
 
         if (game.getOpeningEco() == null && !parsedGame.openingEco().isEmpty()) {
             game.setOpeningEco(parsedGame.openingEco());
-            game.setOpeningName(parsedGame.openingName());
+            // Prefer PGN header name; fall back to ECO table when absent or blank.
+            String pgnName = parsedGame.openingName();
+            String resolvedName = (pgnName != null && !pgnName.isBlank() && !pgnName.equals("?"))
+                    ? pgnName
+                    : ecoTable.lookup(parsedGame.openingEco());
+            game.setOpeningName(resolvedName);
         }
 
         List<Double> scores = positionEvaluator.evaluateAll(parsedGame.moves());
@@ -192,6 +201,9 @@ public class GameAnalysisTransactionService {
                 .severity(c.severity())
                 .gamePhase(c.phase())
                 .clockRemaining(move.clockRemainingSeconds())
+                .evalBefore(c.evalBefore())
+                .evalAfter(c.evalAfter())
+                .winPctDrop(computeWinPctDrop(c, playerColor))
                 .explanation(result.explanation())
                 .tacticalMotif(result.motif())
                 .analysisState(result.state())
@@ -210,8 +222,18 @@ public class GameAnalysisTransactionService {
                 .severity(c.severity())
                 .gamePhase(c.phase())
                 .clockRemaining(move.clockRemainingSeconds())
+                .evalBefore(c.evalBefore())
+                .evalAfter(c.evalAfter())
+                .winPctDrop(computeWinPctDrop(c, playerColor))
                 .analysisState(AnalysisState.SKIPPED)
                 .build());
+    }
+
+    private double computeWinPctDrop(CandidateMove c, String playerColor) {
+        boolean isWhite = "white".equals(playerColor);
+        double wBefore = MistakeCandidateFilter.winPct(c.evalBefore());
+        double wAfter  = MistakeCandidateFilter.winPct(c.evalAfter());
+        return isWhite ? (wBefore - wAfter) : ((100 - wBefore) - (100 - wAfter));
     }
 
     // Calls Ollama with up to OLLAMA_MAX_RETRIES attempts and exponential backoff.
@@ -244,9 +266,19 @@ public class GameAnalysisTransactionService {
         return new OllamaResult(null, null, AnalysisState.LLM_FAILED);
     }
 
+    /**
+     * Win-percentage-based game accuracy (Chess.com formula).
+     *
+     * Per move: winPctDrop = winPct(evalBefore) − winPct(evalAfter) from player's POV.
+     * moveAccuracy = clamp(103.1668 × exp(−0.04354 × drop) − 3.1669, 0, 100).
+     * Game accuracy = mean of per-move accuracies.
+     *
+     * This matches the chess.com display and eliminates the mate-sentinel distortion
+     * that plagued the old ACPL formula (mate ±100 pawns → ACPL ≈ 400 → accuracy ≈ 0).
+     */
     private double computeAccuracy(ParsedGame game, List<Double> scores) {
         boolean playerIsWhite = "white".equals(game.playerColor());
-        double totalLoss = 0.0;
+        double totalAccuracy = 0.0;
         int moveCount = 0;
 
         for (int i = 0; i < game.moves().size(); i++) {
@@ -259,15 +291,16 @@ public class GameAnalysisTransactionService {
             double evalAfter  = scores.get(afterIdx);
             double evalBefore = scores.get(beforeIdx);
 
-            double swing = playerIsWhite ? (evalAfter - evalBefore) : (evalBefore - evalAfter);
-            totalLoss += Math.max(0.0, -swing);
+            double wBefore = MistakeCandidateFilter.winPct(evalBefore);
+            double wAfter  = MistakeCandidateFilter.winPct(evalAfter);
+            double drop = playerIsWhite ? (wBefore - wAfter) : ((100 - wBefore) - (100 - wAfter));
+
+            totalAccuracy += MistakeCandidateFilter.moveAccuracy(Math.max(0.0, drop));
             moveCount++;
         }
 
         if (moveCount == 0) return 0.0;
-        double acpl = Math.min((totalLoss / moveCount) * 100.0, 500.0); // centipawns, capped
-        double accuracy = 103.1668 * Math.exp(-0.04354 * acpl) - 3.1668;
-        return Math.round(Math.max(0.0, Math.min(100.0, accuracy)) * 10.0) / 10.0;
+        return Math.round((totalAccuracy / moveCount) * 10.0) / 10.0;
     }
 
     // Highest eval (pawns) the player reached, from their perspective. Null if no scores.

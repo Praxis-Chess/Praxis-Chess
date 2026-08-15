@@ -5,10 +5,10 @@ interface Props { pattern: Pattern }
 
 export function PatternHeatmap({ pattern }: Props) {
   const data = [
-    { range: 'Moves 1–10',  count: pattern.mistakes_moves1to10,  color: '#4ade80' },
-    { range: 'Moves 11–20', count: pattern.mistakes_moves11to20, color: '#fbbf24' },
-    { range: 'Moves 21–30', count: pattern.mistakes_moves21to30, color: '#fb923c' },
-    { range: 'Moves 31+',   count: pattern.mistakes_moves31_plus, color: '#f87171' },
+    { range: 'Moves 1–10',  count: pattern.mistakes_moves1to10,  color: '#B9D96C' },
+    { range: 'Moves 11–20', count: pattern.mistakes_moves11to20, color: '#E5B04B' },
+    { range: 'Moves 21–30', count: pattern.mistakes_moves21to30, color: '#D98A54' },
+    { range: 'Moves 31+',   count: pattern.mistakes_moves31_plus, color: '#E2664A' },
   ]
 
   return (

@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ChessComPlayer(
     String username,
-    int rating,
+    Integer rating,
     String result,
     @JsonProperty("@id") String id,
     Double accuracy

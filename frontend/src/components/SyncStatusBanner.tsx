@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useSyncStatus } from '../hooks/useSyncStatus'
 import { useAnalysisProgress } from '../hooks/useAnalysisProgress'
@@ -14,6 +14,18 @@ function fmtEta(secs: number): string {
 export function SyncStatusBanner() {
   const { data: status } = useSyncStatus()
   const { data: progress, startWarmup } = useAnalysisProgress()
+
+  // Check Chess.com for games not yet in our DB.
+  // Runs once per app session (staleTime = Infinity so React Query never auto-refetches).
+  // Server also caches for 10 hours — this fires exactly 1 Chess.com call per server restart.
+  const { data: newCountData } = useQuery({
+    queryKey: ['sync-new-count'],
+    queryFn: () => api.sync.newCount(),
+    staleTime: Infinity,    // never auto-refetch within this session
+    gcTime: Infinity,
+    retry: false,           // don't retry — the user can sync manually if they want fresh data
+  })
+  const newGamesCount = newCountData?.count ?? 0
   const queryClient = useQueryClient()
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -100,11 +112,23 @@ export function SyncStatusBanner() {
             )}
 
             {!isActive && status?.state === 'IDLE' && (
-              `${status?.games_analyzed ?? 0} games analyzed · Last sync: ${
-                status?.last_synced_at === 'Never'
+              <>
+                {status?.games_analyzed ?? 0} analyzed
+                {(status?.games_pending ?? 0) > 0 && (
+                  <span style={{ color: 'var(--yellow)', marginLeft: 6 }}>
+                    · {status!.games_pending} pending
+                  </span>
+                )}
+                {newGamesCount > 0 && (
+                  <span style={{ color: 'var(--orchid)', marginLeft: 6 }}>
+                    · {newGamesCount} new on Chess.com
+                  </span>
+                )}
+                {' · Last sync: '}
+                {status?.last_synced_at === 'Never'
                   ? 'Never'
-                  : new Date(status.last_synced_at).toLocaleString()
-              }`
+                  : new Date(status.last_synced_at).toLocaleString()}
+              </>
             )}
 
             {!status && 'Loading...'}
@@ -139,11 +163,24 @@ export function SyncStatusBanner() {
               {forceResyncMutation.isPending ? 'Re-syncing...' : '↻ Re-Sync'}
             </button>
             <button
+              className="solid"
               onClick={() => syncMutation.mutate()}
               disabled={isBusy}
-              style={{ padding: '4px 12px', fontSize: '0.75rem' }}
+              style={{ padding: '4px 12px', fontSize: '0.75rem', position: 'relative' }}
+              title={newGamesCount > 0 ? `${newGamesCount} new game${newGamesCount !== 1 ? 's' : ''} available on Chess.com` : undefined}
             >
               {syncMutation.isPending ? 'Syncing...' : 'Sync Now'}
+              {newGamesCount > 0 && !isBusy && (
+                <span style={{
+                  position: 'absolute', top: -6, right: -6,
+                  background: 'var(--orchid)', color: '#fff',
+                  borderRadius: 10, fontSize: '0.6rem', fontWeight: 700,
+                  padding: '1px 5px', lineHeight: '1.4',
+                  pointerEvents: 'none',
+                }}>
+                  {newGamesCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -171,13 +208,14 @@ export function SyncStatusBanner() {
             bottom: 24,
             right: 24,
             zIndex: 9999,
-            background: 'var(--surface)',
-            border: '1px solid var(--accent)',
-            borderRadius: 8,
+            background: 'rgba(18,17,16,0.92)',
+            backdropFilter: 'blur(18px) saturate(115%)',
+            border: '1px solid var(--hairline-lit)',
+            borderRadius: 4,
             padding: '12px 18px',
             fontSize: '0.82rem',
             color: 'var(--text)',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',

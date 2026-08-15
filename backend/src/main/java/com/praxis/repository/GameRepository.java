@@ -27,6 +27,10 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
 
     Optional<Game> findByChessComId(String chessComId);
 
+    /** Returns all Chess.com UUIDs stored for a user — used to diff against a live Chess.com month fetch. */
+    @Query("SELECT g.chessComId FROM Game g WHERE g.username = :username")
+    List<String> findAllChessComIdsByUsername(@Param("username") String username);
+
     // Resets games stuck in ANALYZING state (e.g. after a server crash) back to PENDING
     @Modifying
     @Transactional

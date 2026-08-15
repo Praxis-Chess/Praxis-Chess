@@ -6,6 +6,7 @@ import { api } from '../api/client'
 import { useGameAnalysis } from '../hooks/useGameAnalysis'
 import { MoveErrorCard } from '../components/MoveErrorCard'
 import { ChessBoard } from '../components/ChessBoard'
+import { LoadingSpinner } from '../components/LoadingSpinner'
 import type { MoveError } from '../api/types'
 
 const UCI_PATTERN = /^[a-h][1-8][a-h][1-8][qrbn]?$/
@@ -28,11 +29,11 @@ function getArrows(error: MoveError) {
   const arrows: { from: string; to: string; color: string }[] = []
 
   const played = moveToSquares(error.fen_position, error.move_played)
-  if (played) arrows.push({ ...played, color: 'rgb(220, 60, 60)' })
+  if (played) arrows.push({ ...played, color: 'rgba(226, 102, 74, 0.9)' })
 
   if (error.better_move) {
     const better = moveToSquares(error.fen_position, error.better_move)
-    if (better) arrows.push({ ...better, color: 'rgb(50, 190, 100)' })
+    if (better) arrows.push({ ...better, color: 'rgba(185, 217, 108, 0.9)' })
   }
 
   return arrows
@@ -51,14 +52,14 @@ export function GameAnalysis() {
 
   const { data: errors, isLoading } = useGameAnalysis(id ?? null)
 
-  if (isLoading) return <p style={{ color: 'var(--text-muted)' }}>Loading analysis...</p>
+  if (isLoading) return <LoadingSpinner label="Loading analysis…" />
 
   const arrows = selectedError ? getArrows(selectedError) : []
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <button className="secondary" onClick={() => navigate('/games')} style={{ padding: '6px 12px' }}>
+        <button className="secondary" onClick={() => navigate(-1)} style={{ padding: '6px 12px' }}>
           ← Back
         </button>
         <h1 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
@@ -86,9 +87,9 @@ export function GameAnalysis() {
           )}
           {selectedError && arrows.length > 0 && (
             <div style={{ marginTop: 6, fontSize: '0.72rem', display: 'flex', gap: 14 }}>
-              <span style={{ color: 'rgb(220, 60, 60)', fontWeight: 600 }}>▶ {selectedError.move_played}</span>
+              <span className="stat-value" style={{ color: 'var(--loss)', fontWeight: 500 }}>▶ {selectedError.move_played}</span>
               {selectedError.better_move && (
-                <span style={{ color: 'rgb(50, 190, 100)', fontWeight: 600 }}>✓ {selectedError.better_move}</span>
+                <span className="stat-value" style={{ color: 'var(--gain)', fontWeight: 500 }}>✓ {selectedError.better_move}</span>
               )}
             </div>
           )}
