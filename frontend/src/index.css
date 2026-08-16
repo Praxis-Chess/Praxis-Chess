@@ -227,50 +227,6 @@ tbody tr { border-bottom: 1px solid var(--hairline); transition: background 0.12
 tbody tr:hover { background: var(--accent-wash); }
 tbody td { padding: 9px 10px; }
 
-/* --- Prax: the companion. One full-viewport layer hosting both its forms:
-       the slime in the left gutter, the resting wave along the bottom edge. --- */
-.prax {
-  position: fixed;
-  inset: 0;
-  z-index: 50;          /* above the translucent sync bar, below the nav (100) */
-  pointer-events: none; /* every interaction arrives via window listeners */
-  display: block;
-}
-
-/* --- Node field: ambient analytical network, sits under every UI layer --- */
-.node-field {
-  position: fixed;
-  inset: 0;
-  z-index: -1;          /* above the canvas background, below all content */
-  pointer-events: none; /* never intercepts clicks */
-  display: block;
-}
-
-/* --- Dashboard ambient field: concentric dotted rings, orchid-tinted, 5% --- */
-.dashboard-field {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1100' height='1100' viewBox='0 0 1100 1100'%3E%3Cg fill='none' stroke='%23E7A6D6' stroke-opacity='0.055' stroke-width='1' stroke-dasharray='1 7'%3E%3Ccircle cx='550' cy='550' r='140'/%3E%3Ccircle cx='550' cy='550' r='230'/%3E%3Ccircle cx='550' cy='550' r='320'/%3E%3Ccircle cx='550' cy='550' r='410'/%3E%3Ccircle cx='550' cy='550' r='500'/%3E%3C/g%3E%3Cg stroke='%23E7A6D6' stroke-opacity='0.055' stroke-width='1' stroke-dasharray='1 11'%3E%3Cline x1='550' y1='50' x2='550' y2='1050'/%3E%3Cline x1='50' y1='550' x2='1050' y2='550'/%3E%3Cline x1='196' y1='196' x2='904' y2='904'/%3E%3Cline x1='904' y1='196' x2='196' y2='904'/%3E%3C/g%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center -60px;
-  background-size: 1100px 1100px;
-}
-
-/* --- Node-graph motif: 3px nodes joined by hairlines --- */
-.node {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-tertiary);
-  flex-shrink: 0;
-}
-.node.active {
-  background: var(--orchid);
-  box-shadow: 0 0 2px 1px rgba(231, 166, 214, 0.55);
-}
-.node-spine {
-  flex: 1;
-  height: 1px;
-  background: var(--hairline);
-}
 
 /* --- Recharts overrides: thin strokes, dotted grid, no blue --- */
 .recharts-cartesian-grid line {
@@ -299,3 +255,15 @@ tbody td { padding: 9px 10px; }
 ::-webkit-scrollbar-track { background: var(--canvas-deep); }
 ::-webkit-scrollbar-thumb { background: #2A2624; border-radius: 0; border: 3px solid var(--canvas-deep); }
 ::-webkit-scrollbar-thumb:hover { background: #3A3532; }
+
+/* --- Prax thought card: enters from the organism, never bounces --- */
+@keyframes prax-thought-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes prax-thought-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+}

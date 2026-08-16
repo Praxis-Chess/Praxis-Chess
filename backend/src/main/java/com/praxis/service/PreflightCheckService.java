@@ -1,6 +1,7 @@
 package com.praxis.service;
 
 import com.praxis.config.AppProperties;
+import com.praxis.service.voice.TtsClient;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,10 +28,12 @@ public class PreflightCheckService {
 
     private final DataSource dataSource;
     private final AppProperties props;
+    private final TtsClient tts;
 
-    public PreflightCheckService(DataSource dataSource, AppProperties props) {
+    public PreflightCheckService(DataSource dataSource, AppProperties props, TtsClient tts) {
         this.dataSource = dataSource;
         this.props = props;
+        this.tts = tts;
     }
 
     @PostConstruct
@@ -39,7 +42,21 @@ public class PreflightCheckService {
         checkPostgres();
         checkOllama();
         checkStockfish();
+        checkTts();
         log.info("=== Preflight complete — open http://localhost:8086 ===");
+    }
+
+    private void checkTts() {
+        if (!props.ttsEnabled()) {
+            log.info("[SKIP] Prax voice disabled in config");
+            return;
+        }
+        if (tts.isHealthy()) {
+            log.info("[OK] Prax TTS reachable at {}", props.ttsBaseUrl());
+        } else {
+            log.warn("[WARN] Prax TTS not reachable at {} — Prax will stay silent. "
+                    + "Start it with: cd tts-service && python main.py", props.ttsBaseUrl());
+        }
     }
 
     private void checkPostgres() {

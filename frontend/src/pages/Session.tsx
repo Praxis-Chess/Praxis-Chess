@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { Card, AttemptRating, Session as SessionType } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { praxBus, PraxAnchor } from '../prax/PraxHost'
 
 type Stage = 'solving' | 'rating' | 'done'
 
@@ -81,8 +82,10 @@ function CardView({ card, sessionId, onRated }: {
       setBoardFen(chess.fen())
       setCorrect(true)
       setStage('rating')
+      praxBus.emit({ type: 'DRILL_CORRECT' })
     } else {
       setWrong(true)
+      praxBus.emit({ type: 'DRILL_WRONG' })
       setTimeout(() => setWrong(false), 500)
     }
   }
@@ -152,6 +155,10 @@ function CardView({ card, sessionId, onRated }: {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: 24 }}>
+      {/* The board is centred and this route has no nav, so Prax sits high and
+          right — out of the way of the position, still present while you work. */}
+      <PraxAnchor x={0.86} y={0.24} />
+
       {/* Header */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         {card.severity && (

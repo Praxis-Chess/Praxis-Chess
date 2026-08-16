@@ -46,6 +46,12 @@ public class AnalysisPipelineOrchestrator {
         progressTracker.start(games.size());
 
         for (Game game : games) {
+            if (progressTracker.isStopRequested()) {
+                log.info("Analysis stopped by user after {} of {} games",
+                        progressTracker.getCompleted(), games.size());
+                progressTracker.finish();
+                return;
+            }
             try {
                 // Each game commits independently via REQUIRES_NEW — crash mid-run
                 // loses only the in-flight game; all prior games remain ANALYZED.

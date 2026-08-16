@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { TodayInsight } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { PraxAnchor, praxThoughts, praxBus, useFocusIntent, praxInteract } from '../prax/PraxHost'
 
 function EvidenceRow({ label, value }: { label: string; value: string }) {
   return (
@@ -42,7 +43,7 @@ function InsightCard({ insight, onStartSession }: { insight: TodayInsight; onSta
       </div>
 
       <button
-        onClick={() => setEvidenceOpen(o => !o)}
+        onClick={() => { setEvidenceOpen(o => !o); praxInteract('EVIDENCE_OPENED') }}
         className="secondary"
         style={{ fontSize: '0.75rem', padding: '4px 10px', color: 'var(--text-muted)' }}
       >
@@ -87,6 +88,7 @@ function DueCount() {
 
 export function Today() {
   const navigate = useNavigate()
+  const focus = useFocusIntent('insight')
 
   const { data: insight, isLoading, isError } = useQuery({
     queryKey: ['today-insight'],
@@ -94,7 +96,24 @@ export function Today() {
     staleTime: 5 * 60_000,
   })
 
+  // Register the prose, then announce the finding. Events carry ids, not text
+  // (Contract §1) — the Thought layer resolves content by id.
+  useEffect(() => {
+    if (!insight) return
+    const id = 'today-focus'
+    praxThoughts.set(id, {
+      text: insight.title,
+      evidence: [
+        { label: insight.evidence.metric, value: insight.evidence.value },
+        { label: 'sample', value: `${insight.evidence.sample_size} games` },
+      ],
+      examineHref: '/insights',
+    })
+    praxBus.emit({ type: 'INSIGHT_FOUND', insightId: id, confidence: 0.9, importance: 'high' })
+  }, [insight])
+
   async function startSession() {
+    praxInteract('DRILL_STARTED')
     const session = await api.sessions.start()
     navigate(`/session/${session.id}`)
   }
@@ -131,8 +150,13 @@ export function Today() {
       )}
 
       {insight && (
-        <InsightCard insight={insight} onStartSession={startSession} />
+        <div {...focus}>
+          <InsightCard insight={insight} onStartSession={startSession} />
+        </div>
       )}
+
+      {/* Page decides placement; renderer decides motion — Contract §4. */}
+      <PraxAnchor x={0.62} y={0.47} />
     </div>
   )
 }

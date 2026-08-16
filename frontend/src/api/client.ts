@@ -68,6 +68,11 @@ export const api = {
     reanalyzeAll: () =>
       request<{ message: string; games_queued: number }>('/analysis/reanalyze', { method: 'POST' }),
     progress: () => request<AnalysisProgress>('/analysis/progress'),
+    /** Honoured between games — the run ends after the one in flight. */
+    stop: () =>
+      request<{ stopping: boolean; completed: number; total: number }>('/analysis/stop', {
+        method: 'POST',
+      }),
   },
 
   insights: {

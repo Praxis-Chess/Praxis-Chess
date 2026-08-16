@@ -89,11 +89,55 @@ public class StockfishService {
                     if (s != null) score = s;
                 }
             }
-            return score;
+            // UCI reports `score cp` from the SIDE TO MOVE's perspective, but the
+            // whole pipeline assumes White's. Without this the sign flips every
+            // ply, so consecutive evals show a phantom swing on every move —
+            // which is what drove game accuracy down to single digits.
+            return score == null ? null : (blackToMove(fen) ? -score : score);
         } catch (IOException e) {
             log.warn("Stockfish evaluation error: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Evaluation at a fixed depth, single PV. In pawns, White's perspective.
+     *
+     * evaluate() searches for 100ms, which is right for bulk pipeline work and
+     * wrong for anything compared against evaluateWithMultiPV's `go depth N`.
+     * Mixing the two made every played move look as good as the engine's choice,
+     * because the shallow search overstates — a comparison is only valid between
+     * searches of the same depth.
+     */
+    public synchronized Double evaluateAtDepth(String fen, int depth) {
+        ensureAlive();
+        if (!isAvailable()) return null;
+        try {
+            send("setoption name MultiPV value 1");
+            send("position fen " + fen);
+            send("go depth " + depth);
+
+            Double score = null;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("bestmove")) break;
+                if (line.startsWith("info") && line.contains(" score ")) {
+                    Double s = parseScore(line);
+                    if (s != null) score = s;
+                }
+            }
+            return score == null ? null : (blackToMove(fen) ? -score : score);
+        } catch (IOException e) {
+            log.warn("Stockfish depth evaluation error: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /** FEN field 2 is the side to move: "w" or "b". */
+    private static boolean blackToMove(String fen) {
+        if (fen == null) return false;
+        String[] parts = fen.trim().split("\\s+");
+        return parts.length > 1 && "b".equalsIgnoreCase(parts[1]);
     }
 
     // Returns top-N engine lines at given depth. Used for mistake candidates.
@@ -128,7 +172,10 @@ public class StockfishService {
 
             send("setoption name MultiPV value 1");
 
-            double topScore = scoreByRank.getOrDefault(1, 0.0);
+            // Same perspective correction as evaluate() — MultiPV scores come
+            // from the side to move as well.
+            double sign = blackToMove(fen) ? -1.0 : 1.0;
+            double topScore = scoreByRank.getOrDefault(1, 0.0) * sign;
             return new MultiPVResult(topScore, bestMoveUci, List.copyOf(pvByRank.values()));
         } catch (IOException e) {
             log.warn("Stockfish MultiPV error: {}", e.getMessage());

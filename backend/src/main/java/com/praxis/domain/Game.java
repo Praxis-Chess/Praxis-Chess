@@ -71,6 +71,20 @@ public class Game {
     @Column(name = "accuracy")
     private Double accuracy;
 
+    /**
+     * Is this accuracy a real measurement?
+     *
+     * A stored 0.0 is never one. computeAccuracy() used to return 0.0 when it
+     * could not measure a game, which made a failure indistinguishable from a
+     * catastrophically bad game — and 61 of 100 games ended up holding it,
+     * dragging every average to nonsense (a 15.4% "average accuracy") and making
+     * the trend chart look like improvement as the zeros aged out of the moving
+     * window. A genuine chess accuracy of exactly 0.0 does not occur.
+     */
+    public boolean hasAccuracy() {
+        return accuracy != null && accuracy > 0.0;
+    }
+
     // Highest evaluation (pawns) the player reached in the game, from their perspective.
     // Powers winning-position conversion analytics. Null until analyzed.
     @Column(name = "max_advantage")

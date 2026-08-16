@@ -17,15 +17,17 @@
 7. [Analysis Pipeline](#analysis-pipeline)
 8. [AI Reasoning Flow](#ai-reasoning-flow)
 9. [Pattern Aggregation](#pattern-aggregation)
-10. [Frontend Architecture](#frontend-architecture)
-11. [Backend Architecture](#backend-architecture)
-12. [Progress Tracking](#progress-tracking)
-13. [Key Design Decisions](#key-design-decisions)
-14. [REST API Reference](#rest-api-reference)
-15. [Non-Functional Considerations](#non-functional-considerations)
-16. [Future Considerations](#future-considerations)
-17. [Hardware Reality](#hardware-reality)
-18. [How It All Connects (High Level)](#how-it-all-connects-high-level)
+10. [Prax — The Reasoning Layer](#prax--the-reasoning-layer)
+11. [Prax — Presence & Voice](#prax--presence--voice)
+12. [Frontend Architecture](#frontend-architecture)
+13. [Backend Architecture](#backend-architecture)
+14. [Progress Tracking](#progress-tracking)
+15. [Key Design Decisions](#key-design-decisions)
+16. [REST API Reference](#rest-api-reference)
+17. [Non-Functional Considerations](#non-functional-considerations)
+18. [Future Considerations](#future-considerations)
+19. [Hardware Reality](#hardware-reality)
+20. [How It All Connects (High Level)](#how-it-all-connects-high-level)
 
 ---
 
@@ -92,8 +94,16 @@ to the React frontend via a Spring Boot REST API.
 | Chess engine | Stockfish | AVX2 binary |
 | Chess parsing (BE) | chesslib | 1.3.3 |
 | Local LLM runtime | Ollama | latest |
-| LLM model | qwen2.5:7b | 7B params |
+| Analysis model | `qwen2.5:7b` (move + report) | 7B params |
+| Reasoning model | `qwen3:4b-instruct` (Prax agent, tool calling) | 4B params |
+| Text-to-speech | Kokoro-82M ONNX, CPU-only, FastAPI sidecar | 82M params |
+| Prax rendering | Three.js `Points` + custom GLSL | r160+ |
 | Async executor | Spring `@Async` + `ThreadPoolTaskExecutor` | — |
+
+The two LLM roles are deliberately separate models. The analysis models run in
+batch and the reasoning model runs interactively; sharing one would make a
+long re-analysis block every question the player asks, and on a 4 GB card the
+two cannot be resident at once. See [Hardware Reality](#hardware-reality).
 
 ---
 
@@ -545,6 +555,190 @@ position with `react-chessboard` and validates the user's move against the engin
 
 ---
 
+## Prax — The Reasoning Layer
+
+`com.praxis.prax` is a tool-calling agent that answers questions about the
+player's own games. It is architecturally separate from the analysis pipeline:
+the pipeline writes rows, Prax reads them and reasons over them.
+
+The governing constraint is that **a small local model must never be trusted to
+originate a fact**. Every layer below exists to make invention structurally
+impossible rather than merely discouraged.
+
+```
+prax/
+  intelligence/ChessIntelligence      deterministic analytics over Postgres
+  tools/ToolRegistry, ToolResult      11 tools + JSON schemas for Ollama
+  chat/PraxAgent                      the bounded loop
+  chat/OllamaChatClient               /api/chat with tools
+  chat/PraxPrompt                     voice + rules of evidence
+  chat/PraxResponse, EvidenceValidator  the reply contract and its enforcement
+  evidence/PositionEvidenceBuilder    board-computed chess facts
+  evidence/ChessFact, Evidence        fact and citation types
+```
+
+### The bounded loop
+
+`PraxAgent.run()` is bounded in three dimensions — **6 turns, 10 tool calls,
+120 s wall clock**. On breach it withholds the tool list, which is what forces a
+final answer. An unbounded loop driven by a 4B model is a hang, not a feature.
+
+Two subtleties that were load-bearing bugs before they were fixed:
+
+- **Call ids are run-scoped, not response-scoped.** The chat client restarts its
+  index every response, so three turns each produced `tc_1` and every citation
+  resolved to whichever tool ran last — silently breaking the entire evidence
+  guarantee while still looking valid.
+- **Only the current turn's results are appended** to the message list. Re-sending
+  the whole map each turn duplicated every earlier result, overflowed `num_ctx`,
+  and Ollama answers overflow by truncating — producing an empty final message.
+
+### The tools
+
+| Tool | Returns | Provenance |
+|---|---|---|
+| `get_player_profile` | rating, games, accuracy, colour splits | PLAYER_DATA |
+| `get_opening_performance` | per-opening games, win rate, accuracy | PLAYER_DATA |
+| `get_phase_performance` | error counts by opening/middlegame/endgame | PLAYER_DATA |
+| `get_mistake_patterns` | motif frequency, filterable by phase | PLAYER_DATA |
+| `find_games` | game list by opening, colour, result, recency | PLAYER_DATA |
+| `get_game` | one game with up to 8 errors, blunders first | PLAYER_DATA |
+| `find_mistakes` | **worst individual moves, worst first** | PLAYER_DATA |
+| `recommend_openings` | deterministic ranking with rationale | PLAYER_DATA |
+| `get_progress` | drill deck health and recall rates | PLAYER_DATA |
+| `analyze_position` | engine eval, best move, `verifiedFacts` | ENGINE |
+
+`find_mistakes` closed a real gap: "show me my worst blunder" had no tool that
+answered it. The aggregates report motif frequencies and `find_games` filters
+whole games, so the model had to guess a game and hope it contained the blunder.
+It guessed wrong every time, and twice covered for that by inventing an
+explanation. Ordering is by **win-percentage drop**, not severity label — a
+blunder that threw away a won position outranks one played in a lost game.
+
+### Verified facts, not engine numbers
+
+`analyze_position` does not hand the model a FEN and an evaluation. It returns
+`verifiedFacts`: statements computed from the board with chesslib, each with an
+id. Kinds include `WALKS_INTO_MATE`, `MISSED_MATE`, `EVAL_LOSS`, `NO_LOSS`,
+`BEST_MOVE`, `PLAYED_MOVE`, `CAPTURE`, `CHECK`, `ATTACKS`, `HANGS`, `DEFENDED`,
+`ESCAPES_ATTACK`, `PRINCIPAL_VARIATION`.
+
+Three rules make these safe to show a player:
+
+1. **Every eval names the side.** "Black is ahead by 6.92 pawns", never "-6.92
+   from White's perspective". Signed-perspective phrasing is correct and
+   unreadable, and the model inverted it — reading −6.77 as "Black was deeply
+   behind" for a position Black was winning.
+2. **Mate scores keep their owner.** `Math.abs(score) >= 90` made "I have mate"
+   and "I get mated" the same value, so a move that walked into mate in 2 was
+   reported as costing nothing. Scores are flipped into the mover's frame before
+   any comparison.
+3. **Both sides of a comparison use the same search.** `StockfishService.evaluate()`
+   searches `movetime 100`; `evaluateWithMultiPV()` searches `go depth N`.
+   Comparing them is meaningless and biased — the shallow search overstates, so
+   the played move always looked as good as the engine's choice.
+   `evaluateAtDepth()` exists solely to make the comparison valid.
+
+### The auto-chain
+
+`find_mistakes` names the move but says nothing about why it was bad, and the
+model would not take the next step on its own — told the reason was
+unavailable, it relayed *that* to the player ("I would need to call
+analyze_position") rather than calling it.
+
+`ToolRegistry.followUp()` declares the dependency and `PraxAgent` executes it.
+The chained `analyze_position` gets **its own call id and its own step entry**,
+so provenance stays exact and the extra call is visible in the UI rather than
+hidden. Bounded to the top row, one extra engine run, `depth 14`.
+
+### Evidence and citation
+
+```mermaid
+flowchart LR
+    T[Tool result\ncallId · provenance · sampleSize] --> M[Model cites\nlabel · value · callId]
+    M --> V{EvidenceValidator}
+    V -->|id resolves| K[Kept]
+    V -->|no resolvable source| D[Dropped]
+    V -->|tool errored| D
+    V -->|PLAYER_DATA with no digit| D
+    K -->|sampleSize < 5| U[Kept, marked underpowered]
+```
+
+Three provenance classes never blur: `PLAYER_DATA` (Postgres + deterministic
+analyzers), `ENGINE` (Stockfish), `KNOWLEDGE` (general chess). The frontend tags
+the latter two so an engine number is never mistaken for something measured
+about the player.
+
+A claim whose `callId` does not resolve **never reaches the player**. This is
+the mechanism, not the instruction — a prompt asking a model not to invent
+statistics is a request.
+
+### Template rendering
+
+The final defect after all of the above was the model paraphrasing correct facts
+into incorrect English. So it no longer writes them.
+
+The model returns `facts: ["f8", "f2"]` — ids only — and the backend renders
+those statements **word for word** into a `findings` array shown above the
+prose. Selection is the model's; wording is not. The worst it can do is pick a
+less relevant *true* statement. If it selects nothing usable, `PraxAgent` falls
+back to payload order, which is sorted decisive-first, so the verified account
+reaches the player even when the model's own output is poor.
+
+> **Known limitation.** The prompt instructs the model not to describe the
+> position in its prose, since the findings already do. It does not reliably
+> comply. The prose is therefore redundant rather than load-bearing — a player
+> reading only the findings gets an accurate account. Closing this properly
+> means making the final call without position data in context, so there is
+> nothing to describe.
+
+---
+
+## Prax — Presence & Voice
+
+Prax is also a visual presence: a single persistent WebGL canvas rendering
+~1,600 particles as one `THREE.Points` draw call, present on every page.
+
+```
+prax/
+  core/         constants (all tunables), seeded RNG, event types
+  geometry/     particle generation — seeded, so the form is stable across reloads
+  motion/       Spring, Envelope, EnvelopeFollower primitives; state → motion params
+  renderer/     PraxCanvas, createPraxPoints, GLSL shaders
+  state/        runtime FSM, render policy, progress narration
+  anchor/       per-page anchor registry and relocation controller
+  interaction/  pointer, dwell-based focus intent
+  voice/        Kokoro + mock voice adapters, audio graph
+  ui/           PraxStack, PraxAsk, PraxProgress, PraxThought, PraxHitTarget
+```
+
+**Three-layer separation.** Semantic state (an FSM over `dormant`, `aware`,
+`thinking`, `insight`, `speaking`) drives motion parameters, which drive GPU
+uniforms. React never runs the animation loop — it mounts the canvas and emits
+events into it.
+
+**The vertex shader assembly order is a fixed contract:** breathing → drift
+(coherence-decorrelated) → insight cluster contraction → analyze sweep band →
+sync crater → expansion → pointer. Deformation uses fBm octaves where amplitude
+falls as frequency rises; equal-amplitude waves cancel back into a sphere.
+
+**Narration is deterministic.** During analysis, `progressNarrator` produces
+operational, observational and resolved messages from structured progress
+events — not from the LLM. A message about a run that is happening now should
+not wait on a model, and cannot be allowed to invent numbers about it.
+
+**Voice** is a local Kokoro-82M ONNX model in a FastAPI sidecar (`tts-service/`,
+port 8087), deliberately **CPU-only** — the GPU is reserved for Ollama. It is
+optional: with `praxis-chess.tts.enabled: false` or the service down, Prax stays
+silent and fully functional.
+
+> Adding a behaviour, wiring a new signal, or reshaping the organism itself is
+> covered in depth by **[PRAX.md](PRAX.md)** — the event→state→motion→GPU
+> pipeline, the motion primitives, the vertex assembly contract, the DOM
+> placement system, and the invariants that are easy to break by accident.
+
+---
+
 ## Frontend Architecture
 
 ```mermaid
@@ -819,6 +1013,7 @@ race condition on the status poll.
 | `POST` | `/api/sync` | Trigger incremental sync (new months only). Body: `{username, months}`. Returns 202. |
 | `POST` | `/api/sync/force-resync` | Force re-fetch last N months from Chess.com. Body: `{months}`. Returns 202. |
 | `GET` | `/api/sync/status` | Returns `{state, games_fetched, games_analyzed, games_pending, last_synced_at}` |
+| `GET` | `/api/sync/new-count` | Games available upstream that are not yet stored — drives the "new games" banner |
 | `POST` | `/api/analysis/reanalyze` | Reset all games to PENDING and queue full reanalysis. Returns 200. |
 | `POST` | `/api/analysis/analyze-pending` | Queue only PENDING games (non-destructive resume). Returns `{message, games_queued}`. |
 | `GET` | `/api/analysis/progress` | Returns `{running, pattern_generating, queued, completed, total, percent_complete, eta_seconds}` |
@@ -831,8 +1026,21 @@ race condition on the status poll.
 | `GET` | `/api/patterns` | Current `PlayerPattern` for the configured user |
 | `GET` | `/api/training-plan` | Most recent `TrainingPlan` |
 | `POST` | `/api/training-plan/generate` | Generate a new training plan from current pattern data |
+| `POST` | `/api/analysis/stop` | Request a cooperative stop of the running analysis. Returns 200. |
+| `POST` | `/api/games/{id}/analyze` | Queue a single game for analysis |
+| `GET` | `/api/today` | The day's session: what is due, what to work on |
+| `GET` | `/api/progress` | Drill deck health — cards due, learning, review, per-phase recall |
+| `GET` | `/api/sessions/{id}` | Drill session state |
+| `GET` | `/api/sessions/{id}/next` | Next card in the session |
+| `POST` | `/api/sessions/{id}/attempt` | Submit an attempt + FSRS rating. Body: `{card_id, rating, ...}` |
+| `GET` | `/api/prax/status` | `{available}` — probed at startup; false hides the chat entry point |
+| `POST` | `/api/prax/ask` | Ask Prax. Body: `{question}`. Returns `{answer, findings, evidence, steps, partial, model}` |
+| `POST` | `/api/prax/reset` | Clear conversation history. Returns 204. |
+| `GET` | `/api/voice/status` | `{available}` — whether the TTS sidecar is reachable |
+| `POST` | `/api/voice/speak` | Synthesize speech. Body: `{text, voice, speed}`. Returns WAV audio. |
 
-All endpoints return `application/json`. No authentication — single-user local tool.
+All endpoints return `application/json` (except `/api/voice/speak`, which returns
+`audio/wav`). No authentication — single-user local tool.
 Frontend proxies `/api/*` to `http://localhost:8086` via Vite's `server.proxy` config.
 
 ---
@@ -897,14 +1105,37 @@ The system is tuned for this specific hardware configuration:
 |---|---|---|
 | CPU | AMD Ryzen 7 7735HS (8c/16t) | Stockfish evaluation, Spring Boot |
 | RAM | 24 GB DDR5 4800 MT/s | Ollama host model buffer (2.4 GB pinned) + JVM + OS |
-| GPU 0 | AMD Radeon 680M (iGPU) | Display only |
-| GPU 1 | NVIDIA RTX 3050 Laptop 4 GB | Ollama CUDA inference (4 GB VRAM fully used) |
+| GPU 0 | AMD Radeon 680M (iGPU) | Display and compositing only — never inference |
+| GPU 1 | NVIDIA RTX 3050 Laptop 4 GB | Ollama CUDA inference (partial offload — see below) |
 | Storage | Micron 2500 NVMe 954 GB (C: + D: same disk) | PostgreSQL (Docker WSL2 on D:), page file on D: |
+
+**Measured GPU placement** (`ollama ps` + `nvidia-smi`, reasoning model loaded):
+
+```
+NAME                SIZE     PROCESSOR
+qwen3:4b-instruct   3.6 GB   18%/82% CPU/GPU
+
+RTX 3050: 2948 MiB / 4096 MiB used
+```
+
+4 GB is a hard ceiling. 3.6 GB of weights plus the KV cache for `num_ctx: 4096`
+does not fit, so Ollama leaves ~18% of layers on the CPU. Dropping `num_ctx`
+would fit the rest, at the cost of the context the agent needs for tool results
+— which is what caused empty-answer failures before it was raised.
+
+> **Task Manager under-reports this.** Its GPU graphs default to the 3D / Copy /
+> Video engines; CUDA work appears only under **Compute_0**, which must be
+> selected manually. A reading of 0% on the NVIDIA GPU while the AMD iGPU sits
+> at 70% is the expected appearance of a correctly working setup, not a
+> misconfiguration.
+
+**Stockfish is CPU-only by design** and is the dominant load during a
+re-analysis run. The single synchronized engine process is shared with
+`analyze_position`, so Prax questions asked during a re-analysis are slow.
 
 **Memory pressure during analysis:**
 
 ```
-RTX 3050 VRAM (4 GB):     ████████████████████ 100% — model GPU layers
 Host RAM — model buffer:  ████████░░░░░░░░░░░░  2.4 GB pinned non-pageable
 Host RAM — system + JVM:  ████████████░░░░░░░░  ~19 GB in use during analysis
 Page file (D: drive):     grows to ~23 GB to back committed virtual memory

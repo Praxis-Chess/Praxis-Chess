@@ -102,8 +102,14 @@ public class GameAnalysisTransactionService {
 
         List<Double> scores = positionEvaluator.evaluateAll(parsedGame.moves());
 
-        if (game.getAccuracy() == null && !scores.isEmpty()) {
-            game.setAccuracy(computeAccuracy(parsedGame, scores));
+        // `!hasAccuracy()` rather than `== null`: a stored 0.0 is a failed
+        // measurement from an earlier run, and `0.0 != null` meant re-analysis
+        // could never replace it — the reason Re-analyze All never cleared the
+        // zeros. computeAccuracy now returns null when it cannot measure, so a
+        // failure stays visibly absent instead of masquerading as a score.
+        if (!game.hasAccuracy() && !scores.isEmpty()) {
+            Double computed = computeAccuracy(parsedGame, scores);
+            if (computed != null) game.setAccuracy(computed);
         }
 
         // Analytics source data (conversion + time management)
@@ -276,7 +282,7 @@ public class GameAnalysisTransactionService {
      * This matches the chess.com display and eliminates the mate-sentinel distortion
      * that plagued the old ACPL formula (mate ±100 pawns → ACPL ≈ 400 → accuracy ≈ 0).
      */
-    private double computeAccuracy(ParsedGame game, List<Double> scores) {
+    private Double computeAccuracy(ParsedGame game, List<Double> scores) {
         boolean playerIsWhite = "white".equals(game.playerColor());
         double totalAccuracy = 0.0;
         int moveCount = 0;
@@ -299,7 +305,13 @@ public class GameAnalysisTransactionService {
             moveCount++;
         }
 
-        if (moveCount == 0) return 0.0;
+        // Null, not 0.0. "I could not measure this game" and "this game scored
+        // zero" are different facts and must not share a representation.
+        if (moveCount == 0) {
+            log.warn("No player moves matched ({} moves, colour {}) — accuracy left unmeasured",
+                    game.moves().size(), game.playerColor());
+            return null;
+        }
         return Math.round((totalAccuracy / moveCount) * 10.0) / 10.0;
     }
 

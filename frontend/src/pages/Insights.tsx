@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { PraxAnchor } from '../prax/PraxHost'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, Cell,
@@ -65,7 +66,10 @@ export function Insights() {
   }))
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    // Insights is the one page whose analytics span the full column, leaving no
+    // negative space for Prax. Capping the width opens the right-hand column the
+    // other pages already have — Prax occupies space rather than competing for it.
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 'min(100%, 860px)' }}>
       <div>
         <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Insights</h2>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -277,6 +281,8 @@ export function Insights() {
           </div>
         ) : <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No opening data yet.</p>}
       </div>
+      {/* Right of the capped analytics column, clear of KPI cards and charts. */}
+      <PraxAnchor x={0.85} y={0.45} />
     </div>
   )
 }

@@ -12,6 +12,7 @@ import { PatternReport } from './pages/PatternReport'
 import { TrainingPlan } from './pages/TrainingPlan'
 import { Insights } from './pages/Insights'
 import { Drills } from './pages/Drills'
+import { PraxHost } from './prax/PraxHost'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,9 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
+
+        {/* Mounted once, never unmounted — particle identity survives navigation. */}
+        <PraxHost />
       </BrowserRouter>
     </QueryClientProvider>
   )

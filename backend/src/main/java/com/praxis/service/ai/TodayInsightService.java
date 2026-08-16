@@ -1,6 +1,7 @@
 package com.praxis.service.ai;
 
 import com.praxis.config.AppProperties;
+import com.praxis.domain.Game;
 import com.praxis.domain.MoveError;
 import com.praxis.domain.enums.GamePhase;
 import com.praxis.domain.enums.Severity;
@@ -124,10 +125,10 @@ public class TodayInsightService {
                 .orElse("POSITIONAL");
 
         long games = gameRepository.findByUsernameOrderByPlayedAtDesc(username).stream()
-                .filter(g -> g.getAccuracy() != null).count();
+                .filter(Game::hasAccuracy).count();
         double avgAcc = gameRepository.findByUsernameOrderByPlayedAtDesc(username).stream()
-                .filter(g -> g.getAccuracy() != null)
-                .mapToDouble(g -> g.getAccuracy())
+                .filter(Game::hasAccuracy)
+                .mapToDouble(Game::getAccuracy)
                 .average().orElse(0);
 
         return new AvailableFields(
