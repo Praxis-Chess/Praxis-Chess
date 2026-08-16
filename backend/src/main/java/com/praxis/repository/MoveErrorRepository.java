@@ -21,6 +21,18 @@ public interface MoveErrorRepository extends JpaRepository<MoveError, UUID> {
         """)
     List<MoveError> findAllByUsername(String username);
 
+    /**
+     * As above, but with the game loaded. MoveError.game is LAZY and the prax
+     * analytics run outside a transaction, so anything that reads e.getGame()
+     * must fetch it here or take a LazyInitializationException.
+     */
+    @Query("""
+        SELECT me FROM MoveError me
+        JOIN FETCH me.game g
+        WHERE g.username = :username
+        """)
+    List<MoveError> findAllByUsernameWithGame(@Param("username") String username);
+
     // Only mistakes where LLM produced an explanation — used for motif frequency
     @Query("""
         SELECT me FROM MoveError me

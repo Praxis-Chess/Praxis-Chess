@@ -5,8 +5,8 @@ export function Layout() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <nav style={{
-        background: 'var(--surface)',
-        borderBottom: '1px solid var(--border)',
+        background: 'var(--canvas-deep)',
+        borderBottom: '1px solid var(--hairline)',
         padding: '0 24px',
         display: 'flex',
         alignItems: 'center',
@@ -16,34 +16,28 @@ export function Layout() {
         top: 0,
         zIndex: 100,
       }}>
-        <span style={{
-          fontWeight: 700,
-          fontSize: '1rem',
-          color: 'var(--accent)',
-          marginRight: 8,
-          borderBottom: '2px solid transparent',
-          paddingBottom: 2,
-        }}>
-          Praxis
-        </span>
+        <img
+          src="/praxis_logo.png"
+          alt="Praxis"
+          style={{ height: 28, width: 'auto', marginRight: 8, display: 'block' }}
+        />
         {[
-          { to: '/', label: 'Dashboard' },
-          { to: '/games', label: 'Games' },
-          { to: '/insights', label: 'Insights' },
-          { to: '/drills', label: 'Drills' },
-          { to: '/patterns', label: 'Patterns' },
-          { to: '/training', label: 'Training Plan' },
+          { to: '/',          label: 'Today'    },
+          { to: '/progress',  label: 'Progress' },
+          { to: '/library',   label: 'Library'  },
+          { to: '/insights',  label: 'Insights' },
         ].map(({ to, label }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/'}
             style={({ isActive }) => ({
-              color: isActive ? 'var(--text)' : 'var(--text-muted)',
+              color: isActive ? 'var(--orchid)' : 'var(--text-secondary)',
               fontWeight: isActive ? 600 : 400,
-              fontSize: '0.875rem',
-              borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
-              paddingBottom: 2,
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+              borderBottom: isActive ? '1px solid var(--orchid)' : '1px solid transparent',
+              paddingBottom: 3,
             })}
           >
             {label}

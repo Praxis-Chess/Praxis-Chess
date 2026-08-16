@@ -90,7 +90,7 @@ public class InsightsService {
 
     private List<AccuracyTrendPoint> accuracyTrend(List<Game> gamesDesc) {
         List<Game> withAcc = gamesDesc.stream()
-                .filter(g -> g.getAccuracy() != null && g.getPlayedAt() != null)
+                .filter(g -> g.hasAccuracy() && g.getPlayedAt() != null)
                 .sorted(Comparator.comparing(Game::getPlayedAt))
                 .toList();
 
@@ -270,7 +270,7 @@ public class InsightsService {
 
     private Double avgAccuracy(List<Game> games) {
         double[] accs = games.stream()
-                .filter(g -> g.getAccuracy() != null)
+                .filter(Game::hasAccuracy)
                 .mapToDouble(Game::getAccuracy)
                 .toArray();
         if (accs.length == 0) return null;

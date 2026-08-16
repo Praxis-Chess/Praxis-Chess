@@ -102,7 +102,7 @@ public class DashboardController {
 
         // Accuracy stats
         DoubleSummaryStatistics accStats = games.stream()
-                .filter(g -> g.getAccuracy() != null)
+                .filter(Game::hasAccuracy)
                 .mapToDouble(Game::getAccuracy)
                 .summaryStatistics();
         Double avgAccuracy  = accStats.getCount() > 0 ? Math.round(accStats.getAverage() * 10) / 10.0 : null;

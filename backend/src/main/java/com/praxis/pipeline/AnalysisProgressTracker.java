@@ -12,11 +12,14 @@ public class AnalysisProgressTracker {
     private volatile boolean running = false;
     private volatile boolean patternGenerating = false;
     private volatile boolean queued = false;
+    /** Set by the user; honoured between games, never mid-game. */
+    private volatile boolean stopRequested = false;
     private final AtomicInteger completed = new AtomicInteger(0);
     private volatile int total = 0;
     private volatile Instant startedAt = null;
 
     public void start(int totalGames) {
+        this.stopRequested = false;   // a stale flag would abort every future run
         this.queued = false;
         this.total = totalGames;
         this.completed.set(0);
@@ -26,6 +29,13 @@ public class AnalysisProgressTracker {
     }
 
     public void setQueued(boolean v) { this.queued = v; }
+
+    /**
+     * Each game commits independently (REQUIRES_NEW), so breaking between games
+     * leaves a consistent library — every finished game stays ANALYZED.
+     */
+    public void requestStop() { this.stopRequested = true; }
+    public boolean isStopRequested() { return stopRequested; }
 
     public void increment() {
         completed.incrementAndGet();
@@ -40,6 +50,7 @@ public class AnalysisProgressTracker {
         this.patternGenerating = false;
     }
 
+    public boolean isStopping() { return stopRequested && running; }
     public boolean isRunning() { return running; }
     public boolean isQueued() { return queued; }
     public boolean isPatternGenerating() { return patternGenerating; }

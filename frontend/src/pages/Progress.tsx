@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { DailyStat } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { PraxAnchor } from '../prax/PraxHost'
 
 function pct(n: number, d: number) {
   return d === 0 ? 0 : Math.round((n / d) * 100)
@@ -175,6 +176,9 @@ export function Progress() {
           </div>
         )}
       </div>
+
+      {/* Right of the analytics column — Contract §4. */}
+      <PraxAnchor x={0.74} y={0.45} />
     </div>
   )
 }

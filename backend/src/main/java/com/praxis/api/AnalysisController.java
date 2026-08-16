@@ -78,8 +78,19 @@ public class AnalysisController {
 
         int pct = total > 0 ? (int) ((completed * 100.0) / total) : 0;
         return ResponseEntity.ok(new AnalysisProgressDto(
-                running, patternGen, queued, completed, total, pct,
+                running, patternGen, queued, progressTracker.isStopping(), completed, total, pct,
                 progressTracker.getEtaSeconds()));
+    }
+
+    /** Honoured between games, so the library is never left half-written. */
+    @PostMapping("/stop")
+    public ResponseEntity<Map<String, Object>> stop() {
+        boolean wasRunning = progressTracker.isRunning();
+        progressTracker.requestStop();
+        return ResponseEntity.ok(Map.of(
+                "stopping", wasRunning,
+                "completed", progressTracker.getCompleted(),
+                "total", progressTracker.getTotal()));
     }
 
     @Transactional

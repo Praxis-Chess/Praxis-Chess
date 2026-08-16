@@ -56,8 +56,20 @@ praxis-chess:
     model: qwen2.5:7b          # fallback if move-model / report-model not set
     move-model: qwen2.5:7b    # per-move explanations (×N per game) — try qwen3:4b for 3× speedup
     report-model: qwen2.5:7b  # pattern report + training plan (×2 total, quality matters)
+    # Prax chat agent. Separate from the analysis models so a batch run and a
+    # live conversation don't compete for VRAM. Must support tool calling.
+    # Use the -instruct tag: plain `qwen3:4b` resolves to the Thinking variant,
+    # which spends its whole output budget inside <think> and returns an empty
+    # answer. ~3.6GB — mostly fits a 4GB card, ~18% of layers stay on CPU.
+    reasoning-model: qwen3:4b-instruct
   chess-com:
     username: YOUR_CHESS_COM_USERNAME_HERE
+  tts:
+    # Local Prax voice (Kokoro-82M on CPU). Optional — without it Prax stays
+    # silent but fully functional. Start with: cd tts-service && python main.py
+    enabled: true
+    base-url: http://127.0.0.1:8087
+
   stockfish:
     # Download from https://stockfishchess.org/download/ → Windows → stockfish_..._win_x86-64-avx2.exe
     # Rename the .exe to stockfish.exe and paste the path here (use forward slashes)

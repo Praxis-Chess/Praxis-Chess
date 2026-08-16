@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { GameSummary } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { praxInteract, PraxAnchor } from '../prax/PraxHost'
 
 type Tab = 'games' | 'drills'
 
@@ -21,7 +22,7 @@ function GameRow({ g }: { g: GameSummary }) {
   const date = g.played_at ? new Date(g.played_at).toLocaleDateString() : '—'
   const resultColor = g.result === 'win' ? 'var(--gain)' : g.result === 'loss' ? 'var(--red)' : 'var(--text-muted)'
   return (
-    <Link to={`/games/${g.id}`} style={{ textDecoration: 'none' }}>
+    <Link to={`/games/${g.id}`} style={{ textDecoration: 'none' }} onClick={() => praxInteract('GAME_SELECTED')}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
                     borderRadius: 6, cursor: 'pointer', transition: 'background 0.12s' }}
            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
@@ -81,7 +82,7 @@ function GamesList() {
         type="text"
         placeholder="Filter by opening, result…"
         value={search}
-        onChange={e => setSearch(e.target.value)}
+        onChange={e => { setSearch(e.target.value); praxInteract('FILTER_CHANGED') }}
         style={{ width: '100%', maxWidth: 360, padding: '7px 12px', borderRadius: 6,
                  background: 'var(--surface-2)', border: '1px solid var(--hairline)',
                  color: 'var(--text)', fontSize: '0.85rem', marginBottom: 16, outline: 'none', boxSizing: 'border-box' }}
@@ -168,7 +169,7 @@ export function Library() {
         {(['games', 'drills'] as Tab[]).map(t => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => { setTab(t); praxInteract('SECONDARY_ACTION') }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               padding: '8px 16px', fontSize: '0.85rem', fontWeight: tab === t ? 600 : 400,
@@ -185,6 +186,9 @@ export function Library() {
       <div>
         {tab === 'games' ? <GamesList /> : <DrillArchive />}
       </div>
+
+      {/* Right of the list, vertically centred — Contract §4. */}
+      <PraxAnchor x={0.72} y={0.45} />
     </div>
   )
 }

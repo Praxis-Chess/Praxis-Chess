@@ -47,6 +47,8 @@ export interface AnalysisProgress {
   running: boolean
   pattern_generating: boolean
   queued: boolean
+  /** Stop requested; ends after the game currently in flight. */
+  stopping: boolean
   completed: number
   total: number
   percent_complete: number
@@ -248,4 +250,98 @@ export interface Drill {
   explanation: string | null
   player_color: string
   game_id: string | null
+}
+
+// --- Drill sessions (FSRS) ---
+
+export type CardStatus = 'NEW' | 'LEARNING' | 'REVIEW' | 'SUSPENDED'
+export type AttemptRating = 'AGAIN' | 'HARD' | 'GOOD' | 'EASY'
+
+export interface Card {
+  id: string
+  fen_position: string
+  /** The mistake move, SAN. */
+  move_played: string | null
+  /** Engine best move, UCI. */
+  better_move: string | null
+  severity: Severity | null
+  tactical_motif: TacticalMotif | null
+  game_phase: GamePhase | null
+  player_color: string | null
+  explanation: string | null
+  status: CardStatus
+  interval_days: number
+  due_date: string
+  review_count: number
+  lapse_count: number
+  game_id: string | null
+}
+
+export interface Session {
+  id: string
+  cards_total: number
+  cards_completed: number
+  budget_minutes: number
+  completed: boolean
+  started_at: string
+  completed_at: string | null
+}
+
+export interface AttemptRequest {
+  card_id: string
+  /** UCI, or null when the answer was revealed. */
+  move_played: string | null
+  correct: boolean
+  rating: AttemptRating
+  response_ms: number | null
+}
+
+// --- Progress ---
+
+export interface DeckSummary {
+  total_cards: number
+  new_cards: number
+  learning_cards: number
+  review_cards: number
+  suspended_cards: number
+}
+
+export interface PhaseBreakdown {
+  opening_correct: number
+  opening_total: number
+  middlegame_correct: number
+  middlegame_total: number
+  endgame_correct: number
+  endgame_total: number
+}
+
+export interface DailyStat {
+  date: string
+  reviewed: number
+  correct: number
+  again: number
+  accuracy: number
+  avg_interval_days: number | null
+  phases: PhaseBreakdown
+}
+
+export interface Progress {
+  deck_summary: DeckSummary
+  /** Last 30 days, ascending. */
+  history: DailyStat[]
+}
+
+// --- Today page (LLM insight) ---
+
+export interface TodayEvidence {
+  metric: string
+  value: string
+  sample_size: number
+}
+
+export interface TodayInsight {
+  title: string
+  evidence: TodayEvidence
+  action: string
+  expected_minutes: number
 }

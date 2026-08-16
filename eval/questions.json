@@ -1,0 +1,420 @@
+{
+  "_comment": [
+    "The evaluation set for Prax's tool use. Each case declares what a CORRECT",
+    "run looks like, not what the current model happens to do — so the file is a",
+    "spec, and a regression is a diff against it rather than a vibe.",
+    "",
+    "Fields:",
+    "  id            stable key; keep it when editing wording so history compares",
+    "  category      grouping for the scorecard",
+    "  question      exactly what is POSTed",
+    "  expectTools   MUST all be called. Empty [] means: call nothing.",
+    "  allowTools    may be called without counting as unnecessary",
+    "  forbidTools   calling these is a hard failure",
+    "  requireEvidence   answer must carry >= 1 validated citation",
+    "  requireFindings   answer must carry >= 1 verbatim engine finding",
+    "  maxCalls      above this counts as an over-long loop",
+    "  mustNotSay    substrings that indicate a known failure mode"
+  ],
+
+  "cases": [
+    {
+      "id": "smalltalk-greeting",
+      "category": "small talk",
+      "question": "Hi Prax!",
+      "expectTools": [], "allowTools": [], "forbidTools": [],
+      "requireEvidence": false, "requireFindings": false, "maxCalls": 0,
+      "mustNotSay": ["win rate", "accuracy", "%"]
+    },
+    {
+      "id": "smalltalk-thanks",
+      "category": "small talk",
+      "question": "Thanks, that helps.",
+      "expectTools": [], "allowTools": [], "forbidTools": [],
+      "requireEvidence": false, "requireFindings": false, "maxCalls": 0,
+      "mustNotSay": []
+    },
+    {
+      "id": "smalltalk-howareyou",
+      "category": "small talk",
+      "question": "How are you?",
+      "expectTools": [], "allowTools": [], "forbidTools": [],
+      "requireEvidence": false, "requireFindings": false, "maxCalls": 0,
+      "mustNotSay": ["%"]
+    },
+
+    {
+      "id": "profile-overview",
+      "category": "profile",
+      "question": "How am I doing overall?",
+      "expectTools": ["get_player_profile"],
+      "allowTools": ["get_phase_performance", "get_opening_performance", "get_mistake_patterns"],
+      "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 4,
+      "mustNotSay": ["I don't have access"]
+    },
+    {
+      "id": "profile-strength",
+      "category": "profile",
+      "question": "What is my strong area in chess?",
+      "expectTools": ["get_player_profile"],
+      "allowTools": ["get_phase_performance", "get_opening_performance"],
+      "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 4,
+      "mustNotSay": ["I don't have access", "I'll look into it"]
+    },
+    {
+      "id": "profile-weakness",
+      "category": "profile",
+      "question": "Where am I weakest?",
+      "expectTools": [],
+      "allowTools": ["get_player_profile", "get_phase_performance", "get_mistake_patterns", "get_opening_performance"],
+      "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 4,
+      "mustNotSay": ["I don't have access"]
+    },
+    {
+      "id": "profile-rating",
+      "category": "profile",
+      "question": "How many games have I played and what's my rating?",
+      "expectTools": ["get_player_profile"],
+      "allowTools": [], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 2,
+      "mustNotSay": []
+    },
+    {
+      "id": "profile-colour-split",
+      "category": "profile",
+      "question": "Am I better with White or with Black?",
+      "expectTools": ["get_player_profile"],
+      "allowTools": ["get_opening_performance", "get_phase_performance"],
+      "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+
+    {
+      "id": "openings-best",
+      "category": "openings",
+      "question": "Which opening do I play best?",
+      "expectTools": ["get_opening_performance"],
+      "allowTools": ["get_player_profile"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+    {
+      "id": "openings-worst",
+      "category": "openings",
+      "question": "Which openings am I losing most with?",
+      "expectTools": ["get_opening_performance"],
+      "allowTools": ["get_player_profile", "find_games"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+    {
+      "id": "openings-recommend",
+      "category": "openings",
+      "question": "Which opening should I invest time in learning?",
+      "expectTools": ["recommend_openings"],
+      "allowTools": ["get_opening_performance", "get_player_profile"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+    {
+      "id": "openings-as-white",
+      "category": "openings",
+      "question": "What should I play as White?",
+      "expectTools": ["recommend_openings"],
+      "allowTools": ["get_opening_performance", "get_player_profile"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+    {
+      "id": "openings-specific",
+      "category": "openings",
+      "question": "How do I do in the Sicilian?",
+      "expectTools": ["get_opening_performance"],
+      "allowTools": ["find_games", "get_player_profile"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+
+    {
+      "id": "phase-weakest",
+      "category": "phases",
+      "question": "Which phase of the game do I lose the most points in?",
+      "expectTools": ["get_phase_performance"],
+      "allowTools": ["get_player_profile", "get_mistake_patterns"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+    {
+      "id": "phase-endgame",
+      "category": "phases",
+      "question": "Am I bad at endgames?",
+      "expectTools": ["get_phase_performance"],
+      "allowTools": ["get_player_profile", "get_mistake_patterns"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+    {
+      "id": "phase-opening-errors",
+      "category": "phases",
+      "question": "Do I make most of my mistakes early or late in the game?",
+      "expectTools": ["get_phase_performance"],
+      "allowTools": ["get_mistake_patterns", "get_player_profile"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+
+    {
+      "id": "motifs-common",
+      "category": "motifs",
+      "question": "What tactical patterns do I miss most often?",
+      "expectTools": ["get_mistake_patterns"],
+      "allowTools": ["get_player_profile", "get_phase_performance"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+    {
+      "id": "motifs-forks",
+      "category": "motifs",
+      "question": "Do I hang pieces a lot?",
+      "expectTools": ["get_mistake_patterns"],
+      "allowTools": ["get_player_profile"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+    {
+      "id": "motifs-in-opening",
+      "category": "motifs",
+      "question": "What mistakes do I keep making in the opening?",
+      "expectTools": ["get_mistake_patterns"],
+      "allowTools": ["get_phase_performance", "get_player_profile"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+
+    {
+      "id": "blunder-worst",
+      "category": "blunders",
+      "question": "Show me my worst blunder and explain why it was bad",
+      "expectTools": ["find_mistakes", "analyze_position"],
+      "allowTools": ["get_game", "get_player_profile"],
+      "forbidTools": [],
+      "requireEvidence": true, "requireFindings": true, "maxCalls": 4,
+      "mustNotSay": ["I don't have access", "severe flaw in the position assessment", "contradicting the evaluation"]
+    },
+    {
+      "id": "blunder-recent",
+      "category": "blunders",
+      "question": "What was my biggest mistake recently?",
+      "expectTools": ["find_mistakes"],
+      "allowTools": ["analyze_position", "get_game", "find_games"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": true, "maxCalls": 4,
+      "mustNotSay": []
+    },
+    {
+      "id": "blunder-endgame",
+      "category": "blunders",
+      "question": "Show me a blunder I made in an endgame",
+      "expectTools": ["find_mistakes"],
+      "allowTools": ["analyze_position", "get_game"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": true, "maxCalls": 4,
+      "mustNotSay": []
+    },
+    {
+      "id": "blunder-why-bad",
+      "category": "blunders",
+      "question": "Why was my last blunder bad?",
+      "expectTools": ["find_mistakes", "analyze_position"],
+      "allowTools": ["get_game"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": true, "maxCalls": 4,
+      "mustNotSay": ["I can't establish"]
+    },
+    {
+      "id": "blunder-adversarial-vague",
+      "category": "blunders",
+      "question": "It's bad. You can see for yourself.",
+      "expectTools": [],
+      "allowTools": ["get_player_profile", "find_mistakes", "analyze_position", "get_mistake_patterns", "get_phase_performance", "get_game"],
+      "forbidTools": [],
+      "requireEvidence": false, "requireFindings": false, "maxCalls": 5,
+      "mustNotSay": ["I'll look into it", "let me check", "I will check"]
+    },
+
+    {
+      "id": "drills-today",
+      "category": "drills",
+      "question": "How many drills did I do today?",
+      "expectTools": ["get_progress"],
+      "allowTools": [], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 2,
+      "mustNotSay": ["I don't have access", "not available in the current data set"]
+    },
+    {
+      "id": "drills-due",
+      "category": "drills",
+      "question": "How many cards are due?",
+      "expectTools": ["get_progress"],
+      "allowTools": [], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 2,
+      "mustNotSay": ["I don't have access"]
+    },
+    {
+      "id": "drills-recall",
+      "category": "drills",
+      "question": "Is my drill recall improving?",
+      "expectTools": ["get_progress"],
+      "allowTools": ["get_player_profile"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": ["I don't have access"]
+    },
+    {
+      "id": "drills-practice",
+      "category": "drills",
+      "question": "What should I practise next?",
+      "expectTools": [],
+      "allowTools": ["get_progress", "get_mistake_patterns", "get_phase_performance", "recommend_openings", "get_player_profile"],
+      "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 4,
+      "mustNotSay": ["I don't have access"]
+    },
+
+    {
+      "id": "games-recent",
+      "category": "games",
+      "question": "What were my last three games?",
+      "expectTools": ["get_recent_games"],
+      "allowTools": ["find_games"], "forbidTools": [],
+      "requireEvidence": false, "requireFindings": false, "maxCalls": 2,
+      "mustNotSay": []
+    },
+    {
+      "id": "games-losses",
+      "category": "games",
+      "question": "Show me games I lost as Black",
+      "expectTools": ["find_games"],
+      "allowTools": ["get_recent_games"], "forbidTools": [],
+      "requireEvidence": false, "requireFindings": false, "maxCalls": 2,
+      "mustNotSay": []
+    },
+    {
+      "id": "games-last-loss-detail",
+      "category": "games",
+      "question": "Walk me through the mistakes in my most recent loss",
+      "expectTools": [],
+      "allowTools": ["find_games", "get_recent_games", "get_game", "find_mistakes", "analyze_position"],
+      "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 5,
+      "mustNotSay": []
+    },
+
+    {
+      "id": "trend-accuracy",
+      "category": "trends",
+      "question": "Is my accuracy getting better?",
+      "expectTools": ["get_player_profile"],
+      "allowTools": ["get_recent_games", "find_games", "get_opening_performance"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+    {
+      "id": "trend-improving",
+      "category": "trends",
+      "question": "Am I improving?",
+      "expectTools": [],
+      "allowTools": ["get_player_profile", "get_progress", "get_recent_games", "get_phase_performance"],
+      "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 4,
+      "mustNotSay": []
+    },
+
+    {
+      "id": "scope-general-knowledge",
+      "category": "out of scope",
+      "question": "What is the Sicilian Najdorf, in general terms?",
+      "expectTools": [],
+      "allowTools": ["get_opening_performance", "get_player_profile"], "forbidTools": [],
+      "requireEvidence": false, "requireFindings": false, "maxCalls": 2,
+      "mustNotSay": ["I don't have access"]
+    },
+    {
+      "id": "scope-non-chess",
+      "category": "out of scope",
+      "question": "What's the weather today?",
+      "expectTools": [],
+      "allowTools": [], "forbidTools": ["find_mistakes", "analyze_position", "get_progress"],
+      "requireEvidence": false, "requireFindings": false, "maxCalls": 1,
+      "mustNotSay": ["%"]
+    },
+    {
+      "id": "scope-unanswerable",
+      "category": "out of scope",
+      "question": "What will my rating be next month?",
+      "expectTools": [],
+      "allowTools": ["get_player_profile", "get_recent_games"], "forbidTools": [],
+      "requireEvidence": false, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+
+    {
+      "id": "position-explain",
+      "category": "positions",
+      "question": "Explain the position after my worst opening mistake",
+      "expectTools": ["find_mistakes"],
+      "allowTools": ["analyze_position", "get_game"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": true, "maxCalls": 4,
+      "mustNotSay": []
+    },
+    {
+      "id": "position-better-move",
+      "category": "positions",
+      "question": "What should I have played instead in my worst blunder?",
+      "expectTools": ["find_mistakes", "analyze_position"],
+      "allowTools": ["get_game"], "forbidTools": [],
+      "requireEvidence": true, "requireFindings": true, "maxCalls": 4,
+      "mustNotSay": []
+    },
+
+    {
+      "id": "followup-ambiguous",
+      "category": "adversarial",
+      "question": "And as White?",
+      "expectTools": [],
+      "allowTools": ["get_player_profile", "get_opening_performance", "recommend_openings", "get_phase_performance"],
+      "forbidTools": [],
+      "requireEvidence": false, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": ["I'll look into it"]
+    },
+    {
+      "id": "adversarial-assertion",
+      "category": "adversarial",
+      "question": "I'm clearly a strong endgame player, right?",
+      "expectTools": [],
+      "allowTools": ["get_phase_performance", "get_player_profile", "get_mistake_patterns"],
+      "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+    {
+      "id": "adversarial-demand-number",
+      "category": "adversarial",
+      "question": "Just tell me my blunder rate, don't check anything.",
+      "expectTools": [],
+      "allowTools": ["get_player_profile", "get_mistake_patterns", "get_phase_performance"],
+      "forbidTools": [],
+      "requireEvidence": true, "requireFindings": false, "maxCalls": 3,
+      "mustNotSay": []
+    },
+    {
+      "id": "adversarial-empty-ish",
+      "category": "adversarial",
+      "question": "?",
+      "expectTools": [],
+      "allowTools": ["get_player_profile"], "forbidTools": [],
+      "requireEvidence": false, "requireFindings": false, "maxCalls": 2,
+      "mustNotSay": []
+    }
+  ]
+}

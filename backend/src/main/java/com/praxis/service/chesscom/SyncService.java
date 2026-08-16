@@ -83,7 +83,16 @@ public class SyncService {
 
             for (int i = 0; i < months; i++) {
                 YearMonth ym = current.minusMonths(i);
-                if (syncHistoryRepository.existsByUsernameAndYearAndMonth(effectiveUsername, ym.getYear(), ym.getMonthValue())) {
+
+                // A completed month is immutable — once synced it can never gain
+                // games, so the history record is a valid cache. The CURRENT month
+                // is still accumulating, so it must be re-fetched every time.
+                // Skipping it made "Sync Now" a no-op for exactly the games the
+                // user just played, which is the only reason to press it.
+                boolean isCurrentMonth = ym.equals(current);
+                if (!isCurrentMonth
+                        && syncHistoryRepository.existsByUsernameAndYearAndMonth(
+                                effectiveUsername, ym.getYear(), ym.getMonthValue())) {
                     log.debug("Month {}/{} already synced, skipping", ym.getYear(), ym.getMonthValue());
                     continue;
                 }
@@ -113,13 +122,22 @@ public class SyncService {
                     persisted++;
                 }
 
-                SyncHistory history = SyncHistory.builder()
-                        .username(effectiveUsername)
-                        .year(ym.getYear())
-                        .month(ym.getMonthValue())
-                        .gamesFetched(persisted)
-                        .build();
-                syncHistoryRepository.save(history);
+                // Upsert, not insert. The current month is now re-synced on every
+                // press, so a blind insert would add a duplicate row each time.
+                final int persistedCount = persisted;
+                syncHistoryRepository
+                        .findByUsernameAndYearAndMonth(effectiveUsername, ym.getYear(), ym.getMonthValue())
+                        .ifPresentOrElse(
+                                existing -> {
+                                    existing.setGamesFetched(existing.getGamesFetched() + persistedCount);
+                                    syncHistoryRepository.save(existing);
+                                },
+                                () -> syncHistoryRepository.save(SyncHistory.builder()
+                                        .username(effectiveUsername)
+                                        .year(ym.getYear())
+                                        .month(ym.getMonthValue())
+                                        .gamesFetched(persistedCount)
+                                        .build()));
 
                 gamesFetched.addAndGet(persisted);
                 log.info("Synced {}/{}: {} new games", ym.getYear(), ym.getMonthValue(), persisted);

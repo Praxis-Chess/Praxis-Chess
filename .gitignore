@@ -26,3 +26,4 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 "application.yml" 
+"tts-service/models/*.onnx" 

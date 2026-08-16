@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
+import { praxInteract } from '../prax/PraxHost'
 import { useSyncStatus } from '../hooks/useSyncStatus'
 import { useAnalysisProgress } from '../hooks/useAnalysisProgress'
 
@@ -82,7 +83,9 @@ export function SyncStatusBanner() {
 
   return (
     <>
-      <div style={{
+      {/* Carries the primary sync/analyze controls, so the Prax card measures
+          this rather than guessing a header height and covering them. */}
+      <div data-prax-avoid="" style={{
         background: isActive ? 'var(--accent-dim)' : 'var(--surface)',
         borderBottom: '1px solid var(--border)',
         padding: '6px 24px',
@@ -136,7 +139,7 @@ export function SyncStatusBanner() {
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button
-              onClick={() => analyzePendingMutation.mutate()}
+              onClick={() => { praxInteract('PRIMARY_ACTION'); analyzePendingMutation.mutate() }}
               disabled={isBusy || !hasPending}
               className="secondary"
               style={{ padding: '4px 10px', fontSize: '0.72rem', color: hasPending ? 'var(--accent)' : undefined }}
@@ -145,7 +148,7 @@ export function SyncStatusBanner() {
               {analyzePendingMutation.isPending ? 'Queuing...' : `▶ Analyze Pending${hasPending ? ` (${status?.games_pending})` : ''}`}
             </button>
             <button
-              onClick={() => reanalyzeAllMutation.mutate()}
+              onClick={() => { praxInteract('PRIMARY_ACTION'); reanalyzeAllMutation.mutate() }}
               disabled={isBusy}
               className="secondary"
               style={{ padding: '4px 10px', fontSize: '0.72rem' }}
@@ -154,7 +157,7 @@ export function SyncStatusBanner() {
               {reanalyzeAllMutation.isPending ? 'Queuing...' : '⟳ Re-analyze All'}
             </button>
             <button
-              onClick={() => forceResyncMutation.mutate()}
+              onClick={() => { praxInteract('SYNC_STARTED'); forceResyncMutation.mutate() }}
               disabled={isBusy}
               className="secondary"
               style={{ padding: '4px 10px', fontSize: '0.72rem' }}
@@ -164,7 +167,7 @@ export function SyncStatusBanner() {
             </button>
             <button
               className="solid"
-              onClick={() => syncMutation.mutate()}
+              onClick={() => { praxInteract('SYNC_STARTED'); syncMutation.mutate() }}
               disabled={isBusy}
               style={{ padding: '4px 12px', fontSize: '0.75rem', position: 'relative' }}
               title={newGamesCount > 0 ? `${newGamesCount} new game${newGamesCount !== 1 ? 's' : ''} available on Chess.com` : undefined}
