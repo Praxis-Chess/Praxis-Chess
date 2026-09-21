@@ -5,7 +5,7 @@ import { Chessboard } from 'react-chessboard'
 import { Chess, type Square } from 'chess.js'
 import { api } from '../api/client'
 import type {
-  AnalysisProgress, AnalysisStage, ImprovementReport, MoveResult,
+  GameAnalysisProgress, AnalysisStage, ImprovementReport, MoveResult,
   PlaySession, PracticeGameSummary,
 } from '../api/types'
 import { PracticePatterns } from '../components/PracticePatterns'
@@ -314,7 +314,7 @@ export function PlayImprove() {
    * being polled, and are the practice game's own.
    */
   const [elapsed, setElapsed] = useState<number | null>(null)
-  const [progress, setProgress] = useState<AnalysisProgress | null>(null)
+  const [progress, setProgress] = useState<GameAnalysisProgress | null>(null)
   const [colour, setColour] = useState<'weak' | 'white' | 'black'>('weak')
 
   const pollRef = useRef<number | null>(null)
