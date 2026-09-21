@@ -66,7 +66,7 @@ export function OpeningDistribution({ data, totalGames }: Props) {
                 background: 'var(--surface-2)', borderRadius: 8, padding: '12px 14px',
                 borderLeft: '2px solid var(--accent)',
               }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)', gap: 10, marginBottom: 10 }}>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedStat.games}</div>
                     <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>Games</div>

@@ -108,7 +108,7 @@ to the React frontend via a Spring Boot REST API.
 | Prax rendering | Three.js `Points` + custom GLSL | r160+ |
 | Async executor | Spring `@Async` + `ThreadPoolTaskExecutor` | — |
 | Backend tests | JUnit 5 + AssertJ + Mockito | 176 tests |
-| E2E tests | Playwright (chromium + mobile projects) | 200 tests |
+| E2E tests | Playwright (chromium + narrow-window projects) | see `frontend/e2e` |
 
 The two LLM roles are deliberately separate models. The analysis models run in
 batch and the reasoning model runs interactively; sharing one would make a
@@ -1140,7 +1140,7 @@ e2e/
   fixtures/ApiMock.ts    intercepts /api/, 501s on any unmocked call
   fixtures/data.ts       fixture payloads
   pages/                 page objects
-  tests/                 the mocked suite (chromium + mobile projects)
+  tests/                 the mocked suite (chromium + a 683px narrow-window project)
   live/contract.spec.ts  @live — against the real Spring backend
 ```
 

@@ -93,11 +93,19 @@ export default defineConfig({
       grepInvert: /@live/,
     },
     {
-      // The layout collapses below ~1100px in several places. Worth one project
-      // rather than a scattering of setViewportSize calls.
-      name: 'mobile',
-      use: { ...devices['Pixel 7'] },
+      // A narrow DESKTOP window, not a phone. Praxis runs on localhost — the
+      // backend, Postgres, Ollama and Stockfish are all on this machine — so
+      // nobody opens it on a phone. What does happen is a laptop window snapped
+      // to half the screen: 683x768 is exactly half of a 1366x768 display, the
+      // commonest laptop resolution.
+      //
+      // This replaced a Pixel 7 project. Phone emulation tested a device no user
+      // has, and its quirks (touch, a layout viewport that widens to fit content)
+      // cost CI failures that said nothing about the app people actually use.
+      name: 'narrow',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 683, height: 768 } },
       grepInvert: /@live/,
+      // axe results don't depend on the window width; one run is enough.
       testIgnore: /a11y\.spec\.ts/,
     },
     // Registered only on request — see wantsLive above.

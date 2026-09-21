@@ -6,7 +6,7 @@ import * as data from '../fixtures/data'
  * The Prax column floats over the page at z-index 60 and its cards are
  * pointer-events:auto, so anywhere it lands it takes clicks away from whatever
  * is underneath. On desktop it sits in the empty gutter beside <main> and that
- * is fine. On a phone there is no gutter, and the card was landing mid-page —
+ * is fine. In a narrow window there is no gutter, and the card was landing mid-page —
  * silently eating the Resign button, which looked like a dead button rather
  * than like an overlay.
  *
@@ -38,7 +38,7 @@ async function controlsCovered(page: import('@playwright/test').Page) {
 }
 
 for (const viewport of [
-  { name: 'phone', width: 375, height: 812 },
+  { name: 'a very narrow window', width: 375, height: 812 },
   { name: 'desktop', width: 1280, height: 800 },
 ]) {
   test(`the Prax card covers no clickable control on ${viewport.name}`, async ({ page, api }) => {
@@ -58,7 +58,7 @@ for (const viewport of [
   })
 }
 
-test('the card docks to the bottom edge on a phone', async ({ page, api }) => {
+test('the card docks to the bottom edge in a very narrow window', async ({ page, api }) => {
   api.json('/api/analysis/progress', data.analysisRunning)
   await page.setViewportSize({ width: 375, height: 812 })
 

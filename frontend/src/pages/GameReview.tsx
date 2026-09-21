@@ -7,6 +7,7 @@ import { ARROW_NEUTRAL, ARROW_PLAYED_BAD, buildArrows } from '../components/move
 import { useGameReview } from '../hooks/useGameReview'
 import type { ReviewMove, Severity } from '../api/types'
 import { PraxAnchor } from '../prax/PraxHost'
+import { BoardSplit } from '../components/BoardSplit'
 
 const SEVERITIES: Severity[] = ['BLUNDER', 'MISTAKE', 'INACCURACY']
 
@@ -157,8 +158,9 @@ export function GameReview() {
         )}
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 24, alignItems: 'start' }}>
-        <div style={{ position: 'sticky', top: 16 }}>
+      <BoardSplit boardBasis={380} gap={24} stickyBoard>
+        {/* Sticky is applied by BoardSplit, and only while side by side. */}
+        <div>
           <div className="card" style={{ padding: 12 }}>
             <ChessBoard
               fen={current.fen_before}
@@ -232,7 +234,7 @@ export function GameReview() {
             </div>
           </div>
         </div>
-      </div>
+      </BoardSplit>
 
       <PraxAnchor x={0.95} y={0.38} />
     </div>

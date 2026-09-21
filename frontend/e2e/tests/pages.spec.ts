@@ -13,19 +13,13 @@ test.describe('Today', () => {
     await expect(page.getByRole('button', { name: /Show evidence/i })).toBeVisible()
   })
 
-  /**
-   * Desktop only, and the reason is the harness rather than the app.
-   *
-   * Under Chromium's mobile emulation Playwright's actionability check never
-   * settles for this button, even though it is stable across frames, inside the
-   * viewport, on top at its own centre and pointer-events:auto. A forced click
-   * opens the disclosure correctly, which is how we know the app is fine and the
-   * hit test is not. Asserting the interaction on desktop keeps the coverage
-   * without pinning a known emulation quirk into the suite.
-   */
-  test('evidence is reachable, with its sample size', async ({ page, isMobile }) => {
-    test.skip(!!isMobile, 'Playwright mobile-emulation hit test; verified working via force click')
-
+  // This used to be skipped under phone emulation as a "harness quirk": the
+  // click never settled although the button was on top at its own centre. That
+  // is the symptom of a page wider than the device — the browser widens the
+  // layout viewport and clicks stop landing where they're aimed — which
+  // layout-width.spec.ts now guards against. The phone project is gone; this
+  // runs everywhere.
+  test('evidence is reachable, with its sample size', async ({ page }) => {
     const app = new AppPage(page)
     await app.goto('/')
 
