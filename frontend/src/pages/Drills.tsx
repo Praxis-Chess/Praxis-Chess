@@ -5,6 +5,7 @@ import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
 import { api } from '../api/client'
 import type { Drill } from '../api/types'
+import { PraxAnchor } from '../prax/PraxHost'
 
 const sevColor = (s: string) => (s === 'BLUNDER' ? 'var(--red)' : s === 'MISTAKE' ? 'var(--yellow)' : 'var(--text-muted)')
 const motifLabel = (m: string) => m.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')
@@ -162,6 +163,11 @@ export function Drills() {
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
           No drills yet. Analyze some games — every blunder with an engine best move becomes a puzzle here.
         </p>
+
+        {/* The empty state needs the anchor as much as the loaded one —
+            Prax is on the page either way, and a branch without it falls
+            back to the registry default. */}
+        <PraxAnchor x={0.9} y={0.45} />
       </div>
     )
   }
@@ -205,6 +211,12 @@ export function Drills() {
           onNext={next}
         />
       </div>
+
+      {/* Contract §4 — the PAGE decides where Prax belongs. Without this
+          the registry falls back to a fixed 0.68/0.46, which on this
+          layout is directly on top of the content. */}
+      {/* Right of the drill board. */}
+      <PraxAnchor x={0.9} y={0.45} />
     </div>
   )
 }

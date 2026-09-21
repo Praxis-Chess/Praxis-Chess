@@ -4,7 +4,82 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { TodayInsight } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { weekOf, WEEKDAY_LABELS, type DayCell } from '../components/practiceDates'
 import { PraxAnchor, praxThoughts, praxBus, useFocusIntent, praxInteract } from '../prax/PraxHost'
+
+/**
+ * This week, Mon–Sun.
+ *
+ * Sits inside the content column with a hard width cap. The previous version
+ * used `marginLeft: 'auto'` in a full-width row, which threw the dots a
+ * thousand pixels right into Prax's space where they read as unrelated debris.
+ *
+ * Five dot states, not three. A future day must not look like a missed one — on
+ * a Monday that would render six failures for days that have not happened.
+ */
+function WeeklyStreak() {
+  const { data } = useQuery({
+    queryKey: ['practice-streak'],
+    queryFn: () => api.practice.streak(),
+    staleTime: 60_000,
+  })
+
+  if (!data || data.total_days_practiced === 0) return null
+
+  const week = weekOf(data.today, new Set(data.practice_days))
+  const { current_streak: current, longest_streak: longest } = data
+  const ended = current === 0
+
+  return (
+    <div style={{ maxWidth: 540, marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontSize: '0.72rem', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
+          This week
+        </span>
+        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          {/* Ended is a statement and an open door, never a lament. */}
+          {ended
+            ? `Longest ${longest} days · Start again today`
+            : `${current} day streak · ${data.practiced_today ? 'Recorded today' : 'Keep it going'}`}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 4 }}>
+        {week.map((d, i) => (
+          <div key={d.date} style={{ flex: 1, textAlign: 'center' }} title={dayTitle(d)}>
+            <div style={{
+              fontSize: '0.62rem',
+              color: d.isToday ? 'var(--orchid)' : 'var(--text-muted)',
+              opacity: d.future ? 0.4 : 1,
+              marginBottom: 5,
+            }}>
+              {WEEKDAY_LABELS[i]}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <span style={{
+                width: d.isToday ? 10 : 8,
+                height: d.isToday ? 10 : 8,
+                borderRadius: '50%',
+                background: d.practiced ? 'var(--orchid)' : 'transparent',
+                // A future day is barely drawn; a missed one has a real edge.
+                border: d.practiced ? 'none'
+                      : d.future    ? '1px solid var(--hairline)'
+                                    : '1px solid var(--text-tertiary, #625C6D)',
+                opacity: d.future ? 0.35 : 1,
+                boxShadow: d.isToday ? '0 0 0 3px var(--accent-wash, rgba(231,166,214,0.12))' : 'none',
+              }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function dayTitle(d: DayCell): string {
+  if (d.future) return `${d.date} — upcoming`
+  return `${d.date} — ${d.practiced ? 'examined' : 'no activity'}`
+}
 
 function EvidenceRow({ label, value }: { label: string; value: string }) {
   return (
@@ -130,6 +205,7 @@ export function Today() {
       </div>
 
       <DueCount />
+      <WeeklyStreak />
 
       {isLoading && (
         <div className="card" style={{ padding: '16px 24px', maxWidth: 540 }}>

@@ -1,5 +1,6 @@
 import { mulberry32 } from '../core/random'
 import { PRAX_CONFIG } from '../core/constants'
+import { detailFor, icosphereCount, icosphereVertices } from './icosphere'
 
 /**
  * Per-particle attributes. Written once, never mutated — particle identity is
@@ -11,99 +12,43 @@ import { PRAX_CONFIG } from '../core/constants'
  */
 export interface PraxGeometryData {
   count: number
-  aRest: Float32Array //  3n — rest position on the deformed sphere
+  aRest: Float32Array //  3n — rest position on the UNDEFORMED sphere
   aCluster: Float32Array //  3n — centroid of this particle's cluster
   aSeed: Float32Array //   n — 0..1 stable per-particle random
   aPhase: Float32Array //   n — 0..2pi breathing offset
   aSize: Float32Array //   n — 0.6..1.4 size multiplier
 }
 
-type Wave = { dx: number; dy: number; dz: number; freq: number; phase: number; amp: number }
-type Octave = { freq: number; amp: number }
-
-/**
- * A weighted sum of plane waves over the sphere surface — this is the whole
- * silhouette.
- *
- * Amplitudes are normalised so the result stays in [-1, 1], but they are NOT
- * equal: a strong low-frequency term produces the big lobes while progressively
- * weaker high-frequency terms add surface irregularity. Equal amplitudes cancel
- * each other out and converge back toward a sphere.
- */
-function buildWaves(rand: () => number, octaves: readonly Octave[]): Wave[] {
-  const total = octaves.reduce((s, o) => s + o.amp, 0)
-  return octaves.map(({ freq, amp }) => {
-    // Uniform random direction on the unit sphere.
-    const z = rand() * 2 - 1
-    const t = rand() * Math.PI * 2
-    const r = Math.sqrt(1 - z * z)
-    return {
-      dx: Math.cos(t) * r,
-      dy: Math.sin(t) * r,
-      dz: z,
-      freq,
-      phase: rand() * Math.PI * 2,
-      amp: amp / total,
-    }
-  })
-}
-
-function sampleWaves(waves: Wave[], x: number, y: number, z: number): number {
-  let sum = 0
-  for (const w of waves) {
-    sum += w.amp * Math.sin((x * w.dx + y * w.dy + z * w.dz) * w.freq + w.phase)
-  }
-  return sum
-}
-
 /**
  * Deterministic geometry. Same seed in, same organism out, every reload.
  *
  * Pipeline (Contract §5):
- *   fibonacci sphere -> low-frequency deformation -> squash -> uneven thinning
- *   -> k-means clusters -> attributes
+ *   icosphere vertices -> per-particle attributes -> k-means clusters
+ *
+ * Deformation is NOT baked. It is sampled from 3D noise along each vertex's
+ * normal every frame, in the vertex shader — see shaders.ts step 0.
  */
 export function generatePraxGeometry(targetCount: number): PraxGeometryData {
   const rand = mulberry32(PRAX_CONFIG.SEED)
 
-  const deformWaves = buildWaves(rand, PRAX_CONFIG.DEFORM_OCTAVES)
-  const thinWaves = buildWaves(rand, [
-    { freq: PRAX_CONFIG.THIN_FREQ, amp: 1 },
-    { freq: PRAX_CONFIG.THIN_FREQ * 1.7, amp: 0.6 },
-    { freq: PRAX_CONFIG.THIN_FREQ * 3.1, amp: 0.35 },
-  ])
+  // ── The base is a PERFECT sphere, and that is the change. ──
+  //
+  // Previously the deformation was BAKED here: a fixed sum of plane waves
+  // squashed the ball once, at load, and the shader only jittered the result.
+  // So Prax was a static lumpy object with some animation on top — the lumps
+  // never moved, because they were geometry rather than motion.
+  //
+  // Now the rest position is an undeformed unit sphere and EVERY bulge comes
+  // from noise sampled per frame in the vertex shader. The surface reorganises
+  // continuously instead of wobbling in place.
+  const detail = detailFor(targetCount)
+  const aRest = icosphereVertices(detail)
+  const count = aRest.length / 3
 
-  // Oversample so that after thinning we land near the target count.
-  const candidates = Math.round(targetCount * 1.45)
-  const golden = Math.PI * (3 - Math.sqrt(5))
+  // Radius applied here rather than in the shader so the bounding sphere Three
+  // computes from `position` is the real one.
+  for (let i = 0; i < aRest.length; i++) aRest[i] *= PRAX_CONFIG.RADIUS
 
-  const kept: number[] = []
-
-  for (let i = 0; i < candidates; i++) {
-    // Fibonacci distribution — even coverage without pole clustering.
-    const y0 = 1 - (i / (candidates - 1)) * 2
-    const ring = Math.sqrt(Math.max(0, 1 - y0 * y0))
-    const theta = golden * i
-    let x = Math.cos(theta) * ring
-    let y = y0
-    let z = Math.sin(theta) * ring
-
-    // Uneven thinning: sparse patches keep the edge from reading as a clean circle.
-    const density = 0.5 + 0.5 * sampleWaves(thinWaves, x * 2, y * 2, z * 2)
-    if (rand() > 1 - PRAX_CONFIG.THIN_STRENGTH * (1 - density)) continue
-
-    // Low-frequency radial deformation — the hand-squeezed quality.
-    const d = sampleWaves(deformWaves, x, y, z)
-    const scale = PRAX_CONFIG.RADIUS * (1 + d * PRAX_CONFIG.DEFORM_AMPLITUDE)
-    x *= scale
-    y *= scale * PRAX_CONFIG.SQUASH_Y
-    z *= scale
-
-    kept.push(x, y, z)
-  }
-
-  const count = kept.length / 3
-  const aRest = new Float32Array(kept)
   const aSeed = new Float32Array(count)
   const aPhase = new Float32Array(count)
   const aSize = new Float32Array(count)
@@ -111,10 +56,17 @@ export function generatePraxGeometry(targetCount: number): PraxGeometryData {
   for (let i = 0; i < count; i++) {
     aSeed[i] = rand()
     aPhase[i] = rand() * Math.PI * 2
-    aSize[i] = 0.6 + rand() * 0.8
+    // Modest spread. Displacement drives most of the size variation now, and a
+    // wide static range on top of that reads as noise rather than as structure.
+    aSize[i] = 0.78 + rand() * 0.44
   }
 
   return { count, aRest, aCluster: buildClusters(aRest, count, rand), aSeed, aPhase, aSize }
+}
+
+/** Vertex count for a target, so callers can report what they actually got. */
+export function icosphereSizeFor(target: number): number {
+  return icosphereCount(detailFor(target))
 }
 
 /**

@@ -13,7 +13,12 @@ import java.util.UUID;
  *
  * Captures a rolling summary of key stats per calendar day so we can plot
  * per-motif accuracy trends without re-querying the full attempt history.
- * One row per (username, date) — upserted at session completion.
+ * One row per (username, date), upserted as work happens.
+ *
+ * This is also the practice ledger the streak is derived from. Deliberately not
+ * a second table: two tables keyed (username, date) both meaning "what happened
+ * that day" would eventually disagree, and this one was already being written on
+ * the drill path.
  */
 @Entity
 @Table(name = "metric_snapshots",
@@ -57,6 +62,36 @@ public class MetricSnapshot {
     /** Average interval of cards reviewed today (proxy for deck maturity). */
     @Column(name = "avg_interval_days")
     private Double avgIntervalDays;
+
+    // --- Practice ledger ---
+    //
+    // A row now means "something happened on this day", which is broader than the
+    // drill statistics above. An analysis-only day has cardsReviewed = 0 and a
+    // populated `activities`, so nothing may infer drills from a row existing.
+
+    /** CSV of MeaningfulActivity. Null on rows written before the ledger existed. */
+    @Column(name = "activities", length = 255)
+    private String activities;
+
+    /**
+     * Analysis runs finished today. Not games — Re-analyze All is one run.
+     *
+     * Integer, not int: ddl-auto adds this column to rows that already exist and
+     * leaves them NULL, and Hibernate cannot assign null to a primitive. Read it
+     * through {@link #analysisRunCount()} rather than the raw getter.
+     */
+    @Column(name = "analysis_runs")
+    @Builder.Default
+    private Integer analysisRuns = 0;
+
+    public int analysisRunCount() {
+        return analysisRuns == null ? 0 : analysisRuns;
+    }
+
+    /** True when this day counts toward the practice streak. */
+    public boolean isPracticeDay() {
+        return activities != null && !activities.isBlank();
+    }
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

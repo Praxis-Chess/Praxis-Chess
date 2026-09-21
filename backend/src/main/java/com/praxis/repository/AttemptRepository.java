@@ -20,6 +20,15 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
     @Query("DELETE FROM Attempt a WHERE a.card.username = :username")
     void deleteByCardUsername(@Param("username") String username);
 
+    /**
+     * Just the timestamps, for the practice-ledger backfill. Attempt has no
+     * username of its own, so it goes through the card; and only the instant is
+     * selected because loading a few thousand entities to read one field each
+     * would be the expensive way to ask a cheap question.
+     */
+    @Query("SELECT a.createdAt FROM Attempt a WHERE a.card.username = :username")
+    List<java.time.OffsetDateTime> findAttemptTimestamps(@Param("username") String username);
+
     /** Most-recent N attempts for a card — used to check graduation criteria. */
     @Query(value = """
         SELECT * FROM attempts WHERE card_id = :cardId

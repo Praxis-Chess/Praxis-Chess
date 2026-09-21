@@ -1,6 +1,10 @@
 import { useState, useSyncExternalStore, useRef, useEffect, useLayoutEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { praxInteract } from '../interaction/interactions'
 import { praxRuntime } from '../state/runtime'
+import { ArtifactList } from '../artifacts/ArtifactView'
+import { useWorkingWord, effortLine } from './workingWords'
+import type { PraxArtifact } from '../artifacts/types'
 
 /** Tiny open/closed store so anything can raise the card without prop-drilling. */
 type Listener = () => void
@@ -35,6 +39,19 @@ interface Step {
   tool: string
   sample_size: number
 }
+/**
+ * A web page that informed the answer.
+ *
+ * Deliberately NOT an Evidence row. That table means "a figure this backend
+ * computed"; a web page is someone else's prose that nothing here can verify.
+ * Blurring the two would cost the evidence table the property that makes it
+ * worth showing at all.
+ */
+interface Source {
+  title: string
+  domain: string
+  url: string
+}
 interface Answer {
   answer: string
   /** Verified chess statements, rendered by the backend. Never model prose. */
@@ -42,6 +59,22 @@ interface Answer {
   evidence: Evidence[]
   steps: Step[]
   partial: boolean
+  sources?: Source[]
+  /** PLAYER | GENERAL | HYBRID — which lane the router chose. */
+  lane?: string
+  /**
+   * How the answer earned the right to ship.
+   *
+   * GROUNDED         — evidence was acquired normally
+   * ESCALATED_TO_WEB — your library had nothing, so Prax searched instead
+   * REFUSED          — nothing could ground it, so nothing was claimed
+   */
+  grounding?: string
+  /**
+   * Things to show rather than describe. Built by the backend from tool
+   * results — the model never authors one.
+   */
+  artifacts?: PraxArtifact[]
 }
 
 /**
@@ -53,8 +86,12 @@ interface Answer {
  */
 export function PraxAsk() {
   const isOpen = useSyncExternalStore(praxAsk.subscribe, praxAsk.get)
+  const { pathname } = useLocation()
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
+  // A rotating word rather than a fixed line: twenty seconds of "Checking your
+  // games." reads as a frozen screen.
+  const workingWord = useWorkingWord(busy)
   const [res, setRes] = useState<Answer | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -83,7 +120,19 @@ export function PraxAsk() {
     el.style.height = `${el.scrollHeight}px`
   }, [q, isOpen])
 
-  if (!isOpen) return null
+  /**
+   * Never on the workspace.
+   *
+   * The card and /ask are two views of one thing; floating a second "Ask Prax"
+   * box over the page that already has one gives the player two inputs that do
+   * not share a transcript, so a question typed into the box vanishes from the
+   * conversation behind it.
+   *
+   * Guarded at the RENDER site rather than only at the click: PraxProgress also
+   * calls praxAsk.open(), and a route-change effect would not catch an open
+   * that happens while already here.
+   */
+  if (!isOpen || pathname === '/ask' || pathname.startsWith('/ask/')) return null
 
   async function ask() {
     const question = q.trim()
@@ -258,8 +307,12 @@ export function PraxAsk() {
       </div>
 
       {busy && (
-        <p style={{ margin: '11px 0 0', fontSize: '0.78rem', color: 'var(--text-muted, #8A8494)' }}>
-          Checking your games.
+        <p style={{
+          margin: '11px 0 0', fontSize: '0.78rem',
+          color: 'var(--text-muted, #8A8494)', fontStyle: 'italic',
+        }}>
+          {workingWord}
+          <span aria-hidden="true" style={{ opacity: 0.55 }}>…</span>
         </p>
       )}
 
@@ -312,6 +365,11 @@ export function PraxAsk() {
             {res.answer}
           </p>
 
+          {/* Above the evidence table on purpose. The table is the same facts in
+              numeric form — "Knight on c2 attacked · yes" — and once the board
+              is there, the numbers are the footnote rather than the finding. */}
+          <ArtifactList artifacts={res.artifacts} />
+
           {res.evidence.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 11 }}>
               {res.evidence.map((e, i) => (
@@ -331,6 +389,70 @@ export function PraxAsk() {
             </div>
           )}
 
+          {/* The player asked what they thought was a question about their games.
+              Saying where the answer actually came from is not a footnote — it is
+              the difference between a measured claim and a read one. */}
+          {res.grounding === 'ESCALATED_TO_WEB' && (
+            <p style={{
+              margin: '10px 0 0', fontSize: '0.68rem', lineHeight: 1.4,
+              color: 'var(--text-tertiary, #625C6D)',
+            }}>
+              Your games had nothing on this, so Prax looked it up.
+            </p>
+          )}
+
+          {/* Web sources, kept visually separate from the evidence table above.
+              Measured figures and read-somewhere claims must never look alike:
+              one is computed here, the other is a paraphrase. */}
+          {res.sources && res.sources.length > 0 && (
+            <div style={{ marginTop: 12, paddingTop: 9, borderTop: '1px solid var(--hairline, #26232B)' }}>
+              <div style={{
+                fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase',
+                color: 'var(--text-tertiary, #625C6D)', marginBottom: 6,
+              }}>
+                From {res.sources.length} web {res.sources.length === 1 ? 'source' : 'sources'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {res.sources.map((s, i) => (
+                  <a
+                    key={s.url + i}
+                    href={s.url}
+                    target="_blank"
+                    // noreferrer as well as noopener: these are pages Prax found,
+                    // not pages the player chose to visit.
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: '0.7rem', lineHeight: 1.35, textDecoration: 'none',
+                      color: 'var(--text-secondary, #B4AEBE)',
+                    }}
+                  >
+                    <span style={{ display: 'block' }}>{s.title}</span>
+                    <span style={{ color: 'var(--text-tertiary, #625C6D)', fontSize: '0.64rem' }}>
+                      {s.domain}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* A board at 300px in a floating card is legible but cramped. Offer
+              the room rather than assuming it — the card stays the right place
+              for a quick ask, and this hands the conversation over instead of
+              duplicating it. */}
+          {res.artifacts && res.artifacts.length > 0 && (
+            <a
+              href="/ask"
+              onClick={praxAsk.close}
+              style={{
+                display: 'inline-block', marginTop: 10, fontSize: '0.7rem',
+                color: 'var(--orchid, #E7A6D6)', textDecoration: 'none',
+              }}
+            >
+              Open in workspace →
+            </a>
+          )}
+
           {/* What it actually consulted — investigating made visible. */}
           {res.steps.length > 0 && (
             <div
@@ -343,11 +465,7 @@ export function PraxAsk() {
                 color: 'var(--text-tertiary, #625C6D)',
               }}
             >
-              {res.steps.map((s, i) => (
-                <div key={i}>
-                  {s.tool} · {s.sample_size}
-                </div>
-              ))}
+              {effortLine(res.steps)}
             </div>
           )}
         </div>

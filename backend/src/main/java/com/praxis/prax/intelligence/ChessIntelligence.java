@@ -196,6 +196,44 @@ public class ChessIntelligence {
                 .toList();
     }
 
+    /**
+     * How many analysed games an opening filter actually matches.
+     *
+     * Exists so a caller can tell an unmatched FILTER apart from an empty
+     * HISTORY. {@code openingPerformance} returns a bare list, and those two
+     * cases both arrive as {@code []} — so a model handed one of them narrated
+     * "you have not played enough games", when the truth was that it had passed
+     * "e4", which is a move rather than an opening name or an ECO code, and the
+     * filter matched nothing at all.
+     */
+    public int gamesMatchingOpening(String username, String openingFilter, String rawColor) {
+        String color = normColor(rawColor);
+        return (int) analyzed(username).stream()
+                .filter(g -> color == null || color.equalsIgnoreCase(g.getPlayerColor()))
+                .filter(g -> openingFilter == null || matchesOpening(g, openingFilter))
+                .count();
+    }
+
+    /**
+     * The openings actually present in this player's history, commonest first.
+     *
+     * Returned alongside a failed filter so the answer can name what IS there.
+     * "No match for 'e4' — you have Philidor Defense (27), Center Game (12)…"
+     * is a usable answer; "no match" is a dead end.
+     */
+    public List<String> availableOpenings(String username, int limit) {
+        Map<String, Long> counts = analyzed(username).stream()
+                .map(this::openingLabel)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(l -> l, Collectors.counting()));
+
+        return counts.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(limit)
+                .map(e -> e.getKey() + " (" + e.getValue() + ")")
+                .toList();
+    }
+
     private boolean matchesOpening(Game g, String filter) {
         String f = filter.toLowerCase();
         String label = openingLabel(g);

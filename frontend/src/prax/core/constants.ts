@@ -5,7 +5,10 @@ export const PRAX_CONFIG = {
   SEED: 18371,
 
   /** Target survivor count after thinning. Actual count is reported by generate(). */
-  PARTICLE_COUNT: { desktop: 1600, compact: 900 },
+  // Rounded UP to the nearest icosphere: 10*4^d+2 gives 642 / 2562 / 10242.
+  // 2562 matches the reference density — points individually countable, with
+  // real gaps between them, dense enough to define the form.
+  PARTICLE_COUNT: { desktop: 2500, compact: 640 },
   CLUSTER_COUNT: 16,
   RADIUS: 1.0,
 
@@ -39,7 +42,20 @@ export const PRAX_CONFIG = {
    * decoupling it from the object's scale is what keeps the points discrete
    * instead of merging into a solid mass.
    */
-  PARTICLE_PX: 2.5,
+  PARTICLE_PX: 2.2,
+
+  /**
+   * The living surface (shaders.ts step 0).
+   *
+   * AMP is a fraction of the radius. Much past 0.3 and the silhouette stops
+   * reading as a sphere; much under 0.15 and the deformation is invisible.
+   * FREQ sets bulge size — low is a few broad lobes, high is a golf ball.
+   * SPEED is slow deliberately: this should look like thinking, not like
+   * boiling.
+   */
+  DISPLACE_AMP: 0.26,
+  DISPLACE_FREQ: 1.15,
+  DISPLACE_SPEED: 0.085,
   CAMERA_Z: 4.5,
   CAMERA_FOV: 45,
   DPR_MAX: 2,

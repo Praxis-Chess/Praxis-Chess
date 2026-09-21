@@ -108,16 +108,64 @@ uniform float uBristle;    // QUERY    — fine high-frequency quills
 uniform float uBristleRate;
 uniform float uBristleAmp;
 uniform float uBristleCoverage;
+uniform float uDisplaceAmp;    // how far the surface may travel along its normal
+uniform float uDisplaceFreq;   // noise scale — lower means broader bulges
+uniform float uDisplaceSpeed;  // how fast the field reorganises
 
 varying float vLit;
 varying float vRim;
 varying float vEnergy;
 varying float vWave;
+varying float vDisplace;       // 0..1 how far THIS point moved — size + brightness
+
+/**
+ * Two octaves of simplex noise.
+ *
+ * One octave gives bulges that are smooth but featureless; four costs more than
+ * it returns at this point count. Two reads as an organic surface with some
+ * fine structure riding on the broad shape.
+ *
+ * The second octave is offset in time as well as frequency, so the detail
+ * drifts ACROSS the bulges rather than sitting rigidly on them.
+ */
+float praxFbm(vec3 q, float t) {
+  float a = snoise(q + vec3(0.0, 0.0, t));
+  float b = snoise(q * 2.03 + vec3(11.7, 3.1, t * 1.31));
+  return a * 0.68 + b * 0.32;
+}
 
 void main() {
-  // position IS aRest — see Contract §5.
+  // position IS aRest — an UNDEFORMED unit sphere (Contract §5).
   vec3 p = position;
   vEnergy = uEnergy;
+
+  // ── 0 - THE SURFACE ITSELF ──
+  //
+  // Every vertex steps along its OWN normal by an amount sampled from smooth
+  // 3D noise. On a sphere centred at the origin the normal IS the normalised
+  // position, so this is exact rather than approximated:
+  //
+  //     newPosition = originalPosition + normal * displacement
+  //
+  // Neighbouring vertices sample NEARBY points in the noise field, so they move
+  // together — which is what makes this read as a deforming surface rather than
+  // as independent specks. Per-vertex random values would give spikes; smooth
+  // noise gives bulges and hollows.
+  //
+  // This deformation used to be BAKED into the geometry at load, so the lumps
+  // never moved and Prax was a static object with jitter on top. Sampling it
+  // per frame is the whole difference.
+  vec3 nrm = normalize(p);
+  float disp = praxFbm(nrm * uDisplaceFreq, uTime * uDisplaceSpeed);
+
+  // SIGNED, so the surface pushes out and pulls in. An all-positive
+  // displacement only ever inflates, and the silhouette stops reading as a ball.
+  p = nrm * (1.0 + disp * uDisplaceAmp);
+
+  // How far this point travelled. Drives size and brightness below, which is
+  // what makes the deformation VISIBLE — otherwise the surface moves and
+  // nothing on screen says so.
+  vDisplace = clamp(abs(disp), 0.0, 1.0);
 
   // 1 - breathing. Per-particle phase keeps the pulse from reading as mechanical.
   p *= 1.0 + sin(uTime * uBreathRate + aPhase) * uBreathing * 0.02;
@@ -134,11 +182,24 @@ void main() {
   // 3 - insight. Contraction toward the pre-baked cluster centroid.
   p = mix(p, aCluster, uInsight * 0.35);
 
-  // 3b - ANALYZE: a band of raised attention travelling through the field.
+  // 3b - ANALYZE: bands of raised attention travelling through the field.
   //      Reads as examination — Prax working across the games, not waiting on
   //      a network call. Distinct from the insight contraction above.
-  float sweepY = sin(uTime * 0.55) * 1.25;
-  float band = exp(-pow((p.y - sweepY) * 2.2, 2.0));
+  //
+  //      THREE bands, at 120-degree phase offsets on the same oscillation. A
+  //      single band spends most of the cycle near the poles, where the body is
+  //      narrow, so long analysis runs read as almost still. Offsetting three
+  //      keeps one crossing the wide middle at all times without changing the
+  //      underlying period.
+  //
+  //      Combined with max(), never a sum: where two bands meet the
+  //      displacement must stay within the same amplitude the single band had,
+  //      or the sweep would overpower every other channel (PRAX.md §11).
+  float band = 0.0;
+  for (int i = 0; i < 3; i++) {
+    float sweepY = sin(uTime * 0.55 + float(i) * 2.0943951) * 1.25;
+    band = max(band, exp(-pow((p.y - sweepY) * 2.2, 2.0)));
+  }
   p += normalize(p) * band * uSweep * 0.11;
 
   //      Only the OUTER shell tints. Measured on the rest radius, not the
@@ -195,7 +256,10 @@ void main() {
   // Tying it to -mv.z alone made each point larger than the whole object.
   // Depth contributes only a subtle 0.9..1.12 nudge so the field reads as volume.
   float depth = clamp(uCameraZ / -mv.z, 0.88, 1.14);
-  gl_PointSize = aSize * uPixelRatio * uParticlePx * depth * mix(0.66, 1.16, vLit);
+  // Movement -> size. Gentle on purpose: a strong mapping turns the bulges
+  // into blobs and loses the point-cloud read entirely.
+  float motion = 1.0 + vDisplace * 0.9;
+  gl_PointSize = aSize * uPixelRatio * uParticlePx * depth * motion * mix(0.66, 1.16, vLit);
 }
 `
 
@@ -213,6 +277,7 @@ varying float vLit;
 varying float vRim;
 varying float vEnergy;
 varying float vWave;
+varying float vDisplace;
 
 void main() {
   float d = length(gl_PointCoord - vec2(0.5));
@@ -224,7 +289,11 @@ void main() {
 
   // Lighting drives opacity so shadow-side points recede rather than filling in.
   // Energy lifts the whole field slightly — a more active Prax reads brighter.
-  float alpha = disc * mix(0.20, 0.90, vLit) * (0.82 + vEnergy * 0.34 + uBrightness);
+  // Movement -> brightness, the other half of making deformation visible. The
+  // crests of the bulges catch the light and the hollows recede, so the eye
+  // reads the SHAPE of the field rather than a uniformly bright shell.
+  float alpha = disc * mix(0.20, 0.90, vLit)
+              * (0.78 + vEnergy * 0.34 + uBrightness + vDisplace * 0.42);
   // Speaking tints the BODY. Lighting is preserved by modulating the accent
   // with vLit, so the lit side reads as brighter pink and the shadow side as
   // darker pink — an uneven 3D organism in the accent colour, not a flat disc.

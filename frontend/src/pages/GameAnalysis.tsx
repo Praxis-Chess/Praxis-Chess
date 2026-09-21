@@ -1,43 +1,14 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Chess } from 'chess.js'
 import { api } from '../api/client'
 import { useGameAnalysis } from '../hooks/useGameAnalysis'
 import { MoveErrorCard } from '../components/MoveErrorCard'
 import { ChessBoard } from '../components/ChessBoard'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { buildArrows } from '../components/moveArrows'
 import type { MoveError } from '../api/types'
-
-const UCI_PATTERN = /^[a-h][1-8][a-h][1-8][qrbn]?$/
-
-function moveToSquares(fen: string, notation: string): { from: string; to: string } | null {
-  try {
-    const chess = new Chess(fen)
-    // Engine bestmoves are stored as UCI (e.g. "e2e4"); SAN for move_played
-    const move = UCI_PATTERN.test(notation)
-      ? chess.move({ from: notation.slice(0, 2), to: notation.slice(2, 4), promotion: notation[4] })
-      : chess.move(notation)
-    return move ? { from: move.from, to: move.to } : null
-  } catch {
-    return null
-  }
-}
-
-function getArrows(error: MoveError) {
-  if (!error.fen_position) return []
-  const arrows: { from: string; to: string; color: string }[] = []
-
-  const played = moveToSquares(error.fen_position, error.move_played)
-  if (played) arrows.push({ ...played, color: 'rgba(226, 102, 74, 0.9)' })
-
-  if (error.better_move) {
-    const better = moveToSquares(error.fen_position, error.better_move)
-    if (better) arrows.push({ ...better, color: 'rgba(185, 217, 108, 0.9)' })
-  }
-
-  return arrows
-}
+import { PraxAnchor } from '../prax/PraxHost'
 
 export function GameAnalysis() {
   const { id } = useParams<{ id: string }>()
@@ -54,7 +25,9 @@ export function GameAnalysis() {
 
   if (isLoading) return <LoadingSpinner label="Loading analysis…" />
 
-  const arrows = selectedError ? getArrows(selectedError) : []
+  const arrows = selectedError
+    ? buildArrows(selectedError.fen_position, selectedError.move_played, selectedError.better_move)
+    : []
 
   return (
     <div>
@@ -127,6 +100,12 @@ export function GameAnalysis() {
           )}
         </div>
       </div>
+
+      {/* Contract §4 — the PAGE decides where Prax belongs. Without this
+          the registry falls back to a fixed 0.68/0.46, which on this
+          layout is directly on top of the content. */}
+      {/* Right of the mistake list, which runs the full height of the page. */}
+      <PraxAnchor x={0.95} y={0.38} />
     </div>
   )
 }

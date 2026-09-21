@@ -72,13 +72,32 @@ public class StockfishService {
         init();
     }
 
+    /** The bulk-sweep default. See {@link AnalysisProfile} for why it varies. */
+    private static final int DEFAULT_SWEEP_MOVETIME_MS = 100;
+
     // Returns evaluation in pawns from White's perspective. null on failure.
-    public synchronized Double evaluate(String fen) {
+    public Double evaluate(String fen) {
+        return evaluate(fen, DEFAULT_SWEEP_MOVETIME_MS);
+    }
+
+    /**
+     * As above, with the search budget named by the caller.
+     *
+     * Still a movetime search, so the caveat on {@link #evaluateAtDepth} holds
+     * however long it runs: a movetime result and a `go depth N` result are not
+     * comparable, and raising this does not make them so.
+     */
+    public synchronized Double evaluate(String fen, int moveTimeMs) {
         ensureAlive();
         if (!isAvailable()) return null;
         try {
+            // MultiPV is process state, and evaluateWithMultiPV leaves it raised.
+            // Without this the sweep inherits whatever the last enrichment set,
+            // searching several lines per position to report one number — slower
+            // for no gain, and slower still now that a profile can ask for four.
+            send("setoption name MultiPV value 1");
             send("position fen " + fen);
-            send("go movetime 100");
+            send("go movetime " + moveTimeMs);
 
             Double score = null;
             String line;

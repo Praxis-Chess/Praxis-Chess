@@ -136,6 +136,10 @@ class PraxRuntime {
         // Each completed game gives the field a small kick, so a long analysis
         // run reads as ongoing work rather than a static `thinking` pose.
         this.motion.fireTurbulenceSpike(0.25)
+        // The heartbeat of a live run, arriving every couple of seconds
+        // regardless of route. Using it to heal makes the sweep independent of
+        // whether any single NAVIGATION_END was observed.
+        this.resumeThinking()
         break
       case 'DRILL_CORRECT':
         this.motion.fireInsight(0.6)
@@ -143,6 +147,33 @@ class PraxRuntime {
       case 'DRILL_WRONG':
         this.motion.fireTurbulenceSpike(0.8)
         break
+      case 'PRACTICE_GAME_STARTED':
+        // Attention, not analysis: a game beginning is an event to notice, not
+        // a long-running job. No new channel (PRAX.md §11).
+        this.motion.fireAttention(0.7)
+        break
+      case 'PRACTICE_GAME_FINISHED':
+        this.motion.fireInsight(0.5)
+        break
+      case 'PRACTICE_LOGGED':
+        // Impulse only — no state change, and deliberately NO new motion
+        // channel. Coherence plus a rim lift already reads as "something good
+        // was noticed", and a once-a-day event does not earn a deformation of
+        // its own (PRAX.md §11: one meaning, one channel).
+        this.motion.fireInsight(event.milestone ? 0.7 : 0.45)
+        break
+    }
+
+    // ── A run in progress outlives navigation. ──
+    // NAVIGATION_START drops Prax to dormant so a page change reads as an
+    // interruption (Contract §2) — correct, and deliberately not weakened here.
+    // The defect was that nothing ever undid it, leaving the sweep stopped for
+    // the remainder of the analysis. Re-assert the condition once the
+    // destination has settled.
+    if (event.type === 'NAVIGATION_END' && this.analysisRunning) {
+      if (!event.hasAnchor) this.setPresence('ambient')
+      this.resumeThinking()
+      return
     }
 
     // NAVIGATION_END only promotes to `aware` when the destination has an anchor.
@@ -172,6 +203,21 @@ class PraxRuntime {
 
     this.snapshot = { ...this.snapshot, state: next, insightId, insightImportance }
     this.motion.setState(next)
+    this.notify()
+  }
+
+  /**
+   * Put Prax back to work when a run is still going but state has fallen quiet.
+   *
+   * Only ever recovers from `dormant`. `aware`, `insight` and `speaking` are
+   * legitimate foreground states during a run — healing out of those would tear
+   * down an insight card every time a progress tick arrived, and the existing
+   * dormant-guard already routes them back to `thinking` when they end.
+   */
+  private resumeThinking(): void {
+    if (!this.analysisRunning || this.snapshot.state !== 'dormant') return
+    this.snapshot = { ...this.snapshot, state: 'thinking', insightId: null, insightImportance: null }
+    this.motion.setState('thinking')
     this.notify()
   }
 

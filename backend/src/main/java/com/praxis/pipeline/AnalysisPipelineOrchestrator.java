@@ -2,8 +2,12 @@ package com.praxis.pipeline;
 
 import com.praxis.domain.Game;
 import com.praxis.domain.enums.AnalysisStatus;
+import com.praxis.domain.enums.MeaningfulActivity;
 import com.praxis.repository.GameRepository;
 import com.praxis.service.PatternAggregator;
+import com.praxis.service.analysis.AnalysisProfile;
+import com.praxis.service.analysis.AnalysisProgressSink;
+import com.praxis.service.practice.PracticeLedgerService;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,15 +25,18 @@ public class AnalysisPipelineOrchestrator {
     private final GameRepository gameRepository;
     private final PatternAggregator patternAggregator;
     private final AnalysisProgressTracker progressTracker;
+    private final PracticeLedgerService practiceLedger;
 
     public AnalysisPipelineOrchestrator(GameAnalysisTransactionService gameAnalysisTransactionService,
                                         GameRepository gameRepository,
                                         PatternAggregator patternAggregator,
-                                        AnalysisProgressTracker progressTracker) {
+                                        AnalysisProgressTracker progressTracker,
+                                        PracticeLedgerService practiceLedger) {
         this.gameAnalysisTransactionService = gameAnalysisTransactionService;
         this.gameRepository = gameRepository;
         this.patternAggregator = patternAggregator;
         this.progressTracker = progressTracker;
+        this.practiceLedger = practiceLedger;
     }
 
     @PostConstruct
@@ -45,17 +52,25 @@ public class AnalysisPipelineOrchestrator {
         log.info("Starting analysis pipeline for {} games (user: {})", games.size(), username);
         progressTracker.start(games.size());
 
+        // Games actually put through the engine this run. A stopped run that got
+        // through twenty games was still twenty games of work, so it counts —
+        // but a run that analysed nothing did not happen.
+        int analysed = 0;
+
         for (Game game : games) {
             if (progressTracker.isStopRequested()) {
                 log.info("Analysis stopped by user after {} of {} games",
                         progressTracker.getCompleted(), games.size());
                 progressTracker.finish();
+                markPracticeDay(username, analysed);
                 return;
             }
             try {
                 // Each game commits independently via REQUIRES_NEW — crash mid-run
                 // loses only the in-flight game; all prior games remain ANALYZED.
-                gameAnalysisTransactionService.analyzeOne(game);
+                gameAnalysisTransactionService.analyzeOne(
+                        game, AnalysisProfile.LIBRARY, AnalysisProgressSink.NOOP);
+                analysed++;
             } catch (Exception e) {
                 log.error("Pipeline failed for game {}: {}", game.getChessComId(), e.getMessage(), e);
                 try {
@@ -74,6 +89,18 @@ public class AnalysisPipelineOrchestrator {
             patternAggregator.recompute(username);
         } finally {
             progressTracker.finish();
+            markPracticeDay(username, analysed);
+        }
+    }
+
+    /**
+     * Called from both exits — normal completion and the user's Stop. The ledger
+     * is idempotent per day, so double-marking is harmless; missing the stopped
+     * path would silently discard a day of real work.
+     */
+    private void markPracticeDay(String username, int analysed) {
+        if (analysed > 0) {
+            practiceLedger.record(username, MeaningfulActivity.ANALYSIS_COMPLETED);
         }
     }
 }

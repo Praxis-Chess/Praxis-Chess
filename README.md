@@ -40,9 +40,43 @@ A local reasoning agent with tool access to your own game history. Ask "show me 
 
 Its chess claims are **computed, not generated**. The engine and the board produce a closed set of verified statements; the model chooses which are relevant and the backend prints them verbatim. A claim with no fact behind it has no id to cite and never reaches you. When the evidence doesn't support an explanation, Prax says so instead of inventing one.
 
+### Play & Improve
+
+Play a game against an opponent **built from your own history** — it opens with
+the line you have faced most, at an engine strength picked from your results —
+then get the same measurements applied to the game you just played. Every line
+of the pre-game card is a count from your own games, and where there is not
+enough history it says so rather than inventing a justification.
+
+The report compares practice games only against **other practice games**.
+Chess.com games are a different population, and a comparison across that gap is
+arithmetically fine and means nothing. Below five comparable games it shows the
+numbers and explicitly declines to claim a direction.
+
+### Web research, when your own games have nothing
+
+Ask "what is the Nimzowitsch-Larsen Attack?" and there is no row in your database
+that answers it. Prax searches the web through a **self-hosted SearXNG** — no API
+key, and nobody else sees your queries — reads the pages, and answers with
+numbered sources you can check.
+
+The interesting part is what it does when it *can't*. Prax will not answer a
+factual question from the model's own memory: if no evidence reached the run
+through a tool, it refuses and says so. This exists because it once produced a
+fluent biography of **"Pal Benyamin Larsen"**, a chess player who does not exist.
+
+### Practice streaks
+
+A week grid and a running streak, counting only work that means something — a
+drill session completed or a practice game played. Opening the app is not
+practice. The server decides what "today" is, so a browser in another timezone
+or left open past midnight cannot silently break or inflate the count.
+
 ### Prax — the presence
 
-Prax is also visible: a particle form rendered in WebGL that reacts to what the system is doing. It thickens and churns while analysis runs, contracts sharply on an insight, sweeps during evaluation, and narrates progress from real event counts — never from the model. Optional local text-to-speech (Kokoro-82M, CPU) gives it a voice.
+Prax is also visible: ~2,500 points rendered in WebGL as a single draw call, present on every page. The surface is an icosphere displaced along its own normals by noise sampled **every frame on the GPU**, so it genuinely reorganises rather than sitting still with jitter on top. It thickens and churns while analysis runs, contracts sharply on an insight, sweeps during evaluation, and narrates progress from real event counts — never from the model.
+
+Local text-to-speech (Kokoro-82M, CPU-only) is built end-to-end but **not currently reachable from the UI** — the button that triggers it was never mounted. See [SPEECH_IMPLEMENTATION_PLAN.md](SPEECH_IMPLEMENTATION_PLAN.md).
 
 ---
 
@@ -129,7 +163,7 @@ Ollama is called with `"format": "json"` (grammar-constrained mode) — output i
 
 A separate path from the analysis pipeline. The pipeline writes rows; Prax reads them and reasons over them, in a loop bounded to **6 turns, 10 tool calls, 120 seconds**.
 
-**1 — Tools, not memory.** Eleven read-only tools expose your data: player profile, opening and phase performance, mistake patterns, game lookup, drill progress, and `find_mistakes`, which returns your worst individual moves ordered by how much win probability each one cost. Prax may not answer from its own knowledge; it must call something.
+**1 — Tools, not memory.** Eleven read-only tools expose your data (a twelfth, `web_search`, is offered only on questions your own games cannot answer): player profile, opening and phase performance, mistake patterns, game lookup, drill progress, and `find_mistakes`, which returns your worst individual moves ordered by how much win probability each one cost. Prax may not answer from its own knowledge; it must call something.
 
 **2 — The engine is chained automatically.** `find_mistakes` names the move but cannot say why it was bad, so the backend runs `analyze_position` on the worst row without waiting to be asked. That call appears as its own step with its own citation id — visible, not hidden.
 
@@ -172,7 +206,17 @@ git clone https://github.com/Tanmay-Anand/praxis-chess.git
 cd praxis-chess
 ```
 
-### 2. Start PostgreSQL via Docker
+### 2. Start everything (the short way)
+
+```bash
+./infra-up.sh            # PostgreSQL + SearXNG + Ollama
+./infra-up.sh --tts      # ...and the voice service
+./infra-down.sh          # stop it all
+```
+
+The steps below are the same thing by hand, if you would rather see them.
+
+### 2a. Start PostgreSQL via Docker
 
 ```bash
 cd backend/infra/dev-postgresql
@@ -323,11 +367,23 @@ praxis-chess/
 - [x] Ask Prax — tool-calling agent over your own game history
 - [x] Citation validation — uncited figures dropped before display
 - [x] Verified chess facts computed from the board, rendered verbatim
-- [x] Local text-to-speech (Kokoro-82M, CPU-only)
-- [ ] Prax prose confined to player history (it still describes positions the findings already cover)
+- [x] Local text-to-speech (Kokoro-82M, CPU-only) — built, not yet wired to a button
+- [x] Conversation memory persisted to Postgres, scoped per thread
+- [x] The grounding invariant — a factual answer ships only if evidence reached the run through a tool
+- [x] Question routing by lane; `web_search` is *absent* from the tool list on player questions
+- [x] Web research via self-hosted SearXNG, with SSRF defence and per-hop redirect validation
+- [x] Prompt-injection defence by capability removal — no tools offered once web text is in context
+- [x] Ask Prax workspace — runs polled progressively, boards/charts/tables as artifacts
+- [x] Play & Improve — practice games against an opponent built from your own history
+- [x] Practice streaks with a server-owned "today"
+- [x] Prax visual rework — icosphere point cloud, displacement sampled per frame on the GPU
+- [x] Test suites: 176 backend (mutation-tested) + 200 Playwright, mocked and live
+- [ ] **Speech** — mount the trigger surface; the stack behind it already works
 - [ ] Voice input — mic capture for Ask Prax
-- [ ] Conversation memory persisted to Postgres (currently in-process)
-- [ ] Knowledge retrieval for general chess principles
+- [ ] Generate drill cards when analysis finishes, not only when a session starts
+- [ ] Backend tests in CI (the workflow is currently Playwright-only)
+- [ ] True HYBRID answers that merge player data and web material honestly
+- [ ] Knowledge retrieval for general chess principles — *declined pending usage evidence*
 - [ ] Fine-tuned smaller model for faster inference
 
 ---

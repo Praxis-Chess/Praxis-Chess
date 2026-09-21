@@ -59,6 +59,9 @@ export function useAnalysisProgress() {
     } else if (!busy && analysisWasBusy) {
       praxBus.emit({ type: 'ANALYSIS_FINISHED' })
       void resolveCompletion(d.total)
+      // An analysis run marks the day too. Refetch so usePracticeSignal can see
+      // the edge — the backend has already written the ledger by now.
+      queryClient.invalidateQueries({ queryKey: ['practice-streak'] })
     } else if (busy) {
       if (d.total > 0) {
         praxBus.emit({ type: 'ANALYSIS_PROGRESS', completed: d.completed, total: d.total })

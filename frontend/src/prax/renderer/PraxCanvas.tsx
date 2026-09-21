@@ -10,6 +10,7 @@ import { initPraxVoice, stepVoiceEnergy } from '../voice'
 import { praxRuntime } from '../state/runtime'
 import { anchorRegistry } from '../anchor/registry'
 import { deriveRenderPolicy } from '../state/renderPolicy'
+import { praxAsk } from '../ui/PraxAsk'
 import { praxBus } from '../core/events'
 import { PRAX_CONFIG } from '../core/constants'
 
@@ -134,6 +135,12 @@ function PraxScene() {
         bus: praxBus,
         registry: anchorRegistry,
         policy: () => deriveRenderPolicy(reducedMotion),
+        // The card is normally opened by clicking Prax, and the hit target
+        // tracks the body's PROJECTED screen position — which does not advance
+        // while the render loop is frozen (reduced-motion, or a background tab).
+        // Tests that are about the card's contents should not also depend on
+        // particle geometry, so they open it through here.
+        ask: praxAsk,
       }
     }
 

@@ -32,16 +32,20 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Wraps per-game analysis in REQUIRES_NEW so each game commits independently.
  *
  * Pipeline per game (overlapped):
- *   Main thread  — Stockfish MultiPV depth-18 per candidate (CPU-bound)
+ *   Main thread  — Stockfish MultiPV per candidate (CPU-bound)
  *   Consumer thread — Ollama HTTP calls per candidate (GPU-bound)
  * Both run concurrently via a LinkedBlockingQueue so GPU and CPU are used simultaneously.
+ *
+ * Search depth, sweep movetime and how many candidates reach Ollama all come from
+ * the {@link AnalysisProfile} the caller passes — a library sweep and a single
+ * practice game have very different budgets. Thresholds do not vary; see the
+ * profile's own notes on why.
  */
 @Service
 public class GameAnalysisTransactionService {
 
     private static final Logger log = LoggerFactory.getLogger(GameAnalysisTransactionService.class);
-    private static final int MAX_OLLAMA_CALLS_PER_GAME = 3;
-    private static final int OLLAMA_MAX_RETRIES        = 3;
+    private static final int OLLAMA_MAX_RETRIES = 3;
 
     private final PgnParserService pgnParserService;
     private final PositionEvaluator positionEvaluator;
@@ -73,9 +77,28 @@ public class GameAnalysisTransactionService {
         this.ecoTable = ecoTable;
     }
 
+    /**
+     * @param profile  how hard to work on this game. Callers pass it explicitly
+     *                 rather than getting a default, because a self-invoked
+     *                 overload would not go through the proxy and would silently
+     *                 lose REQUIRES_NEW — the per-game commit this class exists for.
+     * @param progress where to report stage counts; {@code NOOP} for library runs,
+     *                 which are tracked per game by AnalysisProgressTracker instead.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void analyzeOne(Game game) {
-        log.debug("Analyzing game: {}", game.getChessComId());
+    public void analyzeOne(Game game, AnalysisProfile profile, AnalysisProgressSink progress) {
+        try {
+            analyzeInternal(game, profile, progress);
+        } finally {
+            // Whether it succeeded or threw, nothing more is coming. Leaving a
+            // stale snapshot behind would show a progress bar for a run that has
+            // stopped, which is worse than showing none.
+            progress.finished();
+        }
+    }
+
+    private void analyzeInternal(Game game, AnalysisProfile profile, AnalysisProgressSink progress) {
+        log.debug("Analyzing game {} with the {} profile", game.getChessComId(), profile.name());
         game.setAnalysisStatus(AnalysisStatus.ANALYZING);
         gameRepository.save(game);
 
@@ -92,15 +115,37 @@ public class GameAnalysisTransactionService {
 
         if (game.getOpeningEco() == null && !parsedGame.openingEco().isEmpty()) {
             game.setOpeningEco(parsedGame.openingEco());
+        }
+
+        // The NAME is resolved separately from the ECO, and this is the whole
+        // point of the split.
+        //
+        // Both used to live inside the `openingEco == null` branch above. But
+        // the sync writes opening_eco straight from the Chess.com API, so by the
+        // time analysis ran the ECO was never null, the branch never executed,
+        // and the name was never set — for every synced game. 93 of 104 games
+        // ended up as bare ECO codes: 26 games of C41 with no name, beside a
+        // single C41 that happened to arrive without an ECO and so came out
+        // "Philidor Defense".
+        //
+        // Prax itself is unaffected — ChessIntelligence.openingLabel() resolves
+        // the name from the ECO table at read time, precisely because this was
+        // already known. What IS affected is every reader without that fallback:
+        // GameSummaryDto (the Library list), DashboardController, InsightsService
+        // and the pages built on them, all of which show a bare "C41".
+        if (game.getOpeningName() == null || game.getOpeningName().isBlank()) {
             // Prefer PGN header name; fall back to ECO table when absent or blank.
             String pgnName = parsedGame.openingName();
             String resolvedName = (pgnName != null && !pgnName.isBlank() && !pgnName.equals("?"))
                     ? pgnName
-                    : ecoTable.lookup(parsedGame.openingEco());
-            game.setOpeningName(resolvedName);
+                    : ecoTable.lookup(game.getOpeningEco());
+            if (resolvedName != null && !resolvedName.isBlank()) {
+                game.setOpeningName(resolvedName);
+            }
         }
 
-        List<Double> scores = positionEvaluator.evaluateAll(parsedGame.moves());
+        List<Double> scores = positionEvaluator.evaluateAll(
+                parsedGame.moves(), profile.sweepMoveTimeMs(), progress);
 
         // `!hasAccuracy()` rather than `== null`: a stored 0.0 is a failed
         // measurement from an earlier run, and `0.0 != null` meant re-analysis
@@ -125,11 +170,13 @@ public class GameAnalysisTransactionService {
         log.debug("Found {} candidate mistakes in game {}", sorted.size(), game.getChessComId());
 
         // Overlapped pipeline:
-        //   This thread   → Stockfish MultiPV depth-18 per candidate (CPU)
+        //   This thread   → Stockfish MultiPV per candidate (CPU)
         //   Consumer thread → Ollama HTTP explanation per top-N candidate (GPU)
         LinkedBlockingQueue<Optional<CandidateMove>> ollamaQueue = new LinkedBlockingQueue<>();
         String playerColor = parsedGame.playerColor();
         String gameId = game.getChessComId();
+
+        int explainable = Math.min(sorted.size(), profile.maxOllamaCalls());
 
         CompletableFuture<List<OllamaResult>> ollamaFuture = CompletableFuture.supplyAsync(() -> {
             List<OllamaResult> results = new ArrayList<>();
@@ -138,6 +185,7 @@ public class GameAnalysisTransactionService {
                     Optional<CandidateMove> item = ollamaQueue.take();
                     if (item.isEmpty()) break; // poison pill
                     results.add(callOllamaWithRetry(item.get(), playerColor));
+                    progress.explaining(results.size(), explainable);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -148,15 +196,18 @@ public class GameAnalysisTransactionService {
 
         // Main thread: enrich each candidate with MultiPV, push top-N to Ollama queue
         List<CandidateMove> enriched = new ArrayList<>(sorted.size());
+        progress.enriching(0, sorted.size());
         for (int i = 0; i < sorted.size(); i++) {
             CandidateMove c = sorted.get(i);
-            MultiPVResult mpv = stockfishService.evaluateWithMultiPV(c.move().fenBefore(), 18, 3);
+            MultiPVResult mpv = stockfishService.evaluateWithMultiPV(
+                    c.move().fenBefore(), profile.multiPvDepth(), profile.multiPvLines());
             String bestMove = mpv.bestMoveUci() != null ? mpv.bestMoveUci() : c.bestMoveUci();
             CandidateMove enrichedCandidate = new CandidateMove(
                     c.move(), c.materialSwing(), c.phase(), c.isTimePressure(),
                     c.severity(), bestMove, c.evalBefore(), c.evalAfter(), mpv.pvLines());
             enriched.add(enrichedCandidate);
-            if (i < MAX_OLLAMA_CALLS_PER_GAME) {
+            progress.enriching(enriched.size(), sorted.size());
+            if (i < profile.maxOllamaCalls()) {
                 ollamaQueue.offer(Optional.of(enrichedCandidate));
             }
         }
@@ -173,7 +224,7 @@ public class GameAnalysisTransactionService {
         // Persist all results in main thread (inside the REQUIRES_NEW transaction)
         for (int i = 0; i < enriched.size(); i++) {
             CandidateMove c = enriched.get(i);
-            if (i < MAX_OLLAMA_CALLS_PER_GAME && i < ollamaResults.size()) {
+            if (i < profile.maxOllamaCalls() && i < ollamaResults.size()) {
                 persistWithResult(game, c, playerColor, ollamaResults.get(i));
             } else {
                 persistSkipped(game, c, playerColor);

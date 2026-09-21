@@ -34,6 +34,13 @@ export type PraxEvent =
   | { type: 'QUERY_STARTED' }
   | { type: 'QUERY_FINISHED' }
 
+  // the first meaningful activity of the day was just recorded
+  | { type: 'PRACTICE_LOGGED'; streak: number; milestone: boolean }
+
+  // a practice game against the engine
+  | { type: 'PRACTICE_GAME_STARTED' }
+  | { type: 'PRACTICE_GAME_FINISHED' }
+
   // reserved
   | { type: 'RESPONSE_STARTED' }
   | { type: 'RESPONSE_FINISHED' }

@@ -17,5 +17,31 @@ services:
       timeout: 5s
       retries: 5
 
+  # Search backend for Prax's web research. Behind a profile, so the ordinary
+  #   docker compose up -d
+  # still starts only PostgreSQL. Start this one explicitly:
+  #   docker compose up -d searxng
+  #
+  # Self-hosted on purpose: no API key, and no third party learns what the
+  # player asks about. Set praxis-chess.web.enabled=true to actually use it.
+  searxng:
+    image: searxng/searxng:latest
+    container_name: praxis-chess-searxng
+    profiles: ["web"]
+    restart: unless-stopped
+    ports:
+      # Bound to loopback. This instance has no authentication and must not be
+      # reachable from the network.
+      - "127.0.0.1:8888:8080"
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8888/
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 volumes:
   postgres_data:

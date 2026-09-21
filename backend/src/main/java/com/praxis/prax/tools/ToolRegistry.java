@@ -6,8 +6,12 @@ import com.praxis.domain.enums.CardStatus;
 import com.praxis.repository.CardRepository;
 import com.praxis.service.analysis.StockfishService;
 import com.praxis.service.analysis.MultiPVResult;
+import com.praxis.prax.artifact.ChessPositionArtifactBuilder;
+import com.praxis.prax.artifact.StatArtifactBuilder;
 import com.praxis.prax.evidence.ChessFact;
 import com.praxis.prax.evidence.PositionEvidenceBuilder;
+import com.praxis.prax.routing.QuestionRouter;
+import com.praxis.prax.web.WebResearchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -31,14 +35,55 @@ public class ToolRegistry {
     private final CardRepository cardRepository;
     private final StockfishService stockfish;
     private final PositionEvidenceBuilder evidenceBuilder;
+    private final WebResearchService web;
+    private final StatArtifactBuilder stats = new StatArtifactBuilder();
 
     public ToolRegistry(ChessIntelligence intel, AppProperties props, CardRepository cardRepository,
-                        StockfishService stockfish, PositionEvidenceBuilder evidenceBuilder) {
+                        StockfishService stockfish, PositionEvidenceBuilder evidenceBuilder,
+                        WebResearchService web) {
         this.intel = intel;
         this.props = props;
         this.cardRepository = cardRepository;
         this.stockfish = stockfish;
         this.evidenceBuilder = evidenceBuilder;
+        this.web = web;
+    }
+
+    /** Is web research configured and reachable? Lets the agent pre-search. */
+    public boolean webAvailable() {
+        return web.isAvailable();
+    }
+
+    /** The web tool's schema. Offered only on lanes that allow it. */
+    private Map<String, Object> webSearchSchema() {
+        return tool("web_search",
+                "Look something up on the web. Use this ONLY for general chess or world "
+                + "knowledge that is not about this player — opening theory, what a term "
+                + "means, who someone is, the history of a variation. It knows NOTHING "
+                + "about the player's own games; for those use the other tools.",
+                Map.of("query", str("What to search for. A short phrase, not a sentence.")));
+    }
+
+    /**
+     * The tools this question is allowed to use.
+     *
+     * The lane decides, and it decides by OMISSION: on a PLAYER question
+     * web_search is simply not in the list, so a small model cannot pick it by
+     * mistake. Prompt wording asking it to prefer one tool over another does not
+     * survive contact with a 4B model — an absent tool does.
+     */
+    public List<Map<String, Object>> schemasFor(QuestionRouter.Lane lane) {
+        boolean allowWeb = lane.allowsWeb() && web.isAvailable();
+
+        if (lane == QuestionRouter.Lane.GENERAL && allowWeb) {
+            // Pure general knowledge. Player tools would only invite the model to
+            // answer "what is the Najdorf" with this player's Najdorf statistics.
+            return List.of(webSearchSchema());
+        }
+
+        List<Map<String, Object>> all = new ArrayList<>(schemas());
+        if (allowWeb) all.add(webSearchSchema());
+        return List.copyOf(all);
     }
 
     private String user() {
@@ -170,18 +215,49 @@ public class ToolRegistry {
                     yield ToolResult.playerData(name, p, asInt(p.get("analyzedGames"), 0));
                 }
                 case "get_opening_performance" -> {
-                    var r = intel.openingPerformance(user(), s(args, "opening"), s(args, "color"),
-                            i(args, "minGames", 3));
-                    yield ToolResult.playerData(name, r, r.stream().mapToInt(x -> x.games()).sum());
+                    String filter = s(args, "opening");
+                    String color = s(args, "color");
+                    int min = i(args, "minGames", 3);
+                    var r = intel.openingPerformance(user(), filter, color, min);
+
+                    // An empty list has two completely different meanings, and
+                    // shipping both as `[]` is what produced "no opening has been
+                    // played enough times (minimum 3 games)" for a player with 27
+                    // games of the Philidor. The model cannot tell a bad filter
+                    // from a thin history unless the tool says which it was.
+                    if (r.isEmpty() && filter != null && !filter.isBlank()) {
+                        int matched = intel.gamesMatchingOpening(user(), filter, color);
+                        if (matched == 0) {
+                            yield ToolResult.error(name,
+                                    "No opening in this player's history matches \"" + filter
+                                    + "\". Note that this filter takes an opening NAME or an ECO "
+                                    + "code, not a move — \"e4\" will never match; \"King's Pawn\" "
+                                    + "or \"C41\" will. Openings actually played, commonest first: "
+                                    + String.join(", ", intel.availableOpenings(user(), 8))
+                                    + ". Call this again with one of those, or omit the filter "
+                                    + "entirely to cover every opening.");
+                        }
+                        yield ToolResult.error(name,
+                                "\"" + filter + "\" matches " + matched + " game(s), which is below "
+                                + "the minimum of " + min + " needed to report a trend. The count is "
+                                + "real; there is simply not enough of it to compare.");
+                    }
+
+                    yield ToolResult.playerData(name, r, r.stream().mapToInt(x -> x.games()).sum())
+                            .withArtifacts(one(stats.openingTable(r)));
                 }
                 case "get_phase_performance" -> {
                     var r = intel.phasePerformance(user(), s(args, "opening"), s(args, "color"));
-                    yield ToolResult.playerData(name, r, r.isEmpty() ? 0 : r.get(0).games());
+                    // A bar per phase. The counts are already here; showing them
+                    // as prose makes the reader do the comparing.
+                    yield ToolResult.playerData(name, r, r.isEmpty() ? 0 : r.get(0).games())
+                            .withArtifacts(one(stats.mistakesByPhase(r)));
                 }
                 case "get_mistake_patterns" -> {
                     var r = intel.mistakePatterns(user(), s(args, "motif"), s(args, "phase"),
                             s(args, "opening"), i(args, "limit", 5));
-                    yield ToolResult.playerData(name, r, r.stream().mapToInt(x -> x.count()).sum());
+                    yield ToolResult.playerData(name, r, r.stream().mapToInt(x -> x.count()).sum())
+                            .withArtifacts(one(stats.mistakesByMotif(r)));
                 }
                 case "find_games" -> {
                     var r = intel.findGames(user(), s(args, "opening"), s(args, "color"),
@@ -201,7 +277,8 @@ public class ToolRegistry {
                 }
                 case "recommend_openings" -> {
                     var r = intel.recommendOpenings(user(), s(args, "color"));
-                    yield ToolResult.playerData(name, r, r.stream().mapToInt(x -> x.games()).sum());
+                    yield ToolResult.playerData(name, r, r.stream().mapToInt(x -> x.games()).sum())
+                            .withArtifacts(one(stats.recommendationTable(r)));
                 }
                 case "get_progress" -> {
                     String u = user();
@@ -240,6 +317,14 @@ public class ToolRegistry {
                     // Facts about the move the player actually chose, so the
                     // model never has to reason about it unaided.
                     var facts = new ArrayList<>(ev.facts());
+                    // Kept for the diagram. The played move must be recorded as
+                    // resolved UCI, because the caller may have supplied SAN.
+                    String playedUci = null;
+                    // Evaluation after the played move. Null means "not
+                    // measured", never 0.0 — a sentinel there would read as
+                    // "cost nothing", which is the confusion that once made 61
+                    // games report zero accuracy.
+                    Double evalAfter = null;
                     String playedToken = s(args, "playedMove");
                     if (playedToken != null) {
                         // Resolved against the legal move list, so SAN and UCI
@@ -250,6 +335,7 @@ public class ToolRegistry {
                             log.warn("[prax] analyze_position: playedMove '{}' is not legal in {}",
                                     playedToken, fen);
                         } else {
+                            playedUci = played.toString();
                             var board = new com.github.bhlangonijr.chesslib.Board();
                             board.loadFromFen(fen);
                             board.doMove(played);
@@ -257,6 +343,7 @@ public class ToolRegistry {
                             // search 100ms and the two numbers would not be
                             // comparable — see StockfishService.evaluateAtDepth.
                             Double after = stockfish.evaluateAtDepth(board.getFen(), depth);
+                            evalAfter = after;
                             if (after != null) {
                                 var compared = evidenceBuilder.comparePlayed(
                                         fen, r.score(), played, after, facts.size());
@@ -282,7 +369,64 @@ public class ToolRegistry {
                             .sorted(java.util.Comparator.comparingInt(ChessFact::priority))
                             .map(f -> Map.of("id", f.id(), "fact", f.statement()))
                             .toList());
-                    yield ToolResult.engine(name, data);
+
+                    // The diagram. Built here because this is where the FEN and
+                    // both moves already exist — no extra work, no second engine
+                    // call, and crucially nothing asked of the model.
+                    //
+                    // It is attached to the ToolResult rather than to `data`, so
+                    // it never enters the model's context: it cannot be quoted,
+                    // paraphrased or altered, and it costs no tokens.
+                    var boards = new ChessPositionArtifactBuilder();
+                    String artifactId = "pos-" + Integer.toHexString(fen.hashCode());
+                    // A comparison when the played move is known, a plain board
+                    // otherwise — never both, or one position renders twice.
+                    var artifact = playedUci != null
+                            ? boards.buildComparison(artifactId, fen, ev.bestMoveUci(), playedUci,
+                                    playedToken, ev.bestMoveSan(),
+                                    r.score(), evalAfter, caption(ev, playedToken))
+                            : boards.build(artifactId, fen, ev.bestMoveUci(), null,
+                                    null,   // ChessFact carries prose, not structured squares
+                                    caption(ev, playedToken));
+
+                    yield ToolResult.engine(name, data)
+                            .withArtifacts(artifact == null ? List.of() : List.of(artifact));
+                }
+                case "web_search" -> {
+                    String query = s(args, "query");
+                    if (query == null) yield ToolResult.error(name, "query is required");
+                    if (!web.isAvailable()) {
+                        yield ToolResult.error(name, "Web research is not configured.");
+                    }
+
+                    var research = web.research(query);
+                    if (research.isEmpty()) {
+                        // An honest empty result. The model must say it found
+                        // nothing rather than fall back on its own memory, which
+                        // is the exact failure this whole layer exists to stop.
+                        yield ToolResult.error(name, research.note() == null
+                                ? "No usable sources found." : research.note());
+                    }
+
+                    Map<String, Object> data = new LinkedHashMap<>();
+                    data.put("query", research.query());
+                    // Structured, for the sources block in the UI.
+                    var cited = new ArrayList<Map<String, Object>>();
+                    int n = 0;
+                    for (var srcItem : research.sources()) {
+                        cited.add(Map.of(
+                                "n", ++n,
+                                "title", srcItem.title(),
+                                "domain", srcItem.domain(),
+                                "url", srcItem.url()));
+                    }
+                    data.put("sources", cited);
+                    // The page text itself, fenced and labelled untrusted. Safe to
+                    // put in front of the model ONLY because PraxAgent withholds
+                    // every tool from this point on — an instruction hidden in a
+                    // page has nothing left to call.
+                    data.put("material", WebResearchService.asPromptBlock(research));
+                    yield ToolResult.web(name, data);
                 }
                 default -> ToolResult.error(name, "Unknown tool: " + name);
             };
@@ -293,6 +437,26 @@ public class ToolRegistry {
             log.warn("[prax] tool {} failed: {}", name, e.getMessage(), e);
             return ToolResult.error(name, e.getMessage() == null ? "failed" : e.getMessage());
         }
+    }
+
+    /** A validated artifact, or nothing. Keeps the call sites free of null checks. */
+    private static List<com.praxis.prax.artifact.PraxArtifact> one(
+            com.praxis.prax.artifact.PraxArtifact a) {
+        return a == null ? List.of() : List.of(a);
+    }
+
+    /**
+     * One line under the board, written here rather than by the model.
+     *
+     * Same rule as the findings list: the backend states what it computed, the
+     * model may phrase the prose around it but never the label on the evidence.
+     */
+    private static String caption(PositionEvidenceBuilder.PositionEvidence ev, String playedToken) {
+        String best = ev.bestMoveSan() != null ? ev.bestMoveSan() : ev.bestMoveUci();
+        if (playedToken == null) {
+            return best == null ? null : "Engine prefers " + best + ".";
+        }
+        return "Played " + playedToken + (best == null ? "." : "; engine prefers " + best + ".");
     }
 
     // ── schema helpers ───────────────────────────────────────────────────────

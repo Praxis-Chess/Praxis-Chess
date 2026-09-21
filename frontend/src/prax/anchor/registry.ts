@@ -14,7 +14,22 @@ export interface AnchorPlacement {
   y: number
 }
 
-const FALLBACK: AnchorPlacement = { x: 0.68, y: 0.46 }
+/**
+ * Where Prax goes when a page forgets to say.
+ *
+ * 0.68 was the old value, and it is roughly the middle of the content column:
+ * `<main>` is max-width 1280 and centred, so on a 1920 viewport it spans
+ * 0.167–0.833 and page text runs out to about 0.82. Six routes — Game Analysis,
+ * the game list, Dashboard, Drills, Pattern Report and Training Plan — never
+ * registered an anchor, so Prax rendered directly on top of them; on Game
+ * Analysis it sat squarely over the mistake list.
+ *
+ * Out in the right gutter instead. This is still only a fallback: a page that
+ * cares should declare `<PraxAnchor>`, and `every-route-anchors.spec.ts` fails
+ * if a route does not. The fallback exists so that forgetting is untidy rather
+ * than broken.
+ */
+const FALLBACK: AnchorPlacement = { x: 0.93, y: 0.45 }
 
 class AnchorRegistry {
   private el: HTMLElement | null = null

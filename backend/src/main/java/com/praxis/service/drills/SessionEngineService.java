@@ -3,6 +3,7 @@ package com.praxis.service.drills;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.praxis.config.AppProperties;
+import com.praxis.config.PraxisClock;
 import com.praxis.domain.Attempt;
 import com.praxis.domain.Card;
 import com.praxis.domain.DrillSession;
@@ -10,7 +11,9 @@ import com.praxis.domain.MetricSnapshot;
 import com.praxis.domain.enums.AttemptRating;
 import com.praxis.domain.enums.CardStatus;
 import com.praxis.domain.enums.GamePhase;
+import com.praxis.domain.enums.MeaningfulActivity;
 import com.praxis.repository.*;
+import com.praxis.service.practice.PracticeLedgerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -60,6 +63,8 @@ public class SessionEngineService {
     private final SchedulerStrategy scheduler;
     private final AppProperties appProperties;
     private final ObjectMapper objectMapper;
+    private final PracticeLedgerService practiceLedger;
+    private final PraxisClock clock;
 
     public SessionEngineService(CardRepository cardRepository,
                                 DrillSessionRepository sessionRepository,
@@ -67,7 +72,9 @@ public class SessionEngineService {
                                 MetricSnapshotRepository snapshotRepository,
                                 SchedulerStrategy scheduler,
                                 AppProperties appProperties,
-                                ObjectMapper objectMapper) {
+                                ObjectMapper objectMapper,
+                                PracticeLedgerService practiceLedger,
+                                PraxisClock clock) {
         this.cardRepository = cardRepository;
         this.sessionRepository = sessionRepository;
         this.attemptRepository = attemptRepository;
@@ -75,6 +82,8 @@ public class SessionEngineService {
         this.scheduler = scheduler;
         this.appProperties = appProperties;
         this.objectMapper = objectMapper;
+        this.practiceLedger = practiceLedger;
+        this.clock = clock;
     }
 
     // --- Session lifecycle ---
@@ -161,6 +170,14 @@ public class SessionEngineService {
         Card updated = scheduler.schedule(card, rating);
         cardRepository.save(updated);
 
+        // The day is marked HERE, on the graded attempt — not at session
+        // completion. updateDailySnapshot used to run only from completeSession,
+        // so five cards of a twelve-card session that was never finished wrote no
+        // row at all: the Progress page under-reported it and a streak would have
+        // called it a day off.
+        recordAttemptInSnapshot(session, attempt, updated);
+        practiceLedger.record(session.getUsername(), MeaningfulActivity.DRILL_COMPLETED);
+
         // Advance session counter
         session.setCardsCompleted(session.getCardsCompleted() + 1);
         if (session.getCardsCompleted() >= session.getCardsTotal()) {
@@ -175,15 +192,21 @@ public class SessionEngineService {
     public void completeSession(DrillSession session) {
         session.setCompleted(true);
         session.setCompletedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        updateDailySnapshot(session);
+        practiceLedger.record(session.getUsername(), MeaningfulActivity.SESSION_COMPLETED);
     }
 
     // --- Snapshot ---
 
-    private void updateDailySnapshot(DrillSession session) {
-        LocalDate today = LocalDate.now();
-        List<Attempt> attempts = attemptRepository.findBySessionIdOrderByCreatedAtAsc(session.getId());
-        if (attempts.isEmpty()) return;
+    /**
+     * Fold ONE graded attempt into today's row.
+     *
+     * Per attempt, not per session. The previous version re-read every attempt in
+     * the session and added the totals, which is only correct if it runs exactly
+     * once — moving that call to the attempt path would have counted attempt one
+     * twice, attempt two three times, and so on.
+     */
+    private void recordAttemptInSnapshot(DrillSession session, Attempt attempt, Card card) {
+        LocalDate today = clock.today();
 
         MetricSnapshot snap = snapshotRepository
                 .findByUsernameAndSnapshotDate(session.getUsername(), today)
@@ -192,33 +215,27 @@ public class SessionEngineService {
                         .snapshotDate(today)
                         .build());
 
-        int reviewed = attempts.size();
-        int correct  = (int) attempts.stream().filter(Attempt::isCorrect).count();
-        int again    = (int) attempts.stream().filter(a -> a.getRating() == AttemptRating.AGAIN).count();
+        int before = snap.getCardsReviewed();
+        snap.setCardsReviewed(before + 1);
+        if (attempt.isCorrect()) snap.setCardsCorrect(snap.getCardsCorrect() + 1);
+        if (attempt.getRating() == AttemptRating.AGAIN) snap.setCardsAgain(snap.getCardsAgain() + 1);
 
-        snap.setCardsReviewed(snap.getCardsReviewed() + reviewed);
-        snap.setCardsCorrect(snap.getCardsCorrect()  + correct);
-        snap.setCardsAgain(snap.getCardsAgain()       + again);
-
-        // Per-phase breakdown
-        for (Attempt a : attempts) {
-            GamePhase phase = a.getCard().getSourceError().getGamePhase();
-            if (phase == null) continue;
+        GamePhase phase = card.getSourceError() == null ? null : card.getSourceError().getGamePhase();
+        if (phase != null) {
             switch (phase) {
                 case OPENING    -> { snap.setOpeningTotal(snap.getOpeningTotal() + 1);
-                                    if (a.isCorrect()) snap.setOpeningCorrect(snap.getOpeningCorrect() + 1); }
+                                    if (attempt.isCorrect()) snap.setOpeningCorrect(snap.getOpeningCorrect() + 1); }
                 case MIDDLEGAME -> { snap.setMiddlegameTotal(snap.getMiddlegameTotal() + 1);
-                                    if (a.isCorrect()) snap.setMiddlegameCorrect(snap.getMiddlegameCorrect() + 1); }
+                                    if (attempt.isCorrect()) snap.setMiddlegameCorrect(snap.getMiddlegameCorrect() + 1); }
                 case ENDGAME    -> { snap.setEndgameTotal(snap.getEndgameTotal() + 1);
-                                    if (a.isCorrect()) snap.setEndgameCorrect(snap.getEndgameCorrect() + 1); }
+                                    if (attempt.isCorrect()) snap.setEndgameCorrect(snap.getEndgameCorrect() + 1); }
             }
         }
 
-        // Average interval of reviewed cards
-        double avgInterval = attempts.stream()
-                .mapToInt(a -> a.getCard().getIntervalDays())
-                .average().orElse(0);
-        snap.setAvgIntervalDays(Math.round(avgInterval * 10.0) / 10.0);
+        // Running mean, since the batch is no longer available to average over.
+        double prev = snap.getAvgIntervalDays() == null ? 0.0 : snap.getAvgIntervalDays();
+        double avg = (prev * before + card.getIntervalDays()) / (before + 1);
+        snap.setAvgIntervalDays(Math.round(avg * 10.0) / 10.0);
         snap.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
 
         snapshotRepository.save(snap);

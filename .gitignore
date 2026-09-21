@@ -27,3 +27,12 @@ frontend/dist/
 Thumbs.db
 "application.yml" 
 "tts-service/models/*.onnx" 
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/playwright/.cache/
+
+# infra scripts: background service logs
+.infra/
