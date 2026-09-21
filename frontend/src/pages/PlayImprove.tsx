@@ -10,6 +10,7 @@ import type {
 } from '../api/types'
 import { PracticePatterns } from '../components/PracticePatterns'
 import { PraxAnchor, praxBus, praxInteract } from '../prax/PraxHost'
+import { BoardSplit } from '../components/BoardSplit'
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
@@ -512,7 +513,7 @@ export function PlayImprove() {
       {err && <p style={{ fontSize: '0.8rem', color: 'var(--loss, #E2664A)', margin: 0 }}>{err}</p>}
 
       {session && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 460px) 1fr', gap: 18, alignItems: 'start' }}>
+        <BoardSplit boardBasis={320} boardMax={460} gap={18}>
           <div>
             <Chessboard
               position={fen}
@@ -606,7 +607,7 @@ export function PlayImprove() {
 
             {report && <ReportPanel report={report} />}
           </div>
-        </div>
+        </BoardSplit>
       )}
 
       {/* 0.28 put Prax's body over the sync toolbar. The board is tall, so the

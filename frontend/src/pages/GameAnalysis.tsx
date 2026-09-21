@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../components/LoadingSpinner'
 import { buildArrows } from '../components/moveArrows'
 import type { MoveError } from '../api/types'
 import { PraxAnchor } from '../prax/PraxHost'
+import { BoardSplit } from '../components/BoardSplit'
 
 export function GameAnalysis() {
   const { id } = useParams<{ id: string }>()
@@ -45,7 +46,7 @@ export function GameAnalysis() {
         </h1>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 24, alignItems: 'start' }}>
+      <BoardSplit boardBasis={380} gap={24}>
         {/* Board */}
         <div className="card" style={{ padding: 12 }}>
           <ChessBoard
@@ -99,7 +100,7 @@ export function GameAnalysis() {
             </>
           )}
         </div>
-      </div>
+      </BoardSplit>
 
       {/* Contract §4 — the PAGE decides where Prax belongs. Without this
           the registry falls back to a fixed 0.68/0.46, which on this

@@ -78,7 +78,7 @@ export function Insights() {
       </div>
 
       {/* Row 1 — headline metric cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 12 }}>
         <div className="card">
           <div style={{ fontSize: '1.4rem', fontWeight: 700, color: wrColor(cv.conversion_pct) }}>
             {cv.winning_games > 0 ? `${cv.conversion_pct}%` : '—'}
@@ -134,7 +134,7 @@ export function Insights() {
       </div>
 
       {/* Row 3 — opponent strength | phase leak | missed tactics */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 16 }}>
         <div className="card">
           <SectionTitle hint="Win rate vs opponents ±50 rating.">vs Opponent Strength</SectionTitle>
           {data.opponent_strength.map(b => (
@@ -192,7 +192,7 @@ export function Insights() {
       </div>
 
       {/* Row 4 — time of day | day of week */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 16 }}>
+      <div className="stack-on-phone" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.4fr)', gap: 16 }}>
         <div className="card">
           <SectionTitle hint="Win rate by part of day.">Time of Day</SectionTitle>
           <WinRateBars data={data.time_of_day} />
@@ -204,7 +204,7 @@ export function Insights() {
       </div>
 
       {/* Row 5 — tilt | conversion detail */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 16 }}>
+      <div className="stack-on-phone" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.6fr)', gap: 16 }}>
         <div className="card">
           <SectionTitle hint="Do you tilt after a loss? Compare the next game's win rate.">Resilience</SectionTitle>
           <div style={{ display: 'flex', gap: 12 }}>

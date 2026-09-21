@@ -160,7 +160,7 @@ export function Dashboard() {
       )}
 
       {/* Row 1 — stat tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 12 }}>
         {tile('Total Games', stats.total_games)}
         {tile('Wins',     `${stats.wins} (${winPct}%)`,    undefined, 'var(--gain)')}
         {tile('Losses',   `${stats.losses} (${lossPct}%)`, undefined, 'var(--loss)')}
@@ -169,7 +169,7 @@ export function Dashboard() {
       </div>
 
       {/* Row 2 — Coach cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 12 }}>
         <div className="card">
           <div className="micro-label">Current Streak</div>
           <div style={{ lineHeight: 1.1, marginTop: 10 }}><FormStreakBadge streak={stats.form_streak} /></div>
@@ -203,7 +203,7 @@ export function Dashboard() {
       </div>
 
       {/* Row 3 — Rating History | Opening Distribution | Performance + Time Control */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.4fr 1fr', gap: 16 }}>
+      <div className="stack-on-phone" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.8fr) minmax(0, 1.4fr) minmax(0, 1fr)', gap: 16 }}>
         <div className="card">
           <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Rating History</div>
           {stats.rating_history.length > 0
@@ -244,7 +244,7 @@ export function Dashboard() {
       </div>
 
       {/* Row 4 — Mistakes by Phase | Best/Worst Openings | Recent Games */}
-      <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.6fr 1.2fr', gap: 16 }}>
+      <div className="stack-on-phone" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.8fr) minmax(0, 1.6fr) minmax(0, 1.2fr)', gap: 16 }}>
         <div className="card">
           <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 14 }}>
             Mistakes by Phase

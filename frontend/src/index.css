@@ -288,3 +288,12 @@ tbody td { padding: 9px 10px; }
     50%      { opacity: 0.85; transform: translateX(0) scaleX(1); }
   }
 }
+
+/* --- Weighted grids stack on phones ---
+   A `1.8fr 1.4fr 1fr` row cannot fit 412px, and on a phone that doesn't show as a
+   scrollbar: the browser widens the layout viewport and zooms out, and taps stop
+   landing where the finger is. !important because the column template is an
+   inline style on each grid. Guarded by e2e/tests/layout-width.spec.ts. */
+@media (max-width: 760px) {
+  .stack-on-phone { grid-template-columns: minmax(0, 1fr) !important; }
+}
