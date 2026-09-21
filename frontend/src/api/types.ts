@@ -35,6 +35,35 @@ export interface MoveError {
   analysis_state: AnalysisState | null  // null for legacy rows before migration
 }
 
+export interface ReviewMove {
+  /** 1-indexed half-move — the same numbering `MoveError.move_number` uses. */
+  ply: number
+  /** Full move number, for display. */
+  move_number: number
+  san: string
+  color: 'white' | 'black'
+  /** False for the opponent's moves — shown for continuity, never annotated. */
+  by_player: boolean
+  fen_before: string
+  fen_after: string
+  /**
+   * Null unless the move was flagged. Absent means the move cost less than the
+   * inaccuracy threshold — examined and unremarkable, not unexamined.
+   */
+  mistake: MoveError | null
+}
+
+export interface GameReview {
+  game_id: string
+  player_color: string
+  opening_eco: string | null
+  opening_name: string | null
+  result: string
+  accuracy: number | null
+  analysis_status: AnalysisStatus
+  moves: ReviewMove[]
+}
+
 export interface SyncStatus {
   state: 'IDLE' | 'SYNCING' | 'ANALYZING'
   games_fetched: number
@@ -344,4 +373,167 @@ export interface TodayInsight {
   evidence: TodayEvidence
   action: string
   expected_minutes: number
+}
+
+// --- Practice streak ---
+
+/**
+ * Days on which real work happened. Named practice_streak, not streak —
+ * DashboardStats.form_streak already means consecutive wins/losses.
+ */
+export interface PracticeStreak {
+  current_streak: number
+  longest_streak: number
+  total_days_practiced: number
+  last_practice_date: string | null
+  practiced_today: boolean
+  /** The SERVER's date, in the user's zone. Use this, never `new Date()`. */
+  today: string
+  /** Every day ever practised, ascending. Both views are slices of it. */
+  practice_days: string[]
+}
+
+// --- Play & Improve ---
+
+export type PracticeStatus = 'IN_PROGRESS' | 'FINISHED' | 'ABANDONED'
+
+/**
+ * The opponent Praxis built from your history. `personalised` is false when
+ * there are not enough analysed games to shape anything — in which case the
+ * rationale says so rather than inventing a reason.
+ */
+export interface OpponentProfile {
+  skill_level: number
+  target_eco: string | null
+  target_opening: string | null
+  target_phase: string | null
+  target_motif: string | null
+  targeted_weakness: string | null
+  rationale: string[]
+  personalised: boolean
+}
+
+export interface PlaySession {
+  session_id: string
+  fen: string
+  san_moves: string
+  player_color: 'white' | 'black'
+  skill_level: number
+  target_eco: string | null
+  target_opening: string | null
+  status: PracticeStatus
+  result: string | null
+  end_reason: string | null
+  rated: boolean
+}
+
+export interface MoveResult {
+  fen: string
+  /** SAN, or null when the game ended on your move. */
+  opponent_move: string | null
+  san_moves: string
+  status: PracticeStatus
+  result: string | null
+  end_reason: string | null
+  player_to_move: boolean
+}
+
+export type ImprovementDirection = 'BETTER' | 'WORSE' | 'UNCHANGED' | 'UNKNOWN'
+
+export interface Comparison {
+  label: string
+  value: string
+  baseline: string
+  direction: ImprovementDirection
+  note: string
+}
+
+export type AnalysisStage = 'SWEEPING' | 'ENRICHING' | 'EXPLAINING'
+
+export interface AnalysisProgress {
+  stage: AnalysisStage
+  done: number
+  /** Always a counted total, never an estimate. */
+  total: number
+}
+
+export interface ImprovementReport {
+  practice_game_id: string
+  /**
+   * The archived Game row — the id `/analysis/{id}` and `/games/{id}` take.
+   * Null before the game is archived, and set well before it is measured, so
+   * gate the analysis link on `analysed`, never on this being present.
+   */
+  game_id: string | null
+  /**
+   * Live stage counts while `analysed` is false; null once finished, and also
+   * null while the game waits its turn on the executor. Null means "no counts",
+   * which must render as an indeterminate wait — not as zero progress.
+   */
+  progress: AnalysisProgress | null
+  analysed: boolean
+  rated: boolean
+  verdict: string
+  comparisons: Comparison[]
+  improved: string[]
+  still_to_work: string[]
+  /** Rated practice games backing the baseline. */
+  sample_size: number
+  /** False when the sample is too small to claim a direction at all. */
+  trend_claimable: boolean
+  caveat: string | null
+}
+
+/** Whether the sample supports stating a tendency plainly, or only hedging at it. */
+export type PatternStrength = 'EMERGING' | 'ESTABLISHED'
+
+export interface PatternOccurrence {
+  game_id: string
+  /** Null when the finding is about the game, not a move — "never castled". */
+  ply: number | null
+  label: string
+}
+
+export interface PracticePattern {
+  id: string
+  title: string
+  finding: string
+  /** Authored constant: what this costs. Not about this player. */
+  why: string
+  /** Authored constant: the corrective principle, not a move. */
+  what_to_do: string
+  strength: PatternStrength
+  games_affected: number
+  games_considered: number
+  /**
+   * The motif to practise, or null when no position's best move is the lesson.
+   * Habit patterns carry null on purpose — see PRACTICE_PATTERNS_PLAN.md §12 Q5.
+   */
+  drill_motif: string | null
+  evidence: PatternOccurrence[]
+}
+
+export interface PracticePatternReport {
+  games_considered: number
+  claimable: boolean
+  caveat: string | null
+  /** Set when every game in the window is one opening. Qualifies everything below it. */
+  opening_caveat: string | null
+  patterns: PracticePattern[]
+  /** What this report does not look at, and why. */
+  not_measured: string[]
+}
+
+export interface PracticeGameSummary {
+  id: string
+  /** The archived Game — what the review route needs. Null until archived. */
+  game_id: string | null
+  started_at: string
+  finished_at: string | null
+  status: PracticeStatus
+  result: string | null
+  skill_level: number
+  target_opening: string | null
+  rated: boolean
+  analysed: boolean
 }

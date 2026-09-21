@@ -5,6 +5,7 @@ import { api } from '../api/client'
 import { useAnalysisProgress } from '../hooks/useAnalysisProgress'
 import type { AnalysisStatus, GameSummary } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { PraxAnchor } from '../prax/PraxHost'
 
 type FilterKey = 'wins' | 'losses' | 'blunders' | 'white' | 'black' | 'rapid' | 'bullet' | 'blitz' | 'last30'
 
@@ -207,6 +208,12 @@ export function GameList() {
           </tbody>
         </table>
       </div>
+
+      {/* Contract §4 — the PAGE decides where Prax belongs. Without this
+          the registry falls back to a fixed 0.68/0.46, which on this
+          layout is directly on top of the content. */}
+      {/* Right of the table. */}
+      <PraxAnchor x={0.95} y={0.45} />
     </div>
   )
 }

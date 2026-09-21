@@ -1,6 +1,7 @@
 package com.praxis.domain;
 
 import com.praxis.domain.enums.AnalysisStatus;
+import com.praxis.domain.enums.GameSource;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -24,8 +25,18 @@ public class Game {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "chess_com_id", unique = true, nullable = false, length = 64)
+    /** Null for PRACTICE games — they have no Chess.com identity. */
+    @Column(name = "chess_com_id", unique = true, length = 64)
     private String chessComId;
+
+    /**
+     * Practice games must never leak into statistics about real play. Default
+     * CHESS_COM so every existing row keeps its meaning.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", length = 16)
+    @Builder.Default
+    private GameSource source = GameSource.CHESS_COM;
 
     @Column(nullable = false, length = 64)
     private String username;

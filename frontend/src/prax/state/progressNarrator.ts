@@ -24,6 +24,34 @@ export interface PraxNarration {
   examineHref?: string
 }
 
+/** Streak lengths that earn a different sentence. Rare enough to still mean something. */
+export const PRACTICE_MILESTONES = [3, 7, 14, 30, 60, 100]
+
+/**
+ * The line Prax says on the day's first real work.
+ *
+ * Restrained on purpose: this is the moment a habit tracker would fire confetti
+ * and shout, and doing that here would undo the register everything else is
+ * written in. It states what happened. It does not congratulate.
+ */
+export function narratePractice(streak: number): PraxNarration {
+  const milestone = PRACTICE_MILESTONES.includes(streak)
+
+  if (streak <= 1) {
+    return { kind: 'resolved', text: 'Recorded. You examined your chess today.' }
+  }
+  if (milestone) {
+    return {
+      kind: 'resolved',
+      text: streak >= 30
+        ? `${streak} days. This is a practice now, not a streak.`
+        : `${streak} days. You're building a habit, not just a number.`,
+      evidence: [{ label: 'days examined', value: String(streak) }],
+    }
+  }
+  return { kind: 'resolved', text: `Day ${streak}. You showed up again.` }
+}
+
 export function narrateStart(total: number): PraxNarration {
   return {
     kind: 'operational',

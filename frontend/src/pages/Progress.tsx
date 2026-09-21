@@ -3,10 +3,84 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { DailyStat } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { monthsFrom } from '../components/practiceDates'
 import { PraxAnchor } from '../prax/PraxHost'
 
 function pct(n: number, d: number) {
   return d === 0 ? 0 : Math.round((n / d) * 100)
+}
+
+/**
+ * Every month you have practised, oldest first.
+ *
+ * This page's job is consistency over time, so it gets the long arc while Today
+ * keeps only the current week. One row per month rather than a calendar grid
+ * per month: it stays legible at any number of months, and density over time is
+ * the question this panel answers.
+ *
+ * Months with nothing in them are still drawn. Skipping them would compress a
+ * three-month gap into adjacent rows and quietly rewrite the history as more
+ * consistent than it was.
+ */
+function PracticeHistory() {
+  const { data } = useQuery({
+    queryKey: ['practice-streak'],
+    queryFn: () => api.practice.streak(),
+    staleTime: 60_000,
+  })
+
+  if (!data || data.total_days_practiced === 0) return null
+  const months = monthsFrom(data.practice_days, data.today)
+
+  return (
+    <div className="card" style={{ padding: '20px 24px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+        <h3 style={{ fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>Practice history</h3>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          {data.total_days_practiced} days examined · longest {data.longest_streak}
+        </span>
+      </div>
+      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0 0 16px' }}>
+        Every day you examined your chess. Gaps are shown, not hidden.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, maxHeight: 320, overflowY: 'auto' }}>
+        {months.map(mo => (
+          <div key={mo.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{
+              fontSize: '0.68rem', color: 'var(--text-muted)',
+              minWidth: 58, flexShrink: 0, fontVariantNumeric: 'tabular-nums',
+            }}>
+              {mo.label}
+            </span>
+
+            <div style={{ display: 'flex', gap: 2, flexWrap: 'nowrap' }}>
+              {mo.days.map(d => (
+                <span
+                  key={d.date}
+                  title={`${d.date} — ${d.future ? 'upcoming' : d.practiced ? 'examined' : 'no activity'}`}
+                  style={{
+                    width: 7, height: 7, borderRadius: 2, flexShrink: 0,
+                    background: d.practiced ? 'var(--orchid)' : 'var(--surface-2, #1B1920)',
+                    outline: d.isToday ? '1px solid var(--orchid)' : 'none',
+                    outlineOffset: 1,
+                    opacity: d.future ? 0.25 : 1,
+                  }}
+                />
+              ))}
+            </div>
+
+            <span style={{
+              fontSize: '0.66rem', color: 'var(--text-muted)',
+              marginLeft: 'auto', flexShrink: 0, fontVariantNumeric: 'tabular-nums',
+            }}>
+              {mo.practicedCount}/{mo.days.length}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function AccuracyBar({ value, max = 100 }: { value: number; max?: number }) {
@@ -176,6 +250,9 @@ export function Progress() {
           </div>
         )}
       </div>
+
+      {/* The long arc lives here; Today keeps only the current week. */}
+      <PracticeHistory />
 
       {/* Right of the analytics column — Contract §4. */}
       <PraxAnchor x={0.74} y={0.45} />

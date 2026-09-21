@@ -25,6 +25,9 @@ deformation means something, and every meaning has exactly one deformation.
 Concretely: ~1,796 particles, a single `THREE.Points`, one draw call, one WebGL
 canvas that survives navigation.
 
+For the complete list of what it does and when, see
+[§12 Behaviour catalogue](#12-behaviour-catalogue).
+
 ---
 
 ## 2. The rule everything else follows
@@ -71,7 +74,8 @@ prax/
     renderPolicy.ts     full / reduced / frozen
     routerBridge.ts     navigation → events
     narrationStore.ts   the current progress message
-    progressNarrator.ts deterministic narration from analysis events
+    progressNarrator.ts deterministic narration + practice/milestone lines
+    usePracticeSignal.ts detects the day's first activity, app-wide
   renderer/
     PraxCanvas.tsx      the render loop; the only place uniforms are written
     createPraxPoints.ts geometry + material + uniform declarations
@@ -81,7 +85,7 @@ prax/
     registry.ts         where each page wants Prax
     AnchorController.ts smooth relocation between anchors
     viewport.ts         the ONLY screen→world conversion
-    cardPlacement.ts    where the DOM cards go
+    cardPlacement.ts    where the DOM cards go (gutter -> right -> below)
   interaction/
     pointer.ts          pointer position + dwell
     interactions.ts     semantic UI interactions → events
@@ -120,6 +124,8 @@ praxBus.emit({ type: "ANALYSIS_STARTED" });
 | Attention  | `USER_FOCUS`, `USER_FOCUS_END`                                                    |
 | Drills     | `DRILL_CORRECT`, `DRILL_WRONG`                                                    |
 | Query      | `QUERY_STARTED`, `QUERY_FINISHED`                                                 |
+| Practice   | `PRACTICE_LOGGED`                                                                 |
+| Play       | `PRACTICE_GAME_STARTED`, `PRACTICE_GAME_FINISHED`                                 |
 | Speech     | `RESPONSE_STARTED`, `RESPONSE_FINISHED`                                           |
 
 `interaction/interactions.ts` sits above this with a **semantic** vocabulary for
@@ -338,8 +344,8 @@ through the text.
 
 ## 9. Backend connections
 
-Prax touches the backend at exactly three points. Everything else reaches it
-through events emitted by page-level hooks.
+Prax calls the backend directly at a handful of points. Everything else reaches
+it through events emitted by page-level hooks.
 
 | Path                    | Caller           | Shape                                                                |
 | ----------------------- | ---------------- | -------------------------------------------------------------------- |
@@ -357,6 +363,8 @@ Indirect, via events:
 | `pages/Today`                                                | `INSIGHT_FOUND`                                    |
 | `pages/Session`                                              | `DRILL_CORRECT`, `DRILL_WRONG`                     |
 | `components/SyncStatusBanner`                                | `praxInteract('SYNC_STARTED' \| 'PRIMARY_ACTION')` |
+| `prax/state/usePracticeSignal` (reads `/api/practice/streak`) | `PRACTICE_LOGGED`                                 |
+| `pages/PlayImprove` (drives `/api/play/*`)                   | `PRACTICE_GAME_STARTED/FINISHED`, `QUERY_*`        |
 
 There is **no socket and no server push.** Analysis progress is polled and
 converted to events client-side. The narration you see during a run is generated
@@ -365,7 +373,15 @@ message about work happening right now cannot wait on a model, and must not be
 free to invent numbers about it.
 
 `QUERY_STARTED` / `QUERY_FINISHED` bracket the `fetch` in `PraxAsk`, with
-`QUERY_FINISHED` in a `finally` so a failed request settles the body too.
+`QUERY_FINISHED` in a `finally` so a failed request settles the body too. The
+same pair brackets the opponent's move in `PlayImprove`.
+
+`PRACTICE_LOGGED` has no push either: `usePracticeSignal` watches
+`practiced_today` flip false→true across refetches, which is exactly the "first
+activity of the day" edge the backend ledger computes internally. It is mounted
+in `PraxHost` rather than on a page, because a drill completes on Session while
+the streak widget lives on Today — the signal must not depend on which page
+happens to be open.
 
 ---
 
@@ -431,11 +447,149 @@ Break these and something subtle goes wrong later.
     character per unit of visual noise. `bristle` reads as agitation because it
     is fast and sparse, not because it is big.
 
+---
+
+## 12. Behaviour catalogue
+
+Everything Prax visibly does, what causes it, and where it lives. Each row is a
+complete path: something happens → an event → a motion channel → pixels.
+
+### Resting and attention
+
+| Trigger | What you see | Mechanism |
+|---|---|---|
+| Nothing happening | `dormant` — slow breathing, high coherence, nearly still | `STATE_TARGETS.dormant` |
+| Cursor dwells near the body (`FOCUS_DWELL_MS`) | `aware` — slight energy rise, expansion settles inward | `USER_FOCUS` → FSM |
+| Cursor moves close | the field swells along the normal and leans toward the pointer | `uPointer` + `uPointerStrength` |
+| Page navigation | eases to the new page's anchor rather than teleporting | `AnchorController` |
+| Page has no anchor | presence drops to `ambient`; Prax stays out of the way | `NAVIGATION_END` guard |
+
+Dwell, not movement, is the trigger. A cursor crossing the screen should not
+wake it; a cursor lingering should.
+
+### Analysis — the sweep
+
+| Trigger | What you see | Mechanism |
+|---|---|---|
+| Re-analyze All / Analyze Pending starts | briefly attentive, then `thinking` | `ANALYSIS_STARTED` → `fireAttention(0.7)` |
+| While analysing | a raised band travels the body, top to bottom, on repeat | `sweep` channel → `uSweep` |
+| Each game completed | a small kick, so a long run reads as ongoing work | `ANALYSIS_PROGRESS` → `fireTurbulenceSpike(0.25)` |
+| Throughout | a card narrates real counts — operational, observational, resolved | `progressNarrator` → `narrationStore` |
+| Run finishes | returns to `dormant`, resolved line shown | `ANALYSIS_FINISHED` |
+
+The narration is **deterministic**, never model-written. A message about work
+happening right now cannot wait on an LLM and must not be free to invent numbers
+about it.
+
+### Asking a question — the quills
+
+| Trigger | What you see | Mechanism |
+|---|---|---|
+| You press Ask | fine high-frequency spikes over a sparse subset of the surface | `QUERY_STARTED` → `setQuerying(true)` → `bristle` |
+| While waiting | quills persist for as long as the request actually takes | `EnvelopeFollower(160ms, 520ms)` |
+| Answer arrives, request fails, or you press Stop | quills settle rather than snapping off | `QUERY_FINISHED` in a `finally` |
+
+Two frequencies: the *selection* of which particles spike drifts slowly, so
+quills migrate around the body; the *oscillation* is fast (19 Hz), which is what
+reads as agitation. Per-particle phase keeps them out of lockstep — in unison
+the whole body would simply pulse, and pulsing is breathing.
+
+### Findings and insight
+
+| Trigger | What you see | Mechanism |
+|---|---|---|
+| An insight is registered | contraction toward pre-baked cluster centroids | `INSIGHT_FOUND` → `fireInsight()` scaled by importance |
+| While a finding stands | a sustained pink rim | `RIM_FLOOR` |
+| A pattern is detected during analysis | a softer version of the same | `PATTERN_DETECTED` → `fireInsight(0.55)` |
+
+The rim has a **floor**, not just an impulse: the original 900 ms flash had
+decayed before anyone looked up. Pink means "there is something for you", and
+that stays true while the card is up.
+
+### Sync — the crater
+
+| Trigger | What you see | Mechanism |
+|---|---|---|
+| Sync Now / Re-Sync | a dent presses inward from a random direction, then recovers | `praxInteract('SYNC_STARTED')` → `fireCrater()` |
+
+Structural rather than a pulse or a glow, because sync changes the underlying
+material — new games arriving — rather than making Prax think harder.
+
+### Drills
+
+| Trigger | What you see | Mechanism |
+|---|---|---|
+| Correct answer | a contained insight lift | `DRILL_CORRECT` → `fireInsight(0.6)` |
+| Wrong answer | a sharp turbulence spike | `DRILL_WRONG` → `fireTurbulenceSpike(0.8)` |
+
+### Practice streak
+
+| Trigger | What you see | Mechanism |
+|---|---|---|
+| First meaningful activity of the day | a modest insight lift and one line | `PRACTICE_LOGGED` → `fireInsight(0.45)` |
+| A milestone day (3, 7, 14, 30, 60, 100) | slightly stronger, different line | `fireInsight(0.7)` |
+
+Lines stay in register — *"Day 8. You showed up again."*, *"30 days. This is a
+practice now, not a streak."* No confetti, no flame; this is the moment a habit
+tracker would shout, and doing so would undo everything else's tone.
+
+Fires **once per day**, on the transition into practised — detected client-side
+by `practiced_today` flipping false→true, since there is no server push.
+
+### Play & Improve
+
+| Trigger | What you see | Mechanism |
+|---|---|---|
+| A game starts | briefly attentive | `PRACTICE_GAME_STARTED` → `fireAttention(0.7)` |
+| Opponent thinking | quills, reusing the query channel | `QUERY_STARTED` / `QUERY_FINISHED` |
+| Game ends | an insight lift as the report is prepared | `PRACTICE_GAME_FINISHED` → `fireInsight(0.5)` |
+
+No new motion channel for any of it — §11 rule 2.
+
+### Speaking
+
+| Trigger | What you see | Mechanism |
+|---|---|---|
+| Speech begins | body tints orchid, turbulence to maximum | `RESPONSE_STARTED` → `speaking` |
+| While speaking | expansion, brightness and turbulence track the audio | `audioGraph` → `setSpeaking(low, mid, high)` |
+| Speech ends | colour releases more slowly than it arrived | `RESPONSE_FINISHED` |
+
+Colour is driven by the **state**, not the amplitude — the tint means "Prax is
+expressing itself", so it must hold steady between syllables rather than flicker
+with the waveform.
+
+### Render policy
+
+| Condition | Behaviour |
+|---|---|
+| Document hidden | `frozen` — the loop stops entirely |
+| Not the focus of the page | `reduced` — 20 fps |
+| Otherwise | `full` |
+
+This is why the pane being hidden makes Prax untestable by screenshot: the loop
+is correctly not running.
+
+### The cards
+
+| Behaviour | Rule |
+|---|---|
+| Placement | content gutter → right of Prax → **below** Prax. Never left — left is where page content lives |
+| Vertical | centred on Prax's body, clamped inside the viewport |
+| Growth | a long answer grows upward and scrolls internally rather than clipping |
+| Background | opaque base under the surface tint, or charts read through the text |
+| Stack order | progress narration, then the ask card |
+
+`PraxThought` (the insight card with Listen / Examine / Dismiss) is currently
+**unmounted** pending speech — see below.
+
+---
+
 ## Current state and where the organic refactor goes
 
 Working and wired: the full event→state→motion→GPU path, anchors and relocation,
-pointer reactivity with dwell, deterministic narration, the ask/answer card,
-local TTS with audio-driven bands.
+pointer reactivity with dwell, deterministic narration, the ask/answer card with
+verbatim findings, viewport-aware card placement, the query quills, streak and
+practice-game signals, local TTS with audio-driven bands.
 
 Deliberately unmounted: `PraxThought` (the insight card with Listen / Examine /
 Dismiss). The component and the `praxThoughts` registry are intact and still

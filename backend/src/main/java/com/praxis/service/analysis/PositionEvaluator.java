@@ -17,20 +17,33 @@ public class PositionEvaluator {
         this.stockfish = stockfish;
     }
 
-    public List<Double> evaluateAll(List<ParsedMove> moves) {
+    /**
+     * @param moveTimeMs per-position search budget — see {@link AnalysisProfile}.
+     *                   A practice game is one game and can afford more than a
+     *                   hundred-game library sweep can.
+     */
+    public List<Double> evaluateAll(List<ParsedMove> moves, int moveTimeMs) {
+        return evaluateAll(moves, moveTimeMs, AnalysisProgressSink.NOOP);
+    }
+
+    /** As above, reporting after each position — this is the long stage. */
+    public List<Double> evaluateAll(List<ParsedMove> moves, int moveTimeMs, AnalysisProgressSink progress) {
         List<Double> scores = new ArrayList<>();
+        int total = moves.size();
+        progress.sweeping(0, total);
         for (ParsedMove move : moves) {
             if (move.evalScore() != null) {
                 // Highest priority: Chess.com %eval annotation
                 scores.add(move.evalScore());
             } else if (stockfish.isAvailable()) {
                 // Second: Stockfish engine eval (accurate, catches all mistake types)
-                Double sfScore = stockfish.evaluate(move.fenAfter());
+                Double sfScore = stockfish.evaluate(move.fenAfter(), moveTimeMs);
                 scores.add(sfScore != null ? sfScore : material(move.fenAfter()));
             } else {
                 // Fallback: material count (only catches immediate piece drops)
                 scores.add(material(move.fenAfter()));
             }
+            progress.sweeping(scores.size(), total);
         }
         return scores;
     }

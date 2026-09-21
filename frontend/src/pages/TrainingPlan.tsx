@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { TrainingPlanJson, TrainingPriority } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { PraxAnchor } from '../prax/PraxHost'
 
 const MISSION_COLORS = ['var(--loss)', 'var(--warn)', 'var(--orchid)']
 
@@ -250,6 +251,12 @@ export function TrainingPlan() {
           </div>
         </>
       )}
+
+      {/* Contract §4 — the PAGE decides where Prax belongs. Without this
+          the registry falls back to a fixed 0.68/0.46, which on this
+          layout is directly on top of the content. */}
+      {/* Right of the plan column. */}
+      <PraxAnchor x={0.9} y={0.45} />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { getPraxScreenPos } from '../renderer/screenPos'
 import { praxRuntime } from '../state/runtime'
 import { praxInteract } from '../interaction/interactions'
@@ -12,6 +13,23 @@ import { praxAsk } from './PraxAsk'
  */
 export function PraxHitTarget() {
   const [pos, setPos] = useState({ x: -9999, y: -9999, scale: 0.24 })
+  const { pathname } = useLocation()
+
+  /**
+   * On the workspace, clicking Prax must do nothing.
+   *
+   * The card and the /ask page are two views of the same thing. Opening a
+   * floating "Ask Prax" box on the Ask Prax page puts a second input over a page
+   * that already has one, and the two do not share a transcript — so a question
+   * typed into the box would vanish from the conversation behind it.
+   */
+  const inWorkspace = pathname === '/ask' || pathname.startsWith('/ask/')
+
+  // Navigating INTO the workspace with the card already open would leave it
+  // floating over the page it duplicates.
+  useEffect(() => {
+    if (inWorkspace) praxAsk.close()
+  }, [inWorkspace])
 
   useEffect(() => {
     let raf = 0
@@ -32,15 +50,15 @@ export function PraxHitTarget() {
     <div
       role="button"
       tabIndex={0}
-      aria-label="Ask Prax"
+      aria-label={inWorkspace ? 'Prax' : 'Ask Prax'}
       onClick={() => {
         praxInteract('SECONDARY_ACTION')
-        praxAsk.toggle()
+        if (!inWorkspace) praxAsk.toggle()
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          praxAsk.toggle()
+          if (!inWorkspace) praxAsk.toggle()
         }
       }}
       onMouseEnter={() => praxRuntime.setPresence('engaged')}

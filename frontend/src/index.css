@@ -267,3 +267,24 @@ tbody td { padding: 9px 10px; }
     to   { opacity: 1; }
   }
 }
+
+/* --- Indeterminate progress: a container that fills, over and over ---
+   The engine analysing one practice game reports no move-by-move total, so
+   there is no honest percentage to draw. This says "working" without claiming
+   a fraction: the fill sweeps the track rather than resting at a position a
+   reader could mistake for progress. */
+@keyframes prax-fill-sweep {
+  /* Never fully off the track. At -100%/100% the fill spent part of every
+     cycle outside the container, and a glance at that moment saw an empty bar
+     — which is the exact impression this is here to prevent. */
+  0%   { transform: translateX(-52%) scaleX(0.40); }
+  50%  { transform: translateX(0%)   scaleX(0.62); }
+  100% { transform: translateX(52%)  scaleX(0.40); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No travel. A steady pulse still reads as "in progress". */
+  @keyframes prax-fill-sweep {
+    0%, 100% { opacity: 0.30; transform: translateX(0) scaleX(1); }
+    50%      { opacity: 0.85; transform: translateX(0) scaleX(1); }
+  }
+}

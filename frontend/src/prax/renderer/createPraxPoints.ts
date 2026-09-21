@@ -34,6 +34,12 @@ export function createPraxPoints(pixelRatio: number): PraxPointsHandle {
   const uniforms: Record<string, THREE.IUniform> = {
     uTime: { value: 0 },
 
+    // The base surface. Static after init — these describe WHAT Prax is, not
+    // what it is currently doing, so no state channel touches them.
+    uDisplaceAmp: { value: PRAX_CONFIG.DISPLACE_AMP },
+    uDisplaceFreq: { value: PRAX_CONFIG.DISPLACE_FREQ },
+    uDisplaceSpeed: { value: PRAX_CONFIG.DISPLACE_SPEED },
+
     uEnergy: { value: 0.15 },
     uTurbulence: { value: 0 },
     uCoherence: { value: 0.85 },

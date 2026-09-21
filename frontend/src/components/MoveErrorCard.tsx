@@ -3,13 +3,20 @@ import type { MoveError } from '../api/types'
 interface Props {
   error: MoveError
   isSelected: boolean
-  onClick: () => void
+  /** Omitted where the card is a detail panel rather than a list row. */
+  onClick?: () => void
 }
 
-const SEVERITY_SYMBOL: Record<string, string> = {
+export const SEVERITY_SYMBOL: Record<string, string> = {
   BLUNDER: '??',
   MISTAKE: '?',
   INACCURACY: '?!',
+}
+
+export const SEVERITY_COLOR: Record<string, string> = {
+  BLUNDER: 'var(--loss)',
+  MISTAKE: 'var(--orange)',
+  INACCURACY: 'var(--yellow)',
 }
 
 export function MoveErrorCard({ error, isSelected, onClick }: Props) {
@@ -22,7 +29,7 @@ export function MoveErrorCard({ error, isSelected, onClick }: Props) {
       style={{
         padding: '12px 14px',
         borderRadius: 8,
-        cursor: 'pointer',
+        cursor: onClick ? 'pointer' : 'default',
         border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
         background: isSelected ? 'var(--accent-dim)' : 'var(--surface-2)',
         marginBottom: 8,
@@ -56,7 +63,7 @@ export function MoveErrorCard({ error, isSelected, onClick }: Props) {
       )}
       {error.analysis_state === 'SKIPPED' && (
         <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-          Detected by engine — no commentary (outside top 3 worst mistakes).
+          Found by the engine, but not among the mistakes written up for this game.
         </p>
       )}
       {error.analysis_state === 'LLM_FAILED' && (

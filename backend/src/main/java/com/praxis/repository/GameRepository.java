@@ -12,18 +12,61 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Reads are CHESS_COM-only by default.
+ *
+ * Every aggregate in the app — Insights, Dashboard, PatternAggregator,
+ * ChessIntelligence, Today — calls these methods and sums whatever comes back.
+ * Practice games against the engine are real rows in this table, so an unfiltered
+ * read would silently fold Stockfish games into the player's rating trend, win
+ * rate and opening statistics.
+ *
+ * The default is therefore the SAFE answer, and including practice games takes an
+ * explicit `...IncludingPractice` call. A caller who forgets under-counts, which
+ * is visible; the other way round fails silently.
+ *
+ * NULL counts as CHESS_COM. ddl-auto adds a column to existing rows as NULL and
+ * never backfills it — @Builder.Default only sets the field for entities built
+ * in Java. Without the NULL branch, adding this filter made every aggregate in
+ * the app see one game instead of a hundred. The backfill below repairs the
+ * data; this clause makes the query correct even before it runs, and for any
+ * row inserted by something that bypasses the builder.
+ */
 public interface GameRepository extends JpaRepository<Game, UUID> {
 
     boolean existsByChessComId(String chessComId);
 
-    List<Game> findByUsernameOrderByPlayedAtDesc(String username);
+    @Query("SELECT g FROM Game g WHERE g.username = :username AND (g.source IS NULL OR g.source = com.praxis.domain.enums.GameSource.CHESS_COM) ORDER BY g.playedAt DESC")
+    List<Game> findByUsernameOrderByPlayedAtDesc(@Param("username") String username);
 
-    List<Game> findByUsernameAndAnalysisStatus(String username, AnalysisStatus status);
+    @Query("SELECT g FROM Game g WHERE g.username = :username AND g.analysisStatus = :status AND (g.source IS NULL OR g.source = com.praxis.domain.enums.GameSource.CHESS_COM)")
+    List<Game> findByUsernameAndAnalysisStatus(@Param("username") String username, @Param("status") AnalysisStatus status);
 
-    long countByUsernameAndAnalysisStatus(String username, AnalysisStatus status);
+    @Query("SELECT COUNT(g) FROM Game g WHERE g.username = :username AND g.analysisStatus = :status AND (g.source IS NULL OR g.source = com.praxis.domain.enums.GameSource.CHESS_COM)")
+    long countByUsernameAndAnalysisStatus(@Param("username") String username, @Param("status") AnalysisStatus status);
 
+    @Query("SELECT g FROM Game g WHERE g.username = :username AND (g.source IS NULL OR g.source = com.praxis.domain.enums.GameSource.CHESS_COM) ORDER BY g.playedAt DESC")
+    List<Game> findRecentByUsername(@Param("username") String username);
+
+    // --- Practice games: explicit opt-in ---
+
+    @Query("SELECT g FROM Game g WHERE g.username = :username AND g.source = com.praxis.domain.enums.GameSource.PRACTICE ORDER BY g.playedAt DESC")
+    List<Game> findPracticeGamesByUsername(@Param("username") String username);
+
+    /** Every game regardless of origin. Only for operations that act on rows, not statistics. */
     @Query("SELECT g FROM Game g WHERE g.username = :username ORDER BY g.playedAt DESC")
-    List<Game> findRecentByUsername(String username);
+    List<Game> findAllSourcesByUsername(@Param("username") String username);
+
+    long countBySourceIsNull();
+
+    /**
+     * One-time repair for rows that predate the `source` column. Every such row
+     * came from Chess.com, because practice games did not exist before it.
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE Game g SET g.source = com.praxis.domain.enums.GameSource.CHESS_COM WHERE g.source IS NULL")
+    int backfillNullSource();
 
     Optional<Game> findByChessComId(String chessComId);
 

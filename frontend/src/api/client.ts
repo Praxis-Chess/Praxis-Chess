@@ -4,10 +4,18 @@ import type {
   Card,
   DashboardStats,
   Drill,
+  GameReview,
   GameSummary,
   Insights,
   MoveError,
+  ImprovementReport,
+  MoveResult,
+  OpponentProfile,
   Pattern,
+  PlaySession,
+  PracticeGameSummary,
+  PracticePatternReport,
+  PracticeStreak,
   Progress,
   RatingPoint,
   Session,
@@ -52,6 +60,8 @@ export const api = {
   games: {
     list: () => request<GameSummary[]>('/games'),
     get: (id: string) => request<GameSummary>(`/games/${id}`),
+    /** Every move in order, with the engine's findings attached to the flagged ones. */
+    review: (id: string) => request<GameReview>(`/games/${id}/review`),
     reanalyze: (id: string) =>
       request<{ message: string }>(`/games/${id}/analyze`, { method: 'POST' }),
   },
@@ -110,5 +120,28 @@ export const api = {
 
   progress: {
     get: () => request<Progress>('/progress'),
+  },
+
+  practice: {
+    streak: () => request<PracticeStreak>('/practice/streak'),
+  },
+
+  play: {
+    status: () => request<{ available: boolean }>('/play/status'),
+    preview: (skill?: number) =>
+      request<OpponentProfile>(`/play/preview${skill != null ? `?skill=${skill}` : ''}`),
+    start: (body: { color?: string; skill?: number }) =>
+      request<PlaySession>('/play/session', { method: 'POST', body: JSON.stringify(body) }),
+    get: (id: string) => request<PlaySession>(`/play/session/${id}`),
+    move: (id: string, uci: string) =>
+      request<MoveResult>(`/play/session/${id}/move`, {
+        method: 'POST', body: JSON.stringify({ uci }),
+      }),
+    undo: (id: string) => request<MoveResult>(`/play/session/${id}/undo`, { method: 'POST' }),
+    resign: (id: string) => request<MoveResult>(`/play/session/${id}/resign`, { method: 'POST' }),
+    report: (id: string) => request<ImprovementReport>(`/play/report/${id}`),
+    /** Recurring tendencies across recent practice games. Always 200. */
+    patterns: () => request<PracticePatternReport>('/play/patterns'),
+    history: () => request<PracticeGameSummary[]>('/play/history'),
   },
 }

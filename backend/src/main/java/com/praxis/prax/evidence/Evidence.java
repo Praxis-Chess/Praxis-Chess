@@ -21,7 +21,21 @@ public record Evidence(
         /** Stockfish. Stated as fact, cited to the engine. */
         ENGINE,
         /** Pretrained or curated corpus. Stated as general chess knowledge. */
-        KNOWLEDGE
+        KNOWLEDGE,
+        /**
+         * An external web page.
+         *
+         * Categorically weaker than the three above, and treated as such. Those
+         * are COMPUTED and rendered verbatim — the model only picks which to
+         * show. A web claim cannot work that way: it is a paraphrase of someone
+         * else's prose, and no validator can check it.
+         *
+         * So WEB never enters the evidence table. That table means "a number
+         * this backend computed", and putting a paraphrase beside one would
+         * destroy the guarantee that makes the whole table worth showing. Web
+         * material is surfaced separately, as cited sources.
+         */
+        WEB
     }
 
     /**

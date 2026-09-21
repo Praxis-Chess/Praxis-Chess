@@ -8,9 +8,12 @@ import { Library } from './pages/Library'
 import { Dashboard } from './pages/Dashboard'
 import { GameList } from './pages/GameList'
 import { GameAnalysis } from './pages/GameAnalysis'
+import { GameReview } from './pages/GameReview'
 import { PatternReport } from './pages/PatternReport'
 import { TrainingPlan } from './pages/TrainingPlan'
 import { Insights } from './pages/Insights'
+import { PlayImprove } from './pages/PlayImprove'
+import { AskPrax } from './pages/AskPrax'
 import { Drills } from './pages/Drills'
 import { PraxHost } from './prax/PraxHost'
 
@@ -36,6 +39,9 @@ export default function App() {
             <Route index element={<Today />} />
             <Route path="progress" element={<Progress />} />
             <Route path="library" element={<Library />} />
+            <Route path="play" element={<PlayImprove />} />
+            <Route path="play/review/:id" element={<GameReview />} />
+            <Route path="ask" element={<AskPrax />} />
 
             {/* Legacy routes — still accessible, not in primary nav */}
             <Route path="dashboard" element={<Dashboard />} />

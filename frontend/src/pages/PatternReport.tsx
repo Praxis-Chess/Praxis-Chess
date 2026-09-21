@@ -1,6 +1,7 @@
 import { usePatternReport } from '../hooks/usePatternReport'
 import { PatternHeatmap } from '../components/PatternHeatmap'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { PraxAnchor } from '../prax/PraxHost'
 
 export function PatternReport() {
   const { data: pattern, isLoading } = usePatternReport()
@@ -11,6 +12,9 @@ export function PatternReport() {
       <div>
         <h1 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 12 }}>Pattern Report</h1>
         <p style={{ color: 'var(--text-muted)' }}>No pattern data yet. Sync and analyze your games first.</p>
+
+        {/* See Drills.tsx — every return branch places Prax. */}
+        <PraxAnchor x={0.9} y={0.45} />
       </div>
     )
   }
@@ -145,6 +149,12 @@ export function PatternReport() {
           <p style={{ fontSize: '0.85rem', lineHeight: 1.6 }}>{pattern.opening_assessment}</p>
         </div>
       )}
+
+      {/* Contract §4 — the PAGE decides where Prax belongs. Without this
+          the registry falls back to a fixed 0.68/0.46, which on this
+          layout is directly on top of the content. */}
+      {/* Right of the report column. */}
+      <PraxAnchor x={0.9} y={0.45} />
     </div>
   )
 }

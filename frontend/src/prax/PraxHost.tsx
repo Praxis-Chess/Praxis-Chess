@@ -3,6 +3,7 @@ import { PraxStack } from './ui/PraxStack'
 import { PraxHitTarget } from './ui/PraxHitTarget'
 import { PraxDebugPanel } from './ui/PraxDebugPanel'
 import { usePraxRouterBridge } from './state/routerBridge'
+import { usePracticeSignal } from './state/usePracticeSignal'
 
 /**
  * Everything Prax mounts, in one place. Must sit inside the Router (the bridge
@@ -11,6 +12,7 @@ import { usePraxRouterBridge } from './state/routerBridge'
  */
 export function PraxHost() {
   usePraxRouterBridge()
+  usePracticeSignal()
 
   return (
     <>

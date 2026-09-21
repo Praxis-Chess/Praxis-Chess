@@ -25,6 +25,15 @@ final class EvidenceValidator {
     static List<Evidence> validate(List<PraxResponse.Claim> claims, Map<String, ToolResult> results) {
         List<Evidence> out = new ArrayList<>();
         int dropped = 0;
+        /**
+         * Web drops counted apart from the rest.
+         *
+         * An empty evidence table on a web answer is the DESIGNED outcome, not a
+         * failure — web claims are never allowed a row. Counting them with the
+         * genuine failures made a correctly-working general-knowledge answer log
+         * a warning that read like a bug.
+         */
+        int webDropped = 0;
 
         for (var c : claims) {
             if (c.label() == null || c.value() == null) continue;
@@ -42,6 +51,17 @@ final class EvidenceValidator {
             // A tool that errored cannot support anything.
             if (src.data() instanceof Map<?, ?> m && m.containsKey("error")) {
                 log.debug("[prax] dropped claim citing failed tool {}", src.tool());
+                dropped++;
+                continue;
+            }
+
+            // The evidence table means "a figure this backend computed". A web
+            // page is a paraphrase nothing here can verify, so it never earns a
+            // row — enforced, not merely documented on the enum. Web material
+            // reaches the player as cited sources instead.
+            if (src.provenance() == Evidence.Provenance.WEB) {
+                log.debug("[prax] dropped web-sourced claim from the evidence table: {}", c.label());
+                webDropped++;
                 continue;
             }
 
@@ -75,9 +95,15 @@ final class EvidenceValidator {
         if (out.isEmpty()) {
             if (claims.isEmpty()) {
                 log.warn("[prax] model returned no evidence entries at all");
+            } else if (dropped == 0 && webDropped > 0) {
+                // Every claim was web-sourced. Working exactly as designed — the
+                // player sees these as cited sources instead of table rows.
+                log.debug("[prax] {} web claim(s) kept out of the evidence table, as intended",
+                        webDropped);
             } else {
-                log.warn("[prax] all {} evidence claims were dropped; ids seen: {}, ids valid: {}",
-                        dropped, claims.stream().map(PraxResponse.Claim::callId).toList(),
+                log.warn("[prax] {} of {} evidence claims dropped ({} web); ids seen: {}, ids valid: {}",
+                        dropped + webDropped, claims.size(), webDropped,
+                        claims.stream().map(PraxResponse.Claim::callId).toList(),
                         results.keySet());
             }
         }

@@ -43,7 +43,53 @@ public class PreflightCheckService {
         checkOllama();
         checkStockfish();
         checkTts();
+        checkWebResearch();
         log.info("=== Preflight complete — open http://localhost:8086 ===");
+    }
+
+    /**
+     * Web research configured but unreachable is the failure worth catching here.
+     *
+     * SearXNG sits behind a Docker Compose profile, so a plain `docker compose
+     * up -d` brings PostgreSQL back and leaves it behind. The symptom is a
+     * general question refused with "I couldn't find a source" — which reads as
+     * "the web does not know" rather than "your search container is not
+     * running", and costs a debugging session to tell apart.
+     */
+    private void checkWebResearch() {
+        if (!props.webEnabled()) {
+            log.info("[SKIP] Web research disabled in config");
+            return;
+        }
+        if (!"searxng".equals(props.webProvider())) {
+            log.info("[OK] Web research using provider '{}'", props.webProvider());
+            return;
+        }
+
+        String url = props.searxngUrl() + "/search?format=json&q=test";
+        try {
+            HttpResponse<String> res = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(2)).build()
+                    .send(HttpRequest.newBuilder().uri(URI.create(url))
+                            .timeout(Duration.ofSeconds(3)).GET().build(),
+                            HttpResponse.BodyHandlers.ofString());
+
+            if (res.statusCode() == 200) {
+                log.info("[OK] Web research reachable at {}", props.searxngUrl());
+            } else if (res.statusCode() == 403) {
+                // The one misconfiguration that looks exactly like a network fault.
+                log.warn("[WARN] SearXNG at {} returned 403 — the JSON format is not enabled. "
+                        + "Check that searxng/settings.yml is mounted and contains "
+                        + "`formats: [html, json]`", props.searxngUrl());
+            } else {
+                log.warn("[WARN] SearXNG at {} returned {} — general-knowledge questions "
+                        + "will be refused", props.searxngUrl(), res.statusCode());
+            }
+        } catch (Exception e) {
+            log.warn("[WARN] Web research is enabled but SearXNG is not reachable at {} — "
+                    + "general-knowledge questions will be refused. Start it with: "
+                    + "docker compose up -d searxng", props.searxngUrl());
+        }
     }
 
     private void checkTts() {

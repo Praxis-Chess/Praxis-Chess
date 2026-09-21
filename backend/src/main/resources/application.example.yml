@@ -75,6 +75,40 @@ praxis-chess:
     # Rename the .exe to stockfish.exe and paste the path here (use forward slashes)
     path: ""   # e.g. C:/tools/stockfish/stockfish.exe
 
+  # Web research for Prax. The ONLY part of this application that reaches
+  # outside your machine, so it is off until you turn it on.
+  #
+  # Prax uses it only for general chess knowledge — "what is the Najdorf",
+  # "who is Ding Liren". Questions about YOUR games never touch it: the
+  # router decides the lane before the model runs, and on a player question
+  # the web tool is not even in the tool list (see QuestionRouter).
+  web:
+    enabled: false
+
+    # searxng — self-hosted, no API key, nobody else sees your queries.
+    #           Start it with:  docker compose up -d searxng
+    #           SearXNG must have the JSON format enabled; the compose file
+    #           does this for you. Without it every search returns 403.
+    # brave   — Brave Search API. Needs a key; Brave sees every query.
+    #           Free tier is ~2000 queries/month. Get one at
+    #           https://brave.com/search/api/
+    provider: searxng
+
+    searxng-url: http://localhost:8888
+    brave-api-key: ""
+
+    # Pages actually fetched and read. Each costs latency AND a large slice of
+    # the 4096-token context, so 2 is the sensible default and 3 is the point
+    # of diminishing returns.
+    max-pages: 2
+    # Search hits considered before fetching starts.
+    max-results: 5
+
+    # Caching keeps repeat questions off the network, and makes the eval
+    # harness roughly reproducible.
+    cache-search-hours: 24
+    cache-page-days: 7
+
 springdoc:
   api-docs:
     path: /v3/api-docs

@@ -276,6 +276,10 @@ export function Session() {
 
   function onRated(updated: import('../api/types').Session) {
     queryClient.setQueryData(['session', sessionId], updated)
+    // The graded attempt may have been the day's first meaningful activity.
+    // There is no server push, so refetching is what lets usePracticeSignal see
+    // practiced_today flip and mark the day.
+    queryClient.invalidateQueries({ queryKey: ['practice-streak'] })
     if (updated.completed) return
     setCardKey(k => k + 1)
   }

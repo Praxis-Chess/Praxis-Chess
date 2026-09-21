@@ -9,6 +9,7 @@ import { RecentGames } from '../components/RecentGames'
 import { usePatternReport } from '../hooks/usePatternReport'
 import type { TimeControlStat } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { PraxAnchor } from '../prax/PraxHost'
 
 const tile = (label: string, value: React.ReactNode, sub?: React.ReactNode, color = 'var(--text)') => (
   <div className="card" style={{ padding: '16px 18px' }}>
@@ -290,6 +291,12 @@ export function Dashboard() {
         </div>
       </div>
 
+
+      {/* Contract §4 — the PAGE decides where Prax belongs. Without this
+          the registry falls back to a fixed 0.68/0.46, which on this
+          layout is directly on top of the content. */}
+      {/* Right of the chart grid. */}
+      <PraxAnchor x={0.95} y={0.45} />
     </div>
   )
 }

@@ -1,7 +1,12 @@
 import { useSyncExternalStore, useEffect, useState, useRef, useLayoutEffect } from 'react'
 import { narrationStore } from '../state/narrationStore'
 import { getPraxScreenPos } from '../renderer/screenPos'
-import { placePraxCard, type CardPlacement } from '../anchor/cardPlacement'
+import {
+  placePraxCard,
+  PRAX_GUTTER_PX,
+  PRAX_NARROW_PX,
+  type CardPlacement,
+} from '../anchor/cardPlacement'
 import { PraxProgress } from './PraxProgress'
 import { PraxAsk, praxAsk } from './PraxAsk'
 
@@ -44,6 +49,27 @@ export function PraxStack() {
     })
     ro.observe(el)
     return () => ro.disconnect()
+  }, [visible])
+
+  /**
+   * Reserve the strip the card will occupy, so page content moves aside instead
+   * of being covered by a pointer-events:auto overlay.
+   *
+   * Only above PRAX_NARROW_PX: a phone has no room to give, and there the card
+   * docks to the bottom edge instead (see computePlacement).
+   */
+  useEffect(() => {
+    const root = document.documentElement
+    const apply = () => {
+      const reserve = visible && window.innerWidth >= PRAX_NARROW_PX ? PRAX_GUTTER_PX : 0
+      root.style.setProperty('--prax-gutter', `${reserve}px`)
+    }
+    apply()
+    window.addEventListener('resize', apply)
+    return () => {
+      window.removeEventListener('resize', apply)
+      root.style.setProperty('--prax-gutter', '0px')
+    }
   }, [visible])
 
   // Follow Prax only while something is showing.
