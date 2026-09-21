@@ -161,7 +161,7 @@ test.describe('analysis progress', () => {
     await expect(play.main).not.toContainText('%')
   })
 
-  test('the clock advances, so a hang is distinguishable from work', async ({ page }) => {
+  test('the clock advances, so a hang is distinguishable from work', async ({ page, api }) => {
     const play = new PlayPage(page)
     await play.open()
     await play.startButton.click()

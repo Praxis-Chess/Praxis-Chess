@@ -13,7 +13,6 @@
  */
 import type {
   AnalysisProgress,
-  GameAnalysisProgress,
   DashboardStats,
   GameReview,
   GameSummary,
@@ -310,7 +309,7 @@ export const pendingReport: ImprovementReport = {
   // Set, because archiving precedes measurement — which is exactly why the UI
   // must gate the analysis link on `analysed` rather than on this id existing.
   game_id: PRACTICE_GAME_ID,
-  progress: { stage: 'SWEEPING', done: 12, total: 78 } satisfies GameAnalysisProgress,
+  progress: { stage: 'SWEEPING', done: 12, total: 78 },
   analysed: false,
   rated: true,
   verdict: 'Still analysing this game.',

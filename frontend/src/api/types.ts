@@ -450,7 +450,7 @@ export interface Comparison {
 
 export type AnalysisStage = 'SWEEPING' | 'ENRICHING' | 'EXPLAINING'
 
-export interface GameAnalysisProgress {
+export interface AnalysisProgress {
   stage: AnalysisStage
   done: number
   /** Always a counted total, never an estimate. */
@@ -470,7 +470,7 @@ export interface ImprovementReport {
    * null while the game waits its turn on the executor. Null means "no counts",
    * which must render as an indeterminate wait — not as zero progress.
    */
-  progress: GameAnalysisProgress | null
+  progress: AnalysisProgress | null
   analysed: boolean
   rated: boolean
   verdict: string
