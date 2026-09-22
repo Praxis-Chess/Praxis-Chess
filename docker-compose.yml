@@ -4,10 +4,16 @@ services:
     container_name: praxis-chess-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      # Loopback only. Published on every interface, anyone on the same network
+      # could reach the database — and the fallback password below is public.
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: praxis_chess_user
-      POSTGRES_PASSWORD: praxis_chess_pass
+      # From .env (gitignored; see .env.example). The fallback is a public dev
+      # default, acceptable only because the port above is loopback-only.
+      # Takes effect when the data volume is first created — see README
+      # "Changing the database password" for an existing database.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-praxis_chess_pass}
       POSTGRES_DB: praxis_chess
     volumes:
       - postgres_data:/var/lib/postgresql/data

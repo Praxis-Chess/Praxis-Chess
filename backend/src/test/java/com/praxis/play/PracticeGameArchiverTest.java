@@ -36,7 +36,7 @@ class PracticeGameArchiverTest {
 
     private static PracticeGame game(String colour, String result, String san) {
         return PracticeGame.builder()
-                .username("latt1ce")
+                .username("testplayer")
                 .playerColor(colour)
                 .result(result)
                 .skillLevel(7)
@@ -56,7 +56,7 @@ class PracticeGameArchiverTest {
         void shouldProducePgnTheParserCanRead() {
             String pgn = archiver.toPgn(game("white", "win", "e4 e5 Nf3 Nc6 Bb5"));
 
-            var parsed = parser.parse("id", pgn, "latt1ce");
+            var parsed = parser.parse("id", pgn, "testplayer");
 
             assertThat(parsed.moves()).hasSize(5);
             assertThat(parsed.moves().get(0).san()).isEqualTo("e4");
@@ -67,9 +67,9 @@ class PracticeGameArchiverTest {
         void shouldPlacePlayerOnWhite() {
             String pgn = archiver.toPgn(game("white", "win", "e4 e5"));
 
-            assertThat(pgn).contains("[White \"latt1ce\"]");
+            assertThat(pgn).contains("[White \"testplayer\"]");
             assertThat(pgn).contains("[Black \"Praxis Engine (skill 7)\"]");
-            assertThat(parser.parse("id", pgn, "latt1ce").playerColor()).isEqualTo("white");
+            assertThat(parser.parse("id", pgn, "testplayer").playerColor()).isEqualTo("white");
         }
 
         @Test
@@ -80,8 +80,8 @@ class PracticeGameArchiverTest {
             // to the engine instead of the player.
             String pgn = archiver.toPgn(game("black", "loss", "e4 e5"));
 
-            assertThat(pgn).contains("[Black \"latt1ce\"]");
-            assertThat(parser.parse("id", pgn, "latt1ce").playerColor()).isEqualTo("black");
+            assertThat(pgn).contains("[Black \"testplayer\"]");
+            assertThat(parser.parse("id", pgn, "testplayer").playerColor()).isEqualTo("black");
         }
     }
 
@@ -128,7 +128,7 @@ class PracticeGameArchiverTest {
         void shouldHandleOddPlyCount() {
             String pgn = archiver.toPgn(game("white", "win", "e4 e5 Nf3"));
 
-            assertThat(parser.parse("id", pgn, "latt1ce").moves()).hasSize(3);
+            assertThat(parser.parse("id", pgn, "testplayer").moves()).hasSize(3);
         }
 
         @Test

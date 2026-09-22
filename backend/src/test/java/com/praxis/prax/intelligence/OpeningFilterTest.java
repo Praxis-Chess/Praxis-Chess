@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("Opening filter Tests")
 class OpeningFilterTest {
 
-    private static final String USER = "latt1ce";
+    private static final String USER = "testplayer";
 
     private GameRepository games;
     private ChessIntelligence intel;

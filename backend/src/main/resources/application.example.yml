@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/praxis_chess?ApplicationName=praxis-chess
     username: praxis_chess_user
-    password: praxis_chess_pass   # matches infra/dev-postgresql/docker-compose.yml default
+    password: ${POSTGRES_PASSWORD:praxis_chess_pass}   # same variable docker compose reads from .env; Spring reads it from the environment
     driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: praxis-chess-hikari
