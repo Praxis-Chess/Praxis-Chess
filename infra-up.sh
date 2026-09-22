@@ -117,6 +117,23 @@ WEB_ENABLED=$(grep -A3 '^  web:' backend/src/main/resources/application.yml 2>/d
 if [ "${WEB_ENABLED:-false}" != 'true' ]; then
   printf '         %sweb research is disabled in application.yml — skipping%s\n' "$DIM" "$RESET"
 else
+  # settings.yml is gitignored because it holds this instance's secret_key.
+  # Generate it from the example on first run — or after deleting it, which is
+  # how the key is rotated. A running container keeps the old file mounted, so
+  # it is restarted to pick up the new key.
+  if [ ! -f searxng/settings.yml ] && ! $STATUS_ONLY; then
+    if [ -f searxng/settings.example.yml ]; then
+      sx_key=$(openssl rand -hex 32 2>/dev/null || od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
+      sed "s/__GENERATED_ON_FIRST_RUN__/$sx_key/" searxng/settings.example.yml > searxng/settings.yml
+      unset sx_key
+      ok 'generated searxng/settings.yml with a fresh secret key'
+      if [ "$(docker inspect -f '{{.State.Status}}' praxis-chess-searxng 2>/dev/null)" = 'running' ]; then
+        docker restart praxis-chess-searxng >/dev/null 2>&1 && hint 'restarted SearXNG to load the new key'
+      fi
+    else
+      fail 'searxng/settings.example.yml is missing'; PROBLEMS=$((PROBLEMS + 1))
+    fi
+  fi
   sx_state=$(docker inspect -f '{{.State.Status}}' praxis-chess-searxng 2>/dev/null || echo 'missing')
   if [ "$sx_state" = 'running' ] && curl -fsS -o /dev/null --max-time 3 \
        'http://localhost:8888/search?format=json&q=test' 2>/dev/null; then

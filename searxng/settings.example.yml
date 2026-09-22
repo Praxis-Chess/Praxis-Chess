@@ -11,8 +11,9 @@
 use_default_settings: true
 
 server:
-  # Localhost-only, single user. Change it anyway if you ever expose this.
-  secret_key: "praxis-chess-local-instance-change-me"
+  # Generated per install by infra-up.sh (settings.yml is gitignored).
+  # To rotate: delete searxng/settings.yml and run ./infra-up.sh again.
+  secret_key: "__GENERATED_ON_FIRST_RUN__"
   limiter: false
   image_proxy: false
 

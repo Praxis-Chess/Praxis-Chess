@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class PgnDetectorTest {
 
-    private static final String PLAYER = "latt1ce";
+    private static final String PLAYER = "testplayer";
     private final PgnParserService parser = new PgnParserService();
 
     /** Castles on move 12 — comfortably past the move-10 mark. */

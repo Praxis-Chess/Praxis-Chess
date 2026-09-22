@@ -36,3 +36,15 @@ frontend/playwright/.cache/
 
 # infra scripts: background service logs
 .infra/
+
+# Local design docs and plans — kept on disk, never committed
+technical-docs/
+
+# Local secrets — never committed
+.env
+# Stale copy of the Spring config. IntelliJ runs from backend/, so Spring never
+# loaded it; the live config is backend/src/main/resources/application.yml.
+/application.yml
+# Holds this SearXNG instance's secret_key. infra-up.sh generates it from
+# searxng/settings.example.yml with a fresh random key.
+searxng/settings.yml
