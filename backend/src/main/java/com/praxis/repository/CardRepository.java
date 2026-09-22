@@ -56,4 +56,10 @@ public interface CardRepository extends JpaRepository<Card, UUID> {
     @Modifying
     @Query("DELETE FROM Card c WHERE c.username = :username")
     void deleteByUsername(@Param("username") String username);
+
+    /** Cards drawn from these games' mistakes — for a re-analysis scoped to a date range. */
+    @Modifying
+    @Query("DELETE FROM Card c WHERE c.sourceError.id IN "
+            + "(SELECT me.id FROM MoveError me WHERE me.game.id IN :gameIds)")
+    void deleteByGameIds(@Param("gameIds") java.util.Collection<java.util.UUID> gameIds);
 }

@@ -45,6 +45,26 @@ function WinRateBars({ data }: { data: TimeBucket[] }) {
   )
 }
 
+/**
+ * Trends here mix every analysed game. If those games were analysed with
+ * different engine settings, a "trend" can be the engine looking deeper rather
+ * than the player improving — so say so, and point at the fix.
+ */
+function MixedSettingsNotice() {
+  const { data } = useQuery({ queryKey: ['settings-coverage'], queryFn: api.settings.coverage })
+  if (!data?.mixed_settings) return null
+  return (
+    <div role="status" style={{
+      padding: '10px 12px', borderLeft: '2px solid var(--warn)', background: 'rgba(229, 176, 75, 0.08)',
+      fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5,
+    }}>
+      These games were analysed with {data.analyzed_with.length} different engine settings
+      ({data.analyzed_with.map(c => `${c.label}: ${c.games}`).join(', ')}), and the trends below mix them.{' '}
+      <Link to="/settings">Re-analyse on the Settings page</Link> to compare like with like.
+    </div>
+  )
+}
+
 export function Insights() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['insights'],
@@ -76,6 +96,8 @@ export function Insights() {
           Practical analytics derived from your analyzed games — where your rating actually leaks.
         </p>
       </div>
+
+      <MixedSettingsNotice />
 
       {/* Row 1 — headline metric cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 12 }}>

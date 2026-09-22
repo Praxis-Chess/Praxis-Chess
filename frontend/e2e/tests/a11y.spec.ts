@@ -6,6 +6,7 @@ import { AppPage } from '../pages/AppPage'
 const ROUTES = [
   '/', '/progress', '/library', '/play', '/ask', '/insights',
   '/dashboard', '/games', '/drills', '/patterns', '/training',
+  '/settings',
 ]
 
 /**

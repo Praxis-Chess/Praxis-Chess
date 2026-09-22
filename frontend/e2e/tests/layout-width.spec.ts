@@ -31,6 +31,7 @@ const ROUTES = [
   '/dashboard', '/games', '/games/7c3c9a2e-1111-4a22-8b33-445566778899',
   '/drills', '/patterns', '/training',
   `/play/review/${data.PRACTICE_GAME_ID}`,
+  '/settings',
 ]
 
 for (const route of ROUTES) {

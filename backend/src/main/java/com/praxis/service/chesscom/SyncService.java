@@ -1,5 +1,8 @@
 package com.praxis.service.chesscom;
 
+import com.praxis.service.settings.SyncWindow;
+import com.praxis.service.settings.SettingsService;
+import com.praxis.config.PraxisClock;
 import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.SyncHistory;
@@ -37,6 +40,8 @@ public class SyncService {
     private final AnalysisPipelineOrchestrator pipelineOrchestrator;
     private final AnalysisProgressTracker progressTracker;
     private final AppProperties appProperties;
+    private final SettingsService settings;
+    private final PraxisClock clock;
 
     // In-memory sync state
     private volatile boolean syncing = false;
@@ -55,13 +60,17 @@ public class SyncService {
                        SyncHistoryRepository syncHistoryRepository,
                        AnalysisPipelineOrchestrator pipelineOrchestrator,
                        AnalysisProgressTracker progressTracker,
-                       AppProperties appProperties) {
+                       AppProperties appProperties,
+                       SettingsService settings,
+                       PraxisClock clock) {
         this.apiClient = apiClient;
         this.gameRepository = gameRepository;
         this.syncHistoryRepository = syncHistoryRepository;
         this.pipelineOrchestrator = pipelineOrchestrator;
         this.progressTracker = progressTracker;
         this.appProperties = appProperties;
+        this.settings = settings;
+        this.clock = clock;
     }
 
     @Transactional
@@ -79,10 +88,16 @@ public class SyncService {
 
         try {
             List<Game> newGames = new ArrayList<>();
-            YearMonth current = YearMonth.now();
+            YearMonth current = YearMonth.from(clock.today());
 
-            for (int i = 0; i < months; i++) {
-                YearMonth ym = current.minusMonths(i);
+            // The configured sync range when one is set; otherwise the previous
+            // behaviour, the last `months` months (Sync Now 1, Re-Sync 3).
+            SyncWindow window = settings.syncWindow(months);
+            List<YearMonth> archives = window.months(clock.today());
+            log.info("Syncing {} to {} ({} monthly archive{})", window.from(), window.to(),
+                    archives.size(), archives.size() == 1 ? "" : "s");
+
+            for (YearMonth ym : archives) {
 
                 // A completed month is immutable — once synced it can never gain
                 // games, so the history record is a valid cache. The CURRENT month
@@ -117,6 +132,9 @@ public class SyncService {
                         continue;
                     }
                     Game game = toEntity(cg, effectiveUsername);
+                    // A range starting mid-month still fetches the whole archive;
+                    // games outside the range are left for a later, wider sync.
+                    if (!window.contains(clock.dateOf(game.getPlayedAt()))) continue;
                     gameRepository.save(game);
                     newGames.add(game);
                     persisted++;
@@ -124,31 +142,42 @@ public class SyncService {
 
                 // Upsert, not insert. The current month is now re-synced on every
                 // press, so a blind insert would add a duplicate row each time.
-                final int persistedCount = persisted;
-                syncHistoryRepository
-                        .findByUsernameAndYearAndMonth(effectiveUsername, ym.getYear(), ym.getMonthValue())
-                        .ifPresentOrElse(
-                                existing -> {
-                                    existing.setGamesFetched(existing.getGamesFetched() + persistedCount);
-                                    syncHistoryRepository.save(existing);
-                                },
-                                () -> syncHistoryRepository.save(SyncHistory.builder()
-                                        .username(effectiveUsername)
-                                        .year(ym.getYear())
-                                        .month(ym.getMonthValue())
-                                        .gamesFetched(persistedCount)
-                                        .build()));
+                // Only a month the window covers from its first day to its last may
+                // be cached as synced (SyncWindow.coversWholeMonth). A partial month is
+                // re-fetched next time: one extra API call, and the only way the rest
+                // of it ever gets synced.
+                if (window.coversWholeMonth(ym)) {
+                    final int persistedCount = persisted;
+                    syncHistoryRepository
+                            .findByUsernameAndYearAndMonth(effectiveUsername, ym.getYear(), ym.getMonthValue())
+                            .ifPresentOrElse(
+                                    existing -> {
+                                        existing.setGamesFetched(existing.getGamesFetched() + persistedCount);
+                                        syncHistoryRepository.save(existing);
+                                    },
+                                    () -> syncHistoryRepository.save(SyncHistory.builder()
+                                            .username(effectiveUsername)
+                                            .year(ym.getYear())
+                                            .month(ym.getMonthValue())
+                                            .gamesFetched(persistedCount)
+                                            .build()));
+                }
 
                 gamesFetched.addAndGet(persisted);
                 log.info("Synced {}/{}: {} new games", ym.getYear(), ym.getMonthValue(), persisted);
             }
 
             lastSyncedAt.set(OffsetDateTime.now(ZoneOffset.UTC).toString());
-            gamesQueued.set(newGames.size());
+            // Only games inside the analysis range are analysed automatically. The
+            // rest are stored as PENDING and show up on the Settings coverage view.
+            List<Game> toAnalyse = newGames.stream()
+                    .filter(g -> settings.inAnalysisRange(g.getPlayedAt()))
+                    .toList();
+            gamesQueued.set(toAnalyse.size());
 
-            if (!newGames.isEmpty()) {
+            if (!toAnalyse.isEmpty()) {
                 progressTracker.setQueued(true);
-                pipelineOrchestrator.analyzeGames(newGames, effectiveUsername);
+                pipelineOrchestrator.analyzeGames(toAnalyse, effectiveUsername);
             }
 
             return newGames.size();
@@ -202,9 +231,7 @@ public class SyncService {
     }
 
     public void clearSyncHistory(String username, int months) {
-        YearMonth current = YearMonth.now();
-        for (int i = 0; i < months; i++) {
-            YearMonth ym = current.minusMonths(i);
+        for (YearMonth ym : settings.syncWindow(months).months(clock.today())) {
             syncHistoryRepository.deleteByUsernameAndYearAndMonth(username, ym.getYear(), ym.getMonthValue());
         }
     }

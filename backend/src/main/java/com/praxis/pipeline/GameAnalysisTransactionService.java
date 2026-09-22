@@ -1,5 +1,7 @@
 package com.praxis.pipeline;
 
+import java.util.concurrent.atomic.AtomicLong;
+import com.praxis.domain.AnalysisTiming;
 import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.MoveError;
@@ -56,6 +58,7 @@ public class GameAnalysisTransactionService {
     private final MoveErrorRepository moveErrorRepository;
     private final AppProperties appProperties;
     private final EcoTable ecoTable;
+    private final AnalysisTimingRecorder timingRecorder;
 
     public GameAnalysisTransactionService(PgnParserService pgnParserService,
                                           PositionEvaluator positionEvaluator,
@@ -65,7 +68,8 @@ public class GameAnalysisTransactionService {
                                           GameRepository gameRepository,
                                           MoveErrorRepository moveErrorRepository,
                                           AppProperties appProperties,
-                                          EcoTable ecoTable) {
+                                          EcoTable ecoTable,
+                                          AnalysisTimingRecorder timingRecorder) {
         this.pgnParserService = pgnParserService;
         this.positionEvaluator = positionEvaluator;
         this.candidateFilter = candidateFilter;
@@ -75,6 +79,7 @@ public class GameAnalysisTransactionService {
         this.moveErrorRepository = moveErrorRepository;
         this.appProperties = appProperties;
         this.ecoTable = ecoTable;
+        this.timingRecorder = timingRecorder;
     }
 
     /**
@@ -87,8 +92,17 @@ public class GameAnalysisTransactionService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void analyzeOne(Game game, AnalysisProfile profile, AnalysisProgressSink progress) {
+        analyzeOne(game, profile, null, progress);
+    }
+
+    /**
+     * As above, recording which AnalysisSettings row the run used, so the game
+     * carries its ruler. The three-argument form records none.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void analyzeOne(Game game, AnalysisProfile profile, Long settingsId, AnalysisProgressSink progress) {
         try {
-            analyzeInternal(game, profile, progress);
+            analyzeInternal(game, profile, settingsId, progress);
         } finally {
             // Whether it succeeded or threw, nothing more is coming. Leaving a
             // stale snapshot behind would show a progress bar for a run that has
@@ -97,8 +111,9 @@ public class GameAnalysisTransactionService {
         }
     }
 
-    private void analyzeInternal(Game game, AnalysisProfile profile, AnalysisProgressSink progress) {
+    private void analyzeInternal(Game game, AnalysisProfile profile, Long settingsId, AnalysisProgressSink progress) {
         log.debug("Analyzing game {} with the {} profile", game.getChessComId(), profile.name());
+        long startedAt = System.currentTimeMillis();
         game.setAnalysisStatus(AnalysisStatus.ANALYZING);
         gameRepository.save(game);
 
@@ -144,8 +159,10 @@ public class GameAnalysisTransactionService {
             }
         }
 
+        long sweepStartedAt = System.currentTimeMillis();
         List<Double> scores = positionEvaluator.evaluateAll(
                 parsedGame.moves(), profile.sweepMoveTimeMs(), progress);
+        long sweepMs = System.currentTimeMillis() - sweepStartedAt;
 
         // `!hasAccuracy()` rather than `== null`: a stored 0.0 is a failed
         // measurement from an earlier run, and `0.0 != null` meant re-analysis
@@ -177,6 +194,9 @@ public class GameAnalysisTransactionService {
         String gameId = game.getChessComId();
 
         int explainable = Math.min(sorted.size(), profile.maxOllamaCalls());
+        // Summed across the consumer thread's calls: the explanations overlap the
+        // deep check, so their cost can't be read off the wall clock.
+        AtomicLong explainMs = new AtomicLong();
 
         CompletableFuture<List<OllamaResult>> ollamaFuture = CompletableFuture.supplyAsync(() -> {
             List<OllamaResult> results = new ArrayList<>();
@@ -184,7 +204,9 @@ public class GameAnalysisTransactionService {
                 while (true) {
                     Optional<CandidateMove> item = ollamaQueue.take();
                     if (item.isEmpty()) break; // poison pill
+                    long callStartedAt = System.currentTimeMillis();
                     results.add(callOllamaWithRetry(item.get(), playerColor));
+                    explainMs.addAndGet(System.currentTimeMillis() - callStartedAt);
                     progress.explaining(results.size(), explainable);
                 }
             } catch (InterruptedException e) {
@@ -195,6 +217,7 @@ public class GameAnalysisTransactionService {
         });
 
         // Main thread: enrich each candidate with MultiPV, push top-N to Ollama queue
+        long enrichStartedAt = System.currentTimeMillis();
         List<CandidateMove> enriched = new ArrayList<>(sorted.size());
         progress.enriching(0, sorted.size());
         for (int i = 0; i < sorted.size(); i++) {
@@ -212,6 +235,7 @@ public class GameAnalysisTransactionService {
             }
         }
         ollamaQueue.offer(Optional.empty()); // signal consumer to stop
+        long enrichMs = System.currentTimeMillis() - enrichStartedAt;
 
         List<OllamaResult> ollamaResults;
         try {
@@ -233,7 +257,27 @@ public class GameAnalysisTransactionService {
 
         game.setAnalysisStatus(AnalysisStatus.ANALYZED);
         game.setAnalyzedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        game.setAnalysisSettingsId(settingsId);
         gameRepository.save(game);
+
+        // Timings feed the Settings page's estimate. Recorded through the
+        // recorder bean's own transaction and never allowed to fail the analysis
+        // it measures (see AnalysisTimingRecorder).
+        try {
+            timingRecorder.record(AnalysisTiming.builder()
+                    .gameId(game.getId())
+                    .settingsId(settingsId)
+                    .plies(parsedGame.moves().size())
+                    .candidates(enriched.size())
+                    .explanations(ollamaResults.size())
+                    .sweepMs(sweepMs)
+                    .enrichMs(enrichMs)
+                    .explainMs(explainMs.get())
+                    .totalMs(System.currentTimeMillis() - startedAt)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Could not record analysis timing for game {}: {}", game.getChessComId(), e.getMessage());
+        }
 
         log.debug("Game {} analyzed successfully", game.getChessComId());
     }

@@ -1,5 +1,7 @@
 package com.praxis.play;
 
+import com.praxis.service.settings.SettingsService;
+import com.praxis.domain.AnalysisSettings;
 import com.praxis.config.PraxisClock;
 import com.praxis.domain.Game;
 import com.praxis.domain.enums.AnalysisStatus;
@@ -44,17 +46,20 @@ public class PracticeGameArchiver {
     private final PracticeLedgerService ledger;
     private final PraxisClock clock;
     private final PracticeAnalysisProgress progress;
+    private final SettingsService settings;
 
     public PracticeGameArchiver(PracticeGameRepository practiceGames, GameRepository games,
                                 GameAnalysisTransactionService analysis,
                                 PracticeLedgerService ledger, PraxisClock clock,
-                                PracticeAnalysisProgress progress) {
+                                PracticeAnalysisProgress progress,
+                                SettingsService settings) {
         this.practiceGames = practiceGames;
         this.games = games;
         this.analysis = analysis;
         this.ledger = ledger;
         this.clock = clock;
         this.progress = progress;
+        this.settings = settings;
     }
 
     /**
@@ -70,7 +75,8 @@ public class PracticeGameArchiver {
             if (archived == null) return;
             // The deeper profile: one game, its own executor, someone watching.
             // That someone is the reason progress is reported at all.
-            analysis.analyzeOne(archived, AnalysisProfile.PRACTICE,
+            SettingsService.Active active = settings.active(AnalysisSettings.PRACTICE);
+            analysis.analyzeOne(archived, active.profile(), active.id(),
                     progress.sinkFor(archived.getId()));
             log.info("[play] analysed practice game {}", archived.getId());
         } catch (Exception e) {

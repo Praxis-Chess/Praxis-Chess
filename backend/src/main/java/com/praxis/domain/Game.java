@@ -73,6 +73,16 @@ public class Game {
     @Column(name = "analyzed_at")
     private OffsetDateTime analyzedAt;
 
+    /**
+     * The AnalysisSettings row this game was analysed under — its ruler.
+     * Depth changes which moves get flagged and what accuracy comes out, so
+     * comparisons are only meaningful between games with the same value here.
+     * Null until analysed; games analysed before Settings existed are
+     * attributed to v0 by SettingsBootstrap.
+     */
+    @Column(name = "analysis_settings_id")
+    private Long analysisSettingsId;
+
     @Column(name = "white_rating")
     private Integer whiteRating;
 

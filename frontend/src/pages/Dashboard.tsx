@@ -79,7 +79,7 @@ export function Dashboard() {
   const { data: pattern } = usePatternReport()
 
   const reanalyzeMut = useMutation({
-    mutationFn: api.analysis.reanalyzeAll,
+    mutationFn: () => api.analysis.reanalyzeAll(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
       queryClient.invalidateQueries({ queryKey: ['analysis-progress'] })

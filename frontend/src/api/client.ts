@@ -1,5 +1,11 @@
 import type {
   AnalysisProgress,
+  AppSettingsView,
+  Coverage,
+  EngineConfig,
+  SettingsEstimate,
+  SettingsSaved,
+  SettingsUpdate,
   AttemptRequest,
   Card,
   DashboardStats,
@@ -75,8 +81,14 @@ export const api = {
     moveErrors: (gameId: string) => request<MoveError[]>(`/analysis/${gameId}`),
     analyzePending: () =>
       request<{ message: string; games_queued: number }>('/analysis/analyze-pending', { method: 'POST' }),
-    reanalyzeAll: () =>
-      request<{ message: string; games_queued: number }>('/analysis/reanalyze', { method: 'POST' }),
+    /**
+     * Re-analyse the games inside the analysis range (every game when no range
+     * is set). `outdatedOnly` limits it to games not yet analysed with the
+     * current engine settings.
+     */
+    reanalyzeAll: (outdatedOnly = false) =>
+      request<{ message: string; games_queued: number }>(
+        `/analysis/reanalyze${outdatedOnly ? '?outdated_only=true' : ''}`, { method: 'POST' }),
     progress: () => request<AnalysisProgress>('/analysis/progress'),
     /** Honoured between games — the run ends after the one in flight. */
     stop: () =>
@@ -143,5 +155,33 @@ export const api = {
     /** Recurring tendencies across recent practice games. Always 200. */
     patterns: () => request<PracticePatternReport>('/play/patterns'),
     history: () => request<PracticeGameSummary[]>('/play/history'),
+  },
+
+  settings: {
+    get: () => request<AppSettingsView>('/settings'),
+    /**
+     * A 400 carries a message per invalid field. It's RETURNED, not thrown, so
+     * the form can put each message under its own input instead of showing one
+     * opaque "API error 400".
+     */
+    save: async (
+      body: SettingsUpdate,
+    ): Promise<{ ok: true; saved: SettingsSaved } | { ok: false; errors: Record<string, string> }> => {
+      const res = await fetch(`${BASE}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (res.status === 400) {
+        const j = await res.json().catch(() => ({}))
+        return { ok: false, errors: j.errors ?? { body: 'The settings were rejected.' } }
+      }
+      if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`)
+      return { ok: true, saved: (await res.json()) as SettingsSaved }
+    },
+    coverage: () => request<Coverage>('/settings/coverage'),
+    /** Measured time estimate for a PROPOSED configuration. Changes nothing. */
+    estimate: (body: { library: EngineConfig | null; practice: EngineConfig | null }) =>
+      request<SettingsEstimate>('/settings/estimate', { method: 'POST', body: JSON.stringify(body) }),
   },
 }

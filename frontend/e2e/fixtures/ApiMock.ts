@@ -113,6 +113,10 @@ export class ApiMock {
     this.json('/api/practice/streak', data.practiceStreak)
     this.json('/api/sync/status', data.syncStatus)
     this.json('/api/sync/new-count', { count: 0 })
+    // Settings — Insights also reads the coverage, for its mixed-settings notice.
+    this.json('/api/settings', data.settingsView)
+    this.json('/api/settings/coverage', data.coverage)
+    this.json('/api/settings/estimate', data.estimate)
     this.json('/api/analysis/progress', data.analysisIdle)
     this.json('/api/dashboard/stats', data.dashboardStats)
     this.json('/api/dashboard/rating-history', data.dashboardStats.rating_history)

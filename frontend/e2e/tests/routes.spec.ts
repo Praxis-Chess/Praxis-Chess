@@ -20,6 +20,7 @@ const ROUTES = [
   { path: '/drills', name: 'Drills' },
   { path: '/patterns', name: 'Pattern report' },
   { path: '/training', name: 'Training plan' },
+  { path: '/settings', name: 'Settings' },
 ]
 
 for (const route of ROUTES) {
