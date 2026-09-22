@@ -30,7 +30,7 @@ class PracticeGameArchiverTest {
     @BeforeEach
     void setUp() {
         // Only toPgn is under test; it touches no collaborator.
-        archiver = new PracticeGameArchiver(null, null, null, null, null, null);
+        archiver = new PracticeGameArchiver(null, null, null, null, null, null, null);
         parser = new PgnParserService();
     }
 

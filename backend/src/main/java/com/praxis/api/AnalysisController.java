@@ -1,5 +1,7 @@
 package com.praxis.api;
 
+import com.praxis.service.settings.SettingsService;
+import com.praxis.domain.AnalysisSettings;
 import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.enums.AnalysisStatus;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -30,6 +33,7 @@ public class AnalysisController {
     private final AnalysisPipelineOrchestrator pipelineOrchestrator;
     private final AppProperties appProperties;
     private final AnalysisProgressTracker progressTracker;
+    private final SettingsService settings;
 
     public AnalysisController(MoveErrorRepository moveErrorRepository,
                               GameRepository gameRepository,
@@ -37,7 +41,8 @@ public class AnalysisController {
                               AttemptRepository attemptRepository,
                               AnalysisPipelineOrchestrator pipelineOrchestrator,
                               AppProperties appProperties,
-                              AnalysisProgressTracker progressTracker) {
+                              AnalysisProgressTracker progressTracker,
+                              SettingsService settings) {
         this.moveErrorRepository = moveErrorRepository;
         this.gameRepository = gameRepository;
         this.cardRepository = cardRepository;
@@ -45,6 +50,7 @@ public class AnalysisController {
         this.pipelineOrchestrator = pipelineOrchestrator;
         this.appProperties = appProperties;
         this.progressTracker = progressTracker;
+        this.settings = settings;
     }
 
     @GetMapping("/{gameId}")
@@ -97,7 +103,8 @@ public class AnalysisController {
     @PostMapping("/analyze-pending")
     public ResponseEntity<Map<String, Object>> analyzePending() {
         String username = appProperties.chessCom().username();
-        List<Game> pending = gameRepository.findByUsernameAndAnalysisStatus(username, AnalysisStatus.PENDING);
+        List<Game> pending = gameRepository.findByUsernameAndAnalysisStatus(username, AnalysisStatus.PENDING)
+                .stream().filter(g -> settings.inAnalysisRange(g.getPlayedAt())).toList();
         if (!pending.isEmpty()) {
             progressTracker.setQueued(true);
             pipelineOrchestrator.analyzeGames(pending, username);
@@ -109,15 +116,34 @@ public class AnalysisController {
 
     @Transactional
     @PostMapping("/reanalyze")
-    public ResponseEntity<Map<String, Object>> reanalyzeAll() {
+    public ResponseEntity<Map<String, Object>> reanalyzeAll(
+            @RequestParam(name = "outdated_only", defaultValue = "false") boolean outdatedOnly) {
         String username = appProperties.chessCom().username();
-        List<Game> games = gameRepository.findByUsernameOrderByPlayedAtDesc(username);
+        // Every version that measures the same way as the active one, not just its
+        // id — the same set the coverage counts as current, so the button cannot
+        // queue games the page did not offer.
+        Set<Long> sameRuler = settings.engineEquivalentIds(AnalysisSettings.LIBRARY);
+        // Inside the analysis range; with outdated_only, just the games not yet
+        // analysed with the current settings — "re-analyse with current settings".
+        List<Game> games = gameRepository.findByUsernameOrderByPlayedAtDesc(username).stream()
+                .filter(g -> settings.inAnalysisRange(g.getPlayedAt()))
+                .filter(g -> !outdatedOnly || !sameRuler.contains(g.getAnalysisSettingsId()))
+                .toList();
+        boolean wholeLibrary = !outdatedOnly && !settings.hasAnalysisRange();
 
         // Delete in FK order: attempts → cards → move_errors → reset game status.
         // Cards hold a non-null FK to move_errors; attempts hold a non-null FK to cards.
         // Skipping this order would cause a DataIntegrityViolationException.
-        attemptRepository.deleteByCardUsername(username);
-        cardRepository.deleteByUsername(username);
+        if (wholeLibrary) {
+            attemptRepository.deleteByCardUsername(username);
+            cardRepository.deleteByUsername(username);
+        } else if (!games.isEmpty()) {
+            // Scoped to THESE games' cards. Wiping the whole deck to re-analyse one
+            // month would destroy drill history for games nobody asked to touch.
+            List<UUID> ids = games.stream().map(Game::getId).toList();
+            attemptRepository.deleteByGameIds(ids);
+            cardRepository.deleteByGameIds(ids);
+        }
 
         for (Game game : games) {
             moveErrorRepository.deleteByGameId(game.getId());

@@ -15,6 +15,7 @@ import { Insights } from './pages/Insights'
 import { PlayImprove } from './pages/PlayImprove'
 import { AskPrax } from './pages/AskPrax'
 import { Drills } from './pages/Drills'
+import { Settings } from './pages/Settings'
 import { PraxHost } from './prax/PraxHost'
 
 const queryClient = new QueryClient({
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="games" element={<GameList />} />
             <Route path="games/:id" element={<GameAnalysis />} />
             <Route path="insights" element={<Insights />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="drills" element={<Drills />} />
             <Route path="patterns" element={<PatternReport />} />
             <Route path="training" element={<TrainingPlan />} />

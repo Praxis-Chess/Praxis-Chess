@@ -42,6 +42,7 @@ const ROUTES = [
   '/', '/progress', '/library', '/play', '/ask', '/insights',
   '/dashboard', '/games', '/games/7c3c9a2e-1111-4a22-8b33-445566778899',
   '/drills', '/patterns', '/training',
+  '/settings',
 ]
 
 /**

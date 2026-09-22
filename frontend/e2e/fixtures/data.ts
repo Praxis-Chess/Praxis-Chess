@@ -13,6 +13,9 @@
  */
 import type {
   AnalysisProgress,
+  AppSettingsView,
+  Coverage,
+  SettingsEstimate,
   GameAnalysisProgress,
   DashboardStats,
   GameReview,
@@ -527,4 +530,84 @@ export const resignResult: MoveResult = {
   result: 'loss',
   end_reason: 'RESIGNATION',
   player_to_move: false,
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+// The coverage totals are the sums of their months, and each month the sum of
+// its days — the page derives nothing, so a fixture that disagreed with itself
+// would test nothing.
+
+export const settingsView: AppSettingsView = {
+  sync_from: null,
+  sync_to: null,
+  analysis_from: null,
+  analysis_to: null,
+  library: {
+    id: 1, label: 'library-v0', sweep_move_time_ms: 100, multi_pv_depth: 18,
+    multi_pv_lines: 3, max_explanations: 3, created_at: '2026-09-22T10:00:00Z',
+  },
+  practice: {
+    id: 2, label: 'practice-v0', sweep_move_time_ms: 200, multi_pv_depth: 20,
+    multi_pv_lines: 4, max_explanations: 10, created_at: '2026-09-22T10:00:00Z',
+  },
+  bounds: {
+    sweep_min: 50, sweep_max: 1000, depth_min: 12, depth_max: 30, lines_min: 1, lines_max: 10,
+    explanations_max: 50, earliest_date: '2007-01-01', practice_budget_ms: 300000,
+  },
+}
+
+export const coverage: Coverage = {
+  first_game: '2026-07-03',
+  last_game: '2026-08-20',
+  synced: 5, analyzed: 4, pending: 1, failed: 0,
+  months: [
+    {
+      month: '2026-08', synced: 3, analyzed: 2, pending: 1, failed: 0,
+      analyzed_with: [{ settings_id: 1, label: 'library-v0', games: 2 }],
+      days: [
+        { date: '2026-08-20', synced: 2, analyzed: 1, pending: 1, failed: 0 },
+        { date: '2026-08-05', synced: 1, analyzed: 1, pending: 0, failed: 0 },
+      ],
+    },
+    {
+      month: '2026-07', synced: 2, analyzed: 2, pending: 0, failed: 0,
+      analyzed_with: [{ settings_id: 1, label: 'library-v0', games: 2 }],
+      days: [{ date: '2026-07-03', synced: 2, analyzed: 2, pending: 0, failed: 0 }],
+    },
+  ],
+  practice: { played: 3, analyzed: 3 },
+  active_library_settings_id: 1,
+  mixed_settings: false,
+  analyzed_with: [{ settings_id: 1, label: 'library-v0', games: 4 }],
+  outdated_in_range: 0,
+}
+
+/** After a depth change: one game re-analysed with v1, three still on v0. */
+export const coverageMixed: Coverage = {
+  ...coverage,
+  active_library_settings_id: 3,
+  mixed_settings: true,
+  analyzed_with: [
+    { settings_id: 1, label: 'library-v0', games: 3 },
+    { settings_id: 3, label: 'library-v1', games: 1 },
+  ],
+  outdated_in_range: 3,
+}
+
+export const estimate: SettingsEstimate = {
+  library: { measured: true, samples: 12, basis_label: 'library-v0', per_game_ms: 45600, explanations_measured: true },
+  games_in_range: 5,
+  library_total_ms: 228000,
+  practice: { measured: true, samples: 12, basis_label: 'library-v0', per_game_ms: 90000, explanations_measured: true },
+  practice_budget_ms: 300000,
+  practice_within_budget: true,
+}
+
+export const estimateUnmeasured: SettingsEstimate = {
+  library: { measured: false, samples: 0, basis_label: null, per_game_ms: null, explanations_measured: false },
+  games_in_range: 5,
+  library_total_ms: null,
+  practice: { measured: false, samples: 0, basis_label: null, per_game_ms: null, explanations_measured: false },
+  practice_budget_ms: 300000,
+  practice_within_budget: null,
 }

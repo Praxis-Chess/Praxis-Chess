@@ -67,8 +67,11 @@ public class DevelopmentDelayDetector extends PerGameDetector {
      *
      * Walks the FEN placement field, which lists ranks 8 down to 1. Only the
      * player's own back rank matters, and only the four minor-piece squares on it.
+     *
+     * Public because PgnDetectorTest (in the parent package) tests it directly;
+     * package-private, the test suite didn't compile.
      */
-    static int undevelopedMinors(String fen, boolean playerIsWhite) {
+    public static int undevelopedMinors(String fen, boolean playerIsWhite) {
         String placement = fen.split(" ")[0];
         String[] ranks = placement.split("/");
         if (ranks.length != 8) return 0;

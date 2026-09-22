@@ -1,0 +1,8 @@
+data/
+outputs/
+*.gguf
+*.safetensors
+*.zst
+.venv/
+__pycache__/
+*.egg-info/

@@ -20,6 +20,12 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
     @Query("DELETE FROM Attempt a WHERE a.card.username = :username")
     void deleteByCardUsername(@Param("username") String username);
 
+    /** Attempts on cards drawn from these games — must go before the cards (FK). */
+    @Modifying
+    @Query("DELETE FROM Attempt a WHERE a.card.id IN (SELECT c.id FROM Card c WHERE c.sourceError.id IN "
+            + "(SELECT me.id FROM MoveError me WHERE me.game.id IN :gameIds))")
+    void deleteByGameIds(@Param("gameIds") java.util.Collection<java.util.UUID> gameIds);
+
     /**
      * Just the timestamps, for the practice-ledger backfill. Attempt has no
      * username of its own, so it goes through the card; and only the instant is

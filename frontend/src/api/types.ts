@@ -537,3 +537,118 @@ export interface PracticeGameSummary {
   rated: boolean
   analysed: boolean
 }
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+// Snake_case to match the backend records (Jackson SNAKE_CASE). Dates are ISO
+// `YYYY-MM-DD` strings.
+
+export interface EngineConfig {
+  sweep_move_time_ms: number
+  multi_pv_depth: number
+  multi_pv_lines: number
+  /** Written explanations per game; null means every flagged move. */
+  max_explanations: number | null
+}
+
+/** A saved, immutable engine configuration — the "ruler" games record. */
+export interface EngineVersion extends EngineConfig {
+  id: number
+  label: string
+  created_at: string | null
+}
+
+export interface SettingsBounds {
+  sweep_min: number
+  sweep_max: number
+  depth_min: number
+  depth_max: number
+  lines_min: number
+  lines_max: number
+  explanations_max: number
+  earliest_date: string
+  practice_budget_ms: number
+}
+
+export interface AppSettingsView {
+  sync_from: string | null
+  sync_to: string | null
+  analysis_from: string | null
+  analysis_to: string | null
+  library: EngineVersion
+  practice: EngineVersion
+  bounds: SettingsBounds
+}
+
+export interface SettingsUpdate {
+  sync_from: string | null
+  sync_to: string | null
+  analysis_from: string | null
+  analysis_to: string | null
+  library: EngineConfig | null
+  practice: EngineConfig | null
+}
+
+export interface SettingsSaved {
+  settings: AppSettingsView
+  library_version_created: boolean
+  practice_version_created: boolean
+}
+
+export interface SettingsCount {
+  settings_id: number | null
+  label: string
+  games: number
+}
+
+export interface DayCoverage {
+  date: string
+  synced: number
+  analyzed: number
+  pending: number
+  failed: number
+}
+
+export interface MonthCoverage {
+  month: string
+  synced: number
+  analyzed: number
+  pending: number
+  failed: number
+  analyzed_with: SettingsCount[]
+  days: DayCoverage[]
+}
+
+export interface Coverage {
+  first_game: string | null
+  last_game: string | null
+  synced: number
+  analyzed: number
+  pending: number
+  failed: number
+  months: MonthCoverage[]
+  practice: { played: number; analyzed: number }
+  active_library_settings_id: number | null
+  /** Analysed library games span more than one settings version. */
+  mixed_settings: boolean
+  analyzed_with: SettingsCount[]
+  /** Analysed games inside the analysis range not analysed with the active version. */
+  outdated_in_range: number
+}
+
+export interface KindEstimate {
+  /** False until enough games have timings — then no number is shown. */
+  measured: boolean
+  samples: number
+  basis_label: string | null
+  per_game_ms: number | null
+  explanations_measured: boolean
+}
+
+export interface SettingsEstimate {
+  library: KindEstimate
+  games_in_range: number
+  library_total_ms: number | null
+  practice: KindEstimate
+  practice_budget_ms: number
+  practice_within_budget: boolean | null
+}

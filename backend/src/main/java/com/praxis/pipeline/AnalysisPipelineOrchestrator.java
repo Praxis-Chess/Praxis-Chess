@@ -1,5 +1,7 @@
 package com.praxis.pipeline;
 
+import com.praxis.service.settings.SettingsService;
+import com.praxis.domain.AnalysisSettings;
 import com.praxis.domain.Game;
 import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.domain.enums.MeaningfulActivity;
@@ -26,17 +28,20 @@ public class AnalysisPipelineOrchestrator {
     private final PatternAggregator patternAggregator;
     private final AnalysisProgressTracker progressTracker;
     private final PracticeLedgerService practiceLedger;
+    private final SettingsService settings;
 
     public AnalysisPipelineOrchestrator(GameAnalysisTransactionService gameAnalysisTransactionService,
                                         GameRepository gameRepository,
                                         PatternAggregator patternAggregator,
                                         AnalysisProgressTracker progressTracker,
-                                        PracticeLedgerService practiceLedger) {
+                                        PracticeLedgerService practiceLedger,
+                                        SettingsService settings) {
         this.gameAnalysisTransactionService = gameAnalysisTransactionService;
         this.gameRepository = gameRepository;
         this.patternAggregator = patternAggregator;
         this.progressTracker = progressTracker;
         this.practiceLedger = practiceLedger;
+        this.settings = settings;
     }
 
     @PostConstruct
@@ -51,6 +56,14 @@ public class AnalysisPipelineOrchestrator {
     public void analyzeGames(List<Game> games, String username) {
         log.info("Starting analysis pipeline for {} games (user: {})", games.size(), username);
         progressTracker.start(games.size());
+
+        // One configuration per run, resolved once. A setting changed mid-run
+        // applies to the NEXT run: splitting one run across two rulers would
+        // record two versions for what the user saw as a single analysis.
+        SettingsService.Active active = settings.active(AnalysisSettings.LIBRARY);
+        log.info("Analysing with {} (scan {} ms, depth {}, {} candidate lines)",
+                active.settings().getLabel(), active.profile().sweepMoveTimeMs(),
+                active.profile().multiPvDepth(), active.profile().multiPvLines());
 
         // Games actually put through the engine this run. A stopped run that got
         // through twenty games was still twenty games of work, so it counts —
@@ -69,7 +82,7 @@ public class AnalysisPipelineOrchestrator {
                 // Each game commits independently via REQUIRES_NEW — crash mid-run
                 // loses only the in-flight game; all prior games remain ANALYZED.
                 gameAnalysisTransactionService.analyzeOne(
-                        game, AnalysisProfile.LIBRARY, AnalysisProgressSink.NOOP);
+                        game, active.profile(), active.id(), AnalysisProgressSink.NOOP);
                 analysed++;
             } catch (Exception e) {
                 log.error("Pipeline failed for game {}: {}", game.getChessComId(), e.getMessage(), e);

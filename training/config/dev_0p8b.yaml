@@ -1,0 +1,65 @@
+# Phase 1 dev loop — local RTX 3050 Laptop, 4 GB VRAM.
+#
+# 0.8B in bf16 is ~1.7 GB of weights; the plan's ~3 GB figure includes optimiser
+# state and activations, which is why this is the only size that fits here. 2B
+# and 4B are RunPod work (§15).
+#
+# QLoRA is deliberately NOT used: Qwen3.5's own guidance discourages 4-bit
+# fine-tuning of this family, and at 0.8B there is nothing to gain from it.
+
+model:
+  base: Qwen/Qwen3.5-0.8B
+  # Pinned so a rerun is a rerun. Resolved at first download; see README.
+  revision: main
+  dtype: bfloat16
+  max_seq_length: 1024
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.0
+  # Qwen3.5 is a HYBRID: of 24 layers, only 6 carry classic `self_attn`
+  # (q/k/v/o_proj) and the other 18 carry `linear_attn` (in_proj_qkv/z/b/a,
+  # out_proj). The usual q,k,v,o,gate,up,down list — the one every Qwen2/Qwen3
+  # recipe uses — therefore adapts the attention of a quarter of the stack and
+  # silently skips the rest. Both families are listed here.
+  #
+  # `lm_head` is left alone: embeddings are tied and the vocab is 248k, so it
+  # would cost more than everything else in the run put together.
+  target_modules:
+    - q_proj        # self_attn, 6 layers
+    - k_proj
+    - v_proj
+    - o_proj
+    - in_proj_qkv   # linear_attn, 18 layers
+    - in_proj_z
+    - in_proj_b
+    - in_proj_a
+    - out_proj
+    - gate_proj     # mlp, all 24
+    - up_proj
+    - down_proj
+
+train:
+  epochs: 3
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 2.0e-4
+  warmup_ratio: 0.05
+  lr_scheduler_type: cosine
+  logging_steps: 5
+  seed: 17
+  gradient_checkpointing: true
+  # Only the answer is supervised. Training on the evidence block as well would
+  # spend the run teaching the model to reproduce FENs.
+  completion_only: true
+
+data:
+  train: data/phase1/train.jsonl
+  val: data/phase1/val.jsonl
+
+output:
+  adapter_dir: outputs/phase1-0p8b-lora
+  merged_dir: outputs/phase1-0p8b-merged
+  gguf: outputs/phase1-0p8b-q4_k_m.gguf
+  ollama_model: praxis-phase1

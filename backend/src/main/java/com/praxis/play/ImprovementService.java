@@ -142,11 +142,23 @@ public class ImprovementService {
         int playerMoves = playerMoveCount(game);
 
         // Baseline: earlier rated practice games only.
-        List<PracticeGame> history = practiceGames.findRatedFinished(pg.getUsername()).stream()
+        List<PracticeGame> earlier = practiceGames.findRatedFinished(pg.getUsername()).stream()
                 .filter(p -> !p.getId().equals(pg.getId()))
                 .filter(p -> p.getGameId() != null)
-                .limit(WINDOW)
                 .toList();
+
+        // Like for like, down to the engine settings. A game analysed at depth 24
+        // flags different moves, and scores different accuracy, from one analysed
+        // at depth 18 — the same player could "improve" just by the engine looking
+        // deeper. So the baseline holds only games measured with this game's ruler.
+        Long ruler = game.getAnalysisSettingsId();
+        List<PracticeGame> sameRuler = earlier.stream()
+                .filter(p -> ruler == null || games.findById(p.getGameId())
+                        .map(g -> ruler.equals(g.getAnalysisSettingsId())).orElse(false))
+                .toList();
+        int otherRuler = earlier.size() - sameRuler.size();
+
+        List<PracticeGame> history = sameRuler.stream().limit(WINDOW).toList();
 
         int sample = history.size();
         boolean claimable = sample >= MIN_SAMPLE;
@@ -199,6 +211,12 @@ public class ImprovementService {
                 : claimable ? null
                 : "Only " + sample + " earlier practice game" + (sample == 1 ? "" : "s")
                   + " to compare against — not yet a trend.";
+        if (otherRuler > 0 && pg.isRated()) {
+            String note = otherRuler + " earlier practice game" + (otherRuler == 1 ? " was" : "s were")
+                    + " analysed with different engine settings, so "
+                    + (otherRuler == 1 ? "it isn't" : "they aren't") + " compared.";
+            caveat = caveat == null ? note : caveat + " " + note;
+        }
 
         // No progress on a finished report: the run is over, and a bar that
         // lingers after the numbers arrive is just noise.
