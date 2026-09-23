@@ -652,3 +652,140 @@ export interface SettingsEstimate {
   practice_budget_ms: number
   practice_within_budget: boolean | null
 }
+
+
+// ── Evidence lab (Phase 2) ───────────────────────────────────────────────────
+// One game re-diagnosed from an evidence block the BACKEND rendered, rather
+// than from the pipeline's stored explanation. Read-only: nothing here is saved.
+//
+// snake_case throughout, because Jackson's naming strategy applies to Java
+// records too. The first version of these types was camelCase, the mocks agreed
+// with it, every test passed — and against the real backend every field was
+// undefined.
+
+export interface ThreatProbeResult {
+  probed: boolean
+  skip_reason: string | null
+  move_uci: string | null
+  /** Pawns, White's point of view, with the opponent given a free move. */
+  score: number | null
+}
+
+export interface ExplainedMistake {
+  /** A ply index, as everywhere else in the API — odd is White. */
+  move_number: number
+  played_san: string
+  severity: string
+  /** Exactly what the model was shown. Displayed so a claim can be checked. */
+  block: string
+  explanation: string | null
+  model_error: string | null
+  threat: ThreatProbeResult
+  /** Pawns the player would lose by passing. Null when the probe could not run. */
+  threat_cost: number | null
+  /** The free move was worth at least a pawn — a real threat, not just a move. */
+  threatened: boolean
+  /** What the refutation itself would have won with a free move. Null when it
+      was not even legal before the move (a recapture, say). */
+  reply_threat_cost: number | null
+  /** The refutation WAS the threat: about as strong as the best free move. */
+  threat_is_reply: boolean
+  reply_uci: string | null
+  tactics: string[]
+  visibility_depth: number | null
+  visibility: string
+  engine_ms: number
+  model_ms: number
+}
+
+export interface EvidenceReport {
+  game_id: string
+  player_color: string
+  opening: string
+  played_at: string
+  model: string
+  flagged_total: number
+  explained: ExplainedMistake[]
+  engine_ms_total: number
+  model_ms_total: number
+  engine_ms_per_mistake: number
+  model_ms_per_mistake: number
+}
+
+// ── Rule validation (Phase 3) ────────────────────────────────────────────────
+// Hand labels for the player's own mistakes, and how the rules score against
+// them. snake_case: the backend serialises records through Jackson's naming
+// strategy, and the Phase 2 lab shipped camelCase types once already.
+
+export interface BuildResult {
+  built: number
+  failed: number
+  total_built: number
+  remaining: number
+  millis: number
+}
+
+/** A mistake to label. Deliberately carries no rule verdict. */
+export interface LabelCard {
+  id: string
+  fen: string
+  player: string
+  move_label: string
+  played_san: string
+  played_uci: string
+  best_san: string
+  best_uci: string
+  severity: string | null
+  phase: string
+  played_line: string[]
+  best_line: string[]
+  /** The R3 evidence graph, as text — facts only. */
+  evidence: string
+  labelled: number
+  built: number
+  target: number
+}
+
+export interface MechanismScore {
+  mechanism: string
+  true_positives: number
+  false_positives: number
+  false_negatives: number
+  precision: number | null
+  precision_ci: [number, number] | null
+  recall: number | null
+  recall_ci: [number, number] | null
+}
+
+export interface RuleReport {
+  built: number
+  labelled: number
+  target: number
+  /** Graphs from an older builder: their verdicts predate the current rules. */
+  stale: number
+  consequence_agreement: number | null
+  consequence_ci: [number, number] | null
+  single_cause_accuracy: number | null
+  single_cause_labelled: number
+  mechanisms: MechanismScore[]
+  composite_rate: number
+  not_concrete_rate: number
+  rule_diagnoses_failing_verification: number
+  budget: {
+    graphs: number
+    over_budget: number
+    max_items: number
+    median_tokens: number
+    p95_tokens: number
+    max_tokens: number
+  }
+  disagreements: {
+    id: string
+    move_label: string
+    human_consequence: string
+    rule_consequence: string
+    human_mechanism: string
+    rule_mechanisms: string
+    note: string | null
+  }[]
+}

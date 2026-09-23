@@ -16,6 +16,8 @@ import { PlayImprove } from './pages/PlayImprove'
 import { AskPrax } from './pages/AskPrax'
 import { Drills } from './pages/Drills'
 import { Settings } from './pages/Settings'
+import EvidenceLab from './pages/EvidenceLab'
+import RuleValidation from './pages/RuleValidation'
 import { PraxHost } from './prax/PraxHost'
 
 const queryClient = new QueryClient({
@@ -48,6 +50,12 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="games" element={<GameList />} />
             <Route path="games/:id" element={<GameAnalysis />} />
+            {/* Phase 2 lab: re-explains a game from a backend-rendered
+                evidence block. Read-only, and reachable by URL rather than
+                from the nav — it is a measurement surface, not a feature. */}
+            <Route path="evidence/:id" element={<EvidenceLab />} />
+            {/* Phase 3: hand labels that validate the rules. Measurement, not a feature. */}
+            <Route path="labels" element={<RuleValidation />} />
             <Route path="insights" element={<Insights />} />
             <Route path="settings" element={<Settings />} />
             <Route path="drills" element={<Drills />} />

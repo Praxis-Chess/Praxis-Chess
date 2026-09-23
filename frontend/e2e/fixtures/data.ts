@@ -13,6 +13,9 @@
  */
 import type {
   AnalysisProgress,
+  LabelCard,
+  RuleReport,
+  EvidenceReport,
   AppSettingsView,
   Coverage,
   SettingsEstimate,
@@ -610,4 +613,179 @@ export const estimateUnmeasured: SettingsEstimate = {
   practice: { measured: false, samples: 0, basis_label: null, per_game_ms: null, explanations_measured: false },
   practice_budget_ms: 300000,
   practice_within_budget: null,
+}
+
+// ── Evidence lab ─────────────────────────────────────────────────────────────
+// snake_case, matching what the backend actually sends: Jackson's naming
+// strategy covers records too. The first version of this fixture was camelCase,
+// agreed with equally wrong types, and every test passed against a page that
+// showed nothing but "undefined" on the real API.
+//
+// Three mistakes, one per threat-probe outcome, because that is the field that
+// decides which lesson applies — and a fixture with fewer would let a page that
+// muddled them pass.
+
+export const evidenceReport: EvidenceReport = {
+  game_id: '11111111-1111-1111-1111-111111111111',
+  player_color: 'white',
+  opening: "Queen's Gambit Declined",
+  played_at: '2026-08-20T10:00:00Z',
+  model: 'praxis-phase1',
+  flagged_total: 7,
+  explained: [
+    {
+      // Ply 31 is White's 16th move.
+      move_number: 31,
+      played_san: 'Bd2',
+      severity: 'BLUNDER',
+      block: [
+        'FEN: 4k3/8/8/q7/8/2N5/3B4/4K3 w - - 0 1',
+        'Player: White',
+        'Played: Bd2',
+        'Reply: Qxc3',
+        '',
+        'State in one sentence what the move allows.',
+      ].join('\n'),
+      explanation: 'Bd2 leaves the knight on c3 undefended, and Qxc3 takes it: 3 points.',
+      model_error: null,
+      // A free move was worth almost nothing: the move created the problem.
+      threat: { probed: true, skip_reason: null, move_uci: 'a5b4', score: 0.1 },
+      threat_cost: 0.1,
+      threatened: false,
+      reply_threat_cost: 0.1,
+      threat_is_reply: false,
+      reply_uci: 'a5c3',
+      tactics: [],
+      visibility_depth: 6,
+      visibility: 'MEDIUM',
+      engine_ms: 240,
+      model_ms: 580,
+    },
+    {
+      // Ply 6 is Black's 3rd move.
+      move_number: 6,
+      played_san: 'Nf6',
+      severity: 'BLUNDER',
+      block: [
+        'FEN: r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3',
+        'Player: Black',
+        'Played: Nf6',
+        'Reply: Qxf7# (check)',
+        'Outcome: mate in 1',
+        '',
+        'State in one sentence what the move allows.',
+      ].join('\n'),
+      explanation: 'Nf6 allows Qxf7, and the checks do not stop: mate in 1.',
+      model_error: null,
+      // The mate was on before the move, and it is the same move that refutes it.
+      threat: { probed: true, skip_reason: null, move_uci: 'h5f7', score: 100 },
+      threat_cost: 100,
+      threatened: true,
+      reply_threat_cost: 100,
+      threat_is_reply: true,
+      reply_uci: 'h5f7',
+      tactics: [],
+      visibility_depth: 1,
+      visibility: 'SHALLOW',
+      engine_ms: 210,
+      model_ms: 560,
+    },
+    {
+      move_number: 41,
+      played_san: 'Rd1',
+      severity: 'MISTAKE',
+      block: [
+        'FEN: 6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 21',
+        'Player: White',
+        'Played: Rd1',
+        'Reply: Rb8',
+        'Outcome: no material lost within 8 plies',
+        '',
+        'State in one sentence what the move allows.',
+      ].join('\n'),
+      explanation: 'Rd1 allows Rb8, which takes over the open file.',
+      model_error: null,
+      // A real threat existed, but the refutation is something else.
+      threat: { probed: true, skip_reason: null, move_uci: 'e8e1', score: -1.8 },
+      threat_cost: 1.8,
+      threatened: true,
+      // Clears a pawn only because a free tempo flatters any move.
+      reply_threat_cost: 1.1,
+      threat_is_reply: false,
+      reply_uci: 'a8b8',
+      tactics: [],
+      visibility_depth: 14,
+      visibility: 'DEEP',
+      engine_ms: 225,
+      model_ms: 590,
+    },
+  ],
+  engine_ms_total: 675,
+  model_ms_total: 1730,
+  engine_ms_per_mistake: 225,
+  model_ms_per_mistake: 576,
+}
+
+// ── Rule validation (Phase 3) ────────────────────────────────────────────────
+// snake_case, as the backend sends it. The card carries NO rule verdict: that is
+// the contract the page's blindness rests on, and a fixture that included one
+// would let a page that displayed it pass.
+
+export const labelCard: LabelCard = {
+  id: '22222222-2222-2222-2222-222222222222',
+  fen: 'r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3',
+  player: 'BLACK',
+  move_label: '3... Nf6',
+  played_san: 'Nf6',
+  played_uci: 'g8f6',
+  best_san: 'g6',
+  best_uci: 'g7g6',
+  severity: 'BLUNDER',
+  phase: 'OPENING',
+  played_line: ['Nf6', 'Qxf7#'],
+  best_line: ['g6', 'Qf3', 'Nf6'],
+  evidence: [
+    'GRAPH v1 · player: Black · move 3 · phase OPENING · severity BLUNDER',
+    '[P0]  before the move · Black to move · Black win ≈ 47%',
+    '[PC]  consequence · mate in 1 · consequence ply 1',
+    '[R1]  critical reply Qxf7# (check) · line Qxf7#',
+  ].join('\n'),
+  labelled: 12,
+  built: 60,
+  target: 100,
+}
+
+export const ruleReport: RuleReport = {
+  built: 60,
+  labelled: 12,
+  target: 100,
+  stale: 0,
+  consequence_agreement: 0.9167,
+  consequence_ci: [0.646, 0.985],
+  single_cause_accuracy: 0.75,
+  single_cause_labelled: 8,
+  mechanisms: [
+    { mechanism: 'IGNORED_THREAT', true_positives: 3, false_positives: 1, false_negatives: 0,
+      precision: 0.75, precision_ci: [0.301, 0.954], recall: 1, recall_ci: [0.438, 1] },
+    { mechanism: 'REMOVED_DEFENDER', true_positives: 0, false_positives: 0, false_negatives: 1,
+      precision: null, precision_ci: null, recall: 0, recall_ci: [0, 0.793] },
+    { mechanism: 'MOVED_INTO_ATTACK', true_positives: 1, false_positives: 0, false_negatives: 0,
+      precision: 1, precision_ci: [0.207, 1], recall: 1, recall_ci: [0.207, 1] },
+    { mechanism: 'LOSING_CAPTURE', true_positives: 0, false_positives: 0, false_negatives: 0,
+      precision: null, precision_ci: null, recall: null, recall_ci: null },
+    { mechanism: 'CREATED_TACTIC', true_positives: 1, false_positives: 1, false_negatives: 1,
+      precision: 0.5, precision_ci: [0.095, 0.905], recall: 0.5, recall_ci: [0.095, 0.905] },
+    { mechanism: 'MISSED_OPPORTUNITY', true_positives: 3, false_positives: 0, false_negatives: 0,
+      precision: 1, precision_ci: [0.438, 1], recall: 1, recall_ci: [0.438, 1] },
+  ],
+  composite_rate: 0.2333,
+  not_concrete_rate: 0.35,
+  rule_diagnoses_failing_verification: 0,
+  budget: { graphs: 60, over_budget: 0, max_items: 25, median_tokens: 409, p95_tokens: 508, max_tokens: 588 },
+  disagreements: [
+    { id: '33333333-3333-3333-3333-333333333333', move_label: '16. a3',
+      human_consequence: 'LOST_MATERIAL', rule_consequence: 'LOST_MATERIAL',
+      human_mechanism: 'IGNORED_THREAT', rule_mechanisms: 'CREATED_TACTIC',
+      note: 'Ne5 was coming anyway' },
+  ],
 }
