@@ -28,6 +28,10 @@ import type {
   SyncStatus,
   TodayInsight,
   TrainingPlan,
+  EvidenceReport,
+  BuildResult,
+  LabelCard,
+  RuleReport,
 } from './types'
 
 
@@ -183,5 +187,29 @@ export const api = {
     /** Measured time estimate for a PROPOSED configuration. Changes nothing. */
     estimate: (body: { library: EngineConfig | null; practice: EngineConfig | null }) =>
       request<SettingsEstimate>('/settings/estimate', { method: 'POST', body: JSON.stringify(body) }),
+  },
+
+  diagnosis: {
+    /** Build evidence graphs for up to `limit` more mistakes. Slow: one engine run each. */
+    build: (limit = 25) => request<BuildResult>(`/diagnosis/build?limit=${limit}`, { method: 'POST' }),
+    /** Rebuild graphs from an older builder in place; hand labels are kept. */
+    rebuild: (limit = 100) => request<BuildResult>(`/diagnosis/rebuild?limit=${limit}`, { method: 'POST' }),
+    /** Null when every built mistake has been labelled (the server answers 204). */
+    next: () => request<LabelCard | null>('/diagnosis/next'),
+    label: (id: string, body: { consequence: string; mechanism: string; note: string | null }) =>
+      request<{ saved: boolean }>(`/diagnosis/label/${id}`, { method: 'POST', body: JSON.stringify(body) }),
+    report: () => request<RuleReport>('/diagnosis/report'),
+  },
+
+  evidence: {
+    /**
+     * Re-diagnose one game from backend-rendered evidence. Slow by nature:
+     * it runs a fresh engine search per mistake, which is the cost being
+     * measured.
+     */
+    forGame: (gameId: string, limit = 3, model = 'praxis-phase1') =>
+      request<EvidenceReport>(
+        `/evidence/${gameId}?limit=${limit}&model=${encodeURIComponent(model)}`,
+      ),
   },
 }

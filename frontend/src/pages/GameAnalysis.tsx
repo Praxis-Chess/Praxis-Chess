@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useGameAnalysis } from '../hooks/useGameAnalysis'
@@ -44,6 +44,18 @@ export function GameAnalysis() {
             </span>
           )}
         </h1>
+        {/* Dev only: the Phase 2 evidence lab re-explains this game from a
+            backend-rendered block. It is a measurement surface, not a feature,
+            so it stays out of the shipped UI the way PraxDebugPanel does. */}
+        {import.meta.env.DEV && id && (
+          <Link
+            to={`/evidence/${id}`}
+            className="secondary"
+            style={{ marginLeft: 'auto', padding: '6px 12px', fontSize: '0.8rem' }}
+          >
+            Evidence lab
+          </Link>
+        )}
       </div>
 
       <BoardSplit boardBasis={380} gap={24}>

@@ -152,6 +152,160 @@ public class StockfishService {
         }
     }
 
+    // ── evidence-graph searches ──────────────────────────────────────────────
+
+    /**
+     * One search, with everything the evidence graph needs from it.
+     *
+     * @param bestMoveUci the move the engine chose, or null if there is none
+     * @param score       final evaluation in pawns, White's perspective
+     * @param pv          the principal variation in UCI, as far as the engine reported it
+     * @param depthCurve  score at each depth searched, White's perspective — the
+     *                    raw material for "when did the engine first see it"
+     */
+    public record Search(String bestMoveUci, Double score, List<String> pv,
+                         NavigableMap<Integer, Double> depthCurve) {
+
+        public static Search empty() {
+            return new Search(null, null, List.of(), new TreeMap<>());
+        }
+    }
+
+    /**
+     * Search a position and keep the whole depth curve, not just the answer.
+     *
+     * <p>Stockfish already prints an {@code info depth N score …} line every time
+     * it finishes a depth; the pipeline has always thrown them away and kept the
+     * last one. Reading them is free — no extra search — and it is the only way
+     * to answer how hard a mistake was to see, which is the difference between
+     * "you missed a one-mover" and "you missed something the engine needed depth
+     * 18 to find". Those are different lessons and a report that conflates them
+     * is telling a club player their oversight was careless when it was not.
+     *
+     * @param restrictTo if non-empty, search only these UCI moves — the
+     *                   {@code searchmoves} counterfactual: "what is this reply
+     *                   worth in <i>that</i> position"
+     */
+    public synchronized Search search(String fen, int depth, List<String> restrictTo) {
+        ensureAlive();
+        if (!isAvailable()) return Search.empty();
+        try {
+            send("setoption name MultiPV value 1");
+            send("position fen " + fen);
+            StringBuilder go = new StringBuilder("go depth ").append(depth);
+            if (restrictTo != null && !restrictTo.isEmpty()) {
+                go.append(" searchmoves");
+                for (String move : restrictTo) go.append(' ').append(move);
+            }
+            send(go.toString());
+
+            boolean flip = blackToMove(fen);
+            NavigableMap<Integer, Double> curve = new TreeMap<>();
+            String bestMoveUci = null;
+            Double score = null;
+            List<String> pv = List.of();
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("bestmove")) {
+                    String[] parts = line.split("\\s+");
+                    if (parts.length >= 2 && !"(none)".equals(parts[1])) bestMoveUci = parts[1];
+                    break;
+                }
+                if (!line.startsWith("info") || !line.contains(" score ")) continue;
+                // Skip the periodic "currmove" progress lines: they carry a depth
+                // but no evaluation of the position, and folding them into the
+                // curve would record whatever the previous depth had found.
+                if (line.contains(" currmove ")) continue;
+
+                Double raw = parseScore(line);
+                if (raw == null) continue;
+                double whiteView = flip ? -raw : raw;
+                score = whiteView;
+
+                int d = parseIntField(line, " depth ");
+                if (d > 0) curve.put(d, whiteView);
+
+                int pvIdx = line.indexOf(" pv ");
+                if (pvIdx >= 0) {
+                    pv = List.of(line.substring(pvIdx + 4).trim().split("\\s+"));
+                }
+            }
+            return new Search(bestMoveUci, score, pv, curve);
+        } catch (IOException e) {
+            log.warn("Stockfish search error: {}", e.getMessage());
+            return Search.empty();
+        }
+    }
+
+    public Search search(String fen, int depth) {
+        return search(fen, depth, List.of());
+    }
+
+    /**
+     * Fix the engine so the same position searched twice gives the same answer.
+     *
+     * <p>A multi-threaded search is not reproducible: helper threads finish in
+     * whatever order the scheduler gives them, so the same position at the same
+     * depth can return a different move between runs. Neither is a warm
+     * transposition table — a position reached after a previous search is
+     * evaluated with knowledge the same position has not got on a cold engine.
+     *
+     * <p>Both are fine for a one-off analysis and neither is acceptable for
+     * evidence. A graph that cannot be rebuilt identically cannot be verified,
+     * and an experiment whose inputs move under it measures nothing. This is
+     * slower, and that is the price.
+     */
+    public synchronized void setDeterministic(boolean deterministic) {
+        ensureAlive();
+        if (!isAvailable()) return;
+        try {
+            send("setoption name Threads value " + (deterministic ? 1 : 6));
+            send("ucinewgame");
+            send("isready");
+            waitFor("readyok");
+            this.deterministic = deterministic;
+            log.info("Stockfish deterministic mode: {}", deterministic);
+        } catch (IOException e) {
+            log.warn("Stockfish could not switch determinism: {}", e.getMessage());
+        }
+    }
+
+    public boolean isDeterministic() {
+        return deterministic;
+    }
+
+    /**
+     * Clear the transposition table. In deterministic mode this must happen
+     * before each search, or the answer depends on what was searched before it.
+     */
+    public synchronized void clearHash() {
+        ensureAlive();
+        if (!isAvailable()) return;
+        try {
+            send("ucinewgame");
+            send("isready");
+            waitFor("readyok");
+        } catch (IOException e) {
+            log.warn("Stockfish could not clear hash: {}", e.getMessage());
+        }
+    }
+
+    private volatile boolean deterministic = false;
+
+    /** Reads the integer following a UCI field label, or -1. */
+    private static int parseIntField(String line, String label) {
+        int idx = line.indexOf(label);
+        if (idx < 0) return -1;
+        int start = idx + label.length();
+        int end = line.indexOf(' ', start);
+        try {
+            return Integer.parseInt(end >= 0 ? line.substring(start, end) : line.substring(start));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
     /** FEN field 2 is the side to move: "w" or "b". */
     private static boolean blackToMove(String fen) {
         if (fen == null) return false;
