@@ -1,5 +1,6 @@
 import type {
   AnalysisProgress,
+  MistakeWhy,
   AppSettingsView,
   Coverage,
   EngineConfig,
@@ -199,6 +200,8 @@ export const api = {
     label: (id: string, body: { consequence: string; mechanism: string; note: string | null }) =>
       request<{ saved: boolean }>(`/diagnosis/label/${id}`, { method: 'POST', body: JSON.stringify(body) }),
     report: () => request<RuleReport>('/diagnosis/report'),
+    /** Why one mistake was a mistake. Built on first view (about a second), stored after. */
+    why: (gameId: string, ply: number) => request<MistakeWhy>(`/diagnosis/why/${gameId}/${ply}`),
   },
 
   evidence: {

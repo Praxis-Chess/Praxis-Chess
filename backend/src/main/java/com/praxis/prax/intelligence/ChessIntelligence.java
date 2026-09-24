@@ -360,7 +360,7 @@ public class ChessIntelligence {
                     // written as a sentence, the model relays it to the player
                     // ("I would need to call analyze_position...") instead of
                     // acting on it.
-                    "explainWith", "analyze_position(fen, movePlayed)"
+                    "explainWith", "explain_mistake(gameId, ply)"
             )).toList());
             return m;
         });
@@ -444,6 +444,8 @@ public class ChessIntelligence {
                     m.put("yourColor", g.getPlayerColor());
                     m.put("move", ((e.getMoveNumber() + 1) / 2)
                             + (e.getMoveNumber() % 2 == 1 ? ". " : "... ") + e.getMovePlayed());
+                    // The ply is what explain_mistake takes; "move" is for reading.
+                    m.put("ply", e.getMoveNumber());
                     m.put("movePlayed", e.getMovePlayed());
                     m.put("betterMove", e.getBetterMove());
                     m.put("severity", e.getSeverity() == null ? "" : e.getSeverity().name());

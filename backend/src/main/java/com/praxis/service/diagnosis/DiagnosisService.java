@@ -7,6 +7,7 @@ import com.praxis.evidence.EvidenceEngine;
 import com.praxis.evidence.diagnosis.Diagnosis;
 import com.praxis.evidence.diagnosis.DiagnosisRules;
 import com.praxis.evidence.diagnosis.DiagnosisVerifier;
+import com.praxis.evidence.diagnosis.WhyView;
 import com.praxis.evidence.graph.EvidenceGraph;
 import com.praxis.evidence.graph.EvidenceGraphBuilder;
 import com.praxis.evidence.graph.GraphBudget;
@@ -191,6 +192,76 @@ public class DiagnosisService {
                 System.currentTimeMillis() - started);
     }
 
+    // ── on demand ────────────────────────────────────────────────────────────
+
+    /** A mistake's evidence row and its graph, current with the builder. */
+    public record Diagnosed(MistakeEvidence row, EvidenceGraph graph) {}
+
+    /**
+     * The evidence and the rules' diagnosis for one mistake, for the product:
+     * the "Why?" panel and Prax's explain_mistake.
+     *
+     * <p>Read from {@code mistake_evidence} when a current row exists. Otherwise
+     * built now (about half a second of engine time) and stored, so the next view
+     * of this mistake costs nothing. A row from an older builder is rebuilt in
+     * place, keeping its hand label.
+     *
+     * <p>Empty when the game has no mistake at that ply, or the position cannot
+     * be built.
+     */
+    public Optional<Diagnosed> diagnose(UUID gameId, int ply) {
+        var existing = evidence.findByGameIdAndMoveNumber(gameId, ply);
+        if (existing.isPresent() && existing.get().getGraphVersion() >= EvidenceGraphBuilder.GRAPH_VERSION) {
+            var row = existing.get();
+            return Optional.of(new Diagnosed(row, GraphJson.readGraph(row.getGraphJson())));
+        }
+        var mistakes = moveErrors.findByGameIdAndPlyWithGame(gameId, ply);
+        if (mistakes.isEmpty()) return Optional.empty();
+        return buildOnDemand(mistakes.get(0));
+    }
+
+    /**
+     * Synchronized with the sample build and rebuild: one engine, one writer. Two
+     * views of the same mistake at once would otherwise both build it, and the
+     * second insert would hit the (game, ply) unique key.
+     */
+    private synchronized Optional<Diagnosed> buildOnDemand(MoveError m) {
+        // Re-read inside the lock: another request may have built it meanwhile.
+        var current = evidence.findByGameIdAndMoveNumber(m.getGame().getId(), m.getMoveNumber());
+        if (current.isPresent() && current.get().getGraphVersion() >= EvidenceGraphBuilder.GRAPH_VERSION) {
+            return Optional.of(new Diagnosed(current.get(), GraphJson.readGraph(current.get().getGraphJson())));
+        }
+        if (m.getFenPosition() == null || m.getMovePlayed() == null) return Optional.empty();
+
+        var builder = new EvidenceGraphBuilder(engine.get(), EvidenceGraphBuilder.DEFAULT_DEPTH);
+        var built = builder.build(m.getFenPosition(), m.getMovePlayed(), m.getMoveNumber(),
+                m.getGamePhase() == null ? "MIDDLEGAME" : m.getGamePhase().name(),
+                m.getSeverity() == null ? null : m.getSeverity().name());
+        if (built.isEmpty()) return Optional.empty();
+        EvidenceGraph g = built.get().graph();
+
+        MistakeEvidence row;
+        if (current.isPresent()) {
+            row = current.get();   // stale: rebuilt in place, label kept
+            applyGraph(row, g);
+        } else {
+            row = toEntity(m.getGame().getUsername(), m, g);
+            row.setOnDemand(true);
+        }
+        return Optional.of(new Diagnosed(evidence.save(row), g));
+    }
+
+    /** The "Why?" for one mistake: its verified diagnosis, the steps and the boards. */
+    public record Why(UUID gameId, int ply, String moveLabel, WhyView.View diagnosis, List<String> facts) {}
+
+    public Optional<Why> why(UUID gameId, int ply) {
+        return diagnose(gameId, ply).map(d -> {
+            var view = WhyView.of(d.graph());
+            String label = ((ply + 1) / 2) + (ply % 2 == 1 ? ". " : "... ") + d.graph().played().san();
+            return new Why(gameId, ply, label, view, WhyView.facts(d.graph(), view));
+        });
+    }
+
     private static List<MistakeEvidence> stale(List<MistakeEvidence> all) {
         return all.stream().filter(e -> e.getGraphVersion() < EvidenceGraphBuilder.GRAPH_VERSION).toList();
     }
@@ -208,9 +279,17 @@ public class DiagnosisService {
                             List<String> playedLine, List<String> bestLine,
                             String evidence, long labelled, long built, int target) {}
 
+    /**
+     * The next mistake to label: the first unlabelled one in sample order, up to
+     * where the sample build has reached. Rows built on demand beyond that point
+     * wait until the sample build gets there, so what the player happened to open
+     * on Game Analysis never jumps the queue.
+     */
     public Optional<LabelCard> next() {
         String user = user();
-        return evidence.findFirstByUsernameAndLabelledAtIsNullOrderBySampleKeyAsc(user)
+        Integer frontier = evidence.sampleFrontier(user);
+        if (frontier == null) return Optional.empty();
+        return evidence.findFirstByUsernameAndLabelledAtIsNullAndSampleKeyLessThanEqualOrderBySampleKeyAsc(user, frontier)
                 .map(e -> card(e, evidence.countByUsernameAndLabelledAtIsNotNull(user),
                         evidence.countByUsername(user)));
     }

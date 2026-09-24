@@ -128,6 +128,18 @@ public class MistakeEvidence {
     @Column(name = "built_at", nullable = false)
     private OffsetDateTime builtAt;
 
+    /**
+     * Built because someone opened the mistake's "Why?", not by the sample build.
+     *
+     * Kept apart because the labelling queue must stay a random sample: a
+     * mistake opened on Game Analysis would otherwise jump the queue whenever its
+     * sample key happened to be low, and the next labels would lean towards the
+     * games the player chose to look at. Nullable, and null means false: the
+     * column was added after rows existed.
+     */
+    @Column(name = "on_demand")
+    private Boolean onDemand;
+
     // ── human label ──────────────────────────────────────────────────────────
 
     @Column(name = "human_consequence", length = 24)

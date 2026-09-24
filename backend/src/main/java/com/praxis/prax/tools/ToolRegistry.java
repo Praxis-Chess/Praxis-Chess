@@ -12,6 +12,7 @@ import com.praxis.prax.evidence.ChessFact;
 import com.praxis.prax.evidence.PositionEvidenceBuilder;
 import com.praxis.prax.routing.QuestionRouter;
 import com.praxis.prax.web.WebResearchService;
+import com.praxis.service.diagnosis.DiagnosisService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -36,17 +37,19 @@ public class ToolRegistry {
     private final StockfishService stockfish;
     private final PositionEvidenceBuilder evidenceBuilder;
     private final WebResearchService web;
+    private final DiagnosisService diagnosis;
     private final StatArtifactBuilder stats = new StatArtifactBuilder();
 
     public ToolRegistry(ChessIntelligence intel, AppProperties props, CardRepository cardRepository,
                         StockfishService stockfish, PositionEvidenceBuilder evidenceBuilder,
-                        WebResearchService web) {
+                        WebResearchService web, DiagnosisService diagnosis) {
         this.intel = intel;
         this.props = props;
         this.cardRepository = cardRepository;
         this.stockfish = stockfish;
         this.evidenceBuilder = evidenceBuilder;
         this.web = web;
+        this.diagnosis = diagnosis;
     }
 
     /** Is web research configured and reachable? Lets the agent pre-search. */
@@ -154,18 +157,28 @@ public class ToolRegistry {
                 tool("find_mistakes",
                         "The player's worst individual moves across all games, worst first. "
                         + "USE THIS for any question about a specific blunder or mistake — it is "
-                        + "the only tool that finds one. Each row carries the fen and movePlayed "
-                        + "to pass straight to analyze_position.",
+                        + "the only tool that finds one. Each row carries the gameId and ply "
+                        + "to pass straight to explain_mistake.",
                         Map.of("severity", str("Optional: BLUNDER, MISTAKE or INACCURACY. Omit for all."),
                                "phase", str("Optional: OPENING, MIDDLEGAME or ENDGAME. Omit for all."),
                                "limit", intp("How many to return. Default 5, maximum 10."))),
 
+                tool("explain_mistake",
+                        "WHY one of the player's own mistakes was a mistake: what it cost, the "
+                        + "cause (a threat they ignored, a piece left undefended, a tactic "
+                        + "their move allowed...), when the damage lands, and how hard it was "
+                        + "to see. Checked against the engine's analysis before you see it. Use "
+                        + "this for any mistake from their games; get the gameId and ply from "
+                        + "find_mistakes or get_game.",
+                        Map.of("gameId", str("The game's UUID."),
+                               "ply", intp("The mistake's ply, exactly as find_mistakes or get_game gives it."))),
+
                 // V2 — the engine supplies the calculation, you supply the explanation.
                 tool("analyze_position",
                         "Run the chess engine on a position. Returns the evaluation in pawns from White's "
-                        + "perspective, the best move, and the top candidate lines. Use this to explain WHY a "
-                        + "move was a mistake — get the FEN from get_game first. Never estimate an evaluation "
-                        + "yourself; call this.",
+                        + "perspective, the best move, and the top candidate lines. For a mistake from the "
+                        + "player's own games use explain_mistake instead; use this for any other position. "
+                        + "Never estimate an evaluation yourself; call this.",
                         Map.of("fen", str("FEN of the position, as returned by get_game."),
                                "playedMove", str("The move the player actually made, from get_game. "
                                        + "SAN (Bb4+) or UCI (e7b4) both work. ALWAYS supply this when "
@@ -187,15 +200,24 @@ public class ToolRegistry {
      * Only the top row, and only one extra engine run, because both share the
      * single Stockfish process.
      */
-    public Optional<Map<String, Object>> followUp(String tool, ToolResult result) {
+    public Optional<FollowUp> followUp(String tool, ToolResult result) {
         if (!"find_mistakes".equals(tool) || !stockfish.isAvailable()) return Optional.empty();
         if (!(result.data() instanceof Map<?, ?> m)
                 || !(m.get("mistakes") instanceof List<?> rows) || rows.isEmpty()
                 || !(rows.get(0) instanceof Map<?, ?> top)) {
             return Optional.empty();
         }
-        if (!(top.get("fen") instanceof String fen) || fen.isBlank()) return Optional.empty();
 
+        // The verified diagnosis when the row says which mistake it is: it
+        // answers "why" with a checked cause, not a list of engine facts.
+        if (top.get("gameId") instanceof String gameId && top.get("ply") instanceof Number ply) {
+            Map<String, Object> args = new LinkedHashMap<>();
+            args.put("gameId", gameId);
+            args.put("ply", ply.intValue());
+            return Optional.of(new FollowUp("explain_mistake", args));
+        }
+
+        if (!(top.get("fen") instanceof String fen) || fen.isBlank()) return Optional.empty();
         Map<String, Object> args = new LinkedHashMap<>();
         args.put("fen", fen);
         if (top.get("movePlayed") instanceof String played && !played.isBlank()) {
@@ -203,8 +225,11 @@ public class ToolRegistry {
         }
         // Shallower than a direct call: this one is speculative, not requested.
         args.put("depth", 14);
-        return Optional.of(args);
+        return Optional.of(new FollowUp("analyze_position", args));
     }
+
+    /** A chained call: which tool, with what. */
+    public record FollowUp(String tool, Map<String, Object> args) {}
 
     /** Executes one call. Never throws into the agent loop — errors come back typed. */
     public ToolResult execute(String name, Map<String, Object> args) {
@@ -392,6 +417,24 @@ public class ToolRegistry {
                     yield ToolResult.engine(name, data)
                             .withArtifacts(artifact == null ? List.of() : List.of(artifact));
                 }
+                case "explain_mistake" -> {
+                    String gameId = s(args, "gameId");
+                    Integer ply = iOrNull(args, "ply");
+                    if (gameId == null || ply == null) yield ToolResult.error(name, "gameId and ply are required");
+                    java.util.UUID id;
+                    try {
+                        id = java.util.UUID.fromString(gameId);
+                    } catch (IllegalArgumentException e) {
+                        yield ToolResult.error(name, "\"" + gameId + "\" is not a game id. "
+                                + "Use the gameId from find_mistakes or get_game.");
+                    }
+                    var why = diagnosis.why(id, ply);
+                    if (why.isEmpty()) {
+                        yield ToolResult.error(name, "No flagged mistake at ply " + ply + " of that game. "
+                                + "Use the ply exactly as find_mistakes or get_game gives it.");
+                    }
+                    yield explained(name, why.get());
+                }
                 case "web_search" -> {
                     String query = s(args, "query");
                     if (query == null) yield ToolResult.error(name, "query is required");
@@ -438,6 +481,56 @@ public class ToolRegistry {
             return ToolResult.error(name, e.getMessage() == null ? "failed" : e.getMessage());
         }
     }
+
+    /**
+     * explain_mistake's result.
+     *
+     * The model reads the move, plain-word labels and the verified facts. The
+     * facts reach the player word for word, through the same channel as
+     * analyze_position's, so the explanation cannot be reworded into something
+     * the verifier never checked. No enum names: the model quotes them.
+     */
+    static ToolResult explained(String name, DiagnosisService.Why why) {
+        var v = why.diagnosis();
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("move", why.moveLabel());
+        data.put("engineMove", v.bestSan());
+        // A fresh fixed-depth search: on a quarter of real mistakes it prefers a
+        // different move from the betterMove find_mistakes reports. Said here so
+        // the model does not present the two as a contradiction.
+        data.put("engineMoveNote", "From this diagnosis's own engine check. It can differ from the "
+                + "betterMove stored with the game; both are engine choices, and these facts are about this one.");
+        data.put("whatHappened", CONSEQUENCE_WORDS.getOrDefault(v.consequence(), "unknown"));
+        data.put("cause", MECHANISM_WORDS.getOrDefault(v.mechanism(), "unknown"));
+        List<Map<String, Object>> facts = new ArrayList<>();
+        int n = 0;
+        for (String f : why.facts()) facts.add(Map.of("id", "w" + (++n), "fact", f));
+        data.put("verifiedFacts", facts);
+
+        String fen = v.boards().get("P0").fen();
+        var artifact = new ChessPositionArtifactBuilder().buildComparison(
+                "why-" + why.gameId() + "-" + why.ply(), fen, v.bestUci(), v.playedUci(),
+                v.playedSan(), v.bestSan(), v.evalBefore(), v.evalAfter(),
+                "Played " + v.playedSan() + "; engine prefers " + v.bestSan() + ".");
+        return ToolResult.engine(name, data).withArtifacts(one(artifact));
+    }
+
+    private static final Map<String, String> CONSEQUENCE_WORDS = Map.of(
+            "MATED", "got mated",
+            "LOST_MATERIAL", "lost material",
+            "MISSED_MATE", "missed a forced mate",
+            "MISSED_MATERIAL", "missed winning material",
+            "NOT_CONCRETE", "nothing concrete within eight half-moves; the difference is positional");
+
+    private static final Map<String, String> MECHANISM_WORDS = Map.of(
+            "IGNORED_THREAT", "a threat that was already there, left unanswered",
+            "REMOVED_DEFENDER", "the move took a defender away",
+            "MOVED_INTO_ATTACK", "the piece moved to a square where it can be won",
+            "LOSING_CAPTURE", "a capture that loses the exchange",
+            "CREATED_TACTIC", "the move allowed a tactic that was not there before",
+            "MISSED_OPPORTUNITY", "a win the engine found was missed",
+            "UNCLEAR", "more than one cause, or none the rules can name with confidence",
+            "NONE", "no concrete cause: positional");
 
     /** A validated artifact, or nothing. Keeps the call sites free of null checks. */
     private static List<com.praxis.prax.artifact.PraxArtifact> one(

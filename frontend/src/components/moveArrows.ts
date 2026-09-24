@@ -6,6 +6,7 @@ const UCI_PATTERN = /^[a-h][1-8][a-h][1-8][qrbn]?$/
 export const ARROW_PLAYED_BAD = 'rgba(226, 102, 74, 0.9)'   // --loss
 export const ARROW_BETTER     = 'rgba(185, 217, 108, 0.9)'  // --gain
 export const ARROW_NEUTRAL    = 'rgba(162, 155, 150, 0.55)' // --text-secondary
+export const ARROW_THREAT     = 'rgba(217, 138, 84, 0.9)'   // --orange: the opponent's move
 
 export interface Arrow {
   from: string

@@ -757,6 +757,65 @@ export interface MechanismScore {
   recall_ci: [number, number] | null
 }
 
+// ── "Why?" (Phase 4) ─────────────────────────────────────────────────────────
+// One mistake's verified diagnosis: the rules' explanation, its claims as steps,
+// and the board that shows each step. snake_case, as the backend sends it; the
+// `boards` keys (P0, PP, PB, PC) are map keys and keep their case.
+
+export interface WhyArrow {
+  from: string
+  to: string
+  /** What the arrow is. The page picks the colour. */
+  kind: 'PLAYED' | 'BEST' | 'REPLY' | 'THREAT'
+}
+
+export interface WhyStep {
+  type: string
+  text: string
+  /** A key of `boards`. */
+  board: string
+  arrows: WhyArrow[]
+}
+
+export interface WhyBoard {
+  id: string
+  title: string
+  fen: string
+}
+
+export interface MistakeDiagnosis {
+  player: string
+  played_san: string
+  played_uci: string
+  best_san: string
+  best_uci: string
+  eval_before: number | null
+  eval_after: number | null
+  consequence: string
+  mechanism: string
+  motif: string
+  visibility: string
+  composite: boolean
+  explanation: string
+  verified: boolean
+  diagnosed_by: string
+  critical_reply: string | null
+  /** Half-move of the played line where the loss is complete (0: nothing lost). */
+  lands_at_ply: number
+  played_line: string[]
+  best_line: string[]
+  steps: WhyStep[]
+  boards: Record<string, WhyBoard>
+}
+
+export interface MistakeWhy {
+  game_id: string
+  ply: number
+  move_label: string
+  diagnosis: MistakeDiagnosis
+  facts: string[]
+}
+
 export interface RuleReport {
   built: number
   labelled: number

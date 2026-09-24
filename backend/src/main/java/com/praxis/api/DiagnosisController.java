@@ -51,6 +51,16 @@ public class DiagnosisController {
         }
     }
 
+    /**
+     * Why a mistake was a mistake: the verified diagnosis, its steps, and the
+     * board for each step. Built on first view and stored. 404 when the game has
+     * no mistake at that ply.
+     */
+    @GetMapping("/why/{gameId}/{ply}")
+    public ResponseEntity<DiagnosisService.Why> why(@PathVariable UUID gameId, @PathVariable int ply) {
+        return diagnosis.why(gameId, ply).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
     /** Rule precision and recall against the labels so far, plus the budget figures. */
     @GetMapping("/report")
     public DiagnosisService.Report report() {

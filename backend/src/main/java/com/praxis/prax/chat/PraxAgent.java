@@ -280,15 +280,16 @@ public class PraxAgent {
                 if (chained.isPresent() && callCount < MAX_TOOL_CALLS) {
                     callCount++;
                     String chainId = "tc_" + (++callSeq);
-                    ToolResult cr = tools.execute("analyze_position", chained.get());
+                    var follow = chained.get();
+                    ToolResult cr = tools.execute(follow.tool(), follow.args());
                     resultsById.put(chainId, cr);
                     turnIds.add(chainId);
-                    Step chainStep = new Step("analyze_position", chained.get(), cr.sampleSize());
+                    Step chainStep = new Step(follow.tool(), follow.args(), cr.sampleSize());
                     steps.add(chainStep);
                     report(sink, chainStep, cr);
                     assistantCalls.add(Map.of("function",
-                            Map.of("name", "analyze_position", "arguments", chained.get())));
-                    log.debug("[prax] auto-chained analyze_position after {}", call.name());
+                            Map.of("name", follow.tool(), "arguments", follow.args())));
+                    log.debug("[prax] auto-chained {} after {}", follow.tool(), call.name());
                 }
             }
 
