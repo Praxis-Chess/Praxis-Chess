@@ -13,17 +13,17 @@ import java.util.List;
  * which facts it asserts. The engine-backed tests check the builder produces
  * graphs like these; these check what the rules and verifier do with them.
  */
-final class TestGraphs {
+public final class TestGraphs {
 
     private TestGraphs() {}
 
-    static final String SCHOLAR_FEN = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3";
+    public static final String SCHOLAR_FEN = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3";
 
     /**
      * §6.7: after 1.e4 e5 2.Bc4 Nc6 3.Qh5, Black plays 3...Nf6?? and 4.Qxf7# is
      * mate. The mate was threatened before the move; 3...g6 would have blocked it.
      */
-    static EvidenceGraph scholarsMate() {
+    public static EvidenceGraph scholarsMate() {
         return new EvidenceGraph(1,
                 new Header(SCHOLAR_FEN, "BLACK", 6, "OPENING", "BLUNDER", 14, "test"),
                 new PositionNode(0.3, 47, 39, 39, "BLACK"),
@@ -49,7 +49,7 @@ final class TestGraphs {
      * White plays Nd5 where a pawn takes it for nothing. No threat before the
      * move; exd5 was not even possible before it, so it cannot have been one.
      */
-    static EvidenceGraph hangingKnight() {
+    public static EvidenceGraph hangingKnight() {
         return new EvidenceGraph(1,
                 new Header("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/2N5/PPPP1PPP/R1BQKBNR w KQkq - 2 3",
                         "WHITE", 5, "OPENING", "BLUNDER", 14, "test"),
@@ -71,7 +71,7 @@ final class TestGraphs {
     }
 
     /** No material and no mate within the horizon: positional. V1 abstains. */
-    static EvidenceGraph positional() {
+    public static EvidenceGraph positional() {
         var g = hangingKnight();
         return new EvidenceGraph(1, g.header(), g.p0(), g.best(),
                 new MoveNode("a2a3", "a3", "a2", "a3", "pawn", -0.4, 44.0, null, null, 0, false),
@@ -89,7 +89,7 @@ final class TestGraphs {
      * it was the bishop on b5's only defender, and landed where it can be won.
      * Two causes — the composite subset, where the rules name neither.
      */
-    static EvidenceGraph twoCauses() {
+    public static EvidenceGraph twoCauses() {
         var g = hangingKnight();
         var delta = List.of(new DeltaItem("NOW_LOOSE", "b5", "bishop", "WHITE", 0, -3,
                 List.of("c3"), List.of(), null, null));
@@ -99,7 +99,7 @@ final class TestGraphs {
     }
 
     /** The engine's move wins a knight; the move played does not. */
-    static EvidenceGraph missedWin() {
+    public static EvidenceGraph missedWin() {
         var g = hangingKnight();
         return new EvidenceGraph(1, g.header(), g.p0(),
                 new MoveNode("f3e5", "Nxe5", "f3", "e5", "knight", 3.1, 88.0, "knight", 3, 0, false),
@@ -118,7 +118,7 @@ final class TestGraphs {
      * from the first survey, where "a threat existed" wrongly blocked "the move
      * created this one".
      */
-    static EvidenceGraph differentThreat() {
+    public static EvidenceGraph differentThreat() {
         var g = hangingKnight();
         return new EvidenceGraph(1, g.header(), g.p0(), g.best(),
                 new MoveNode("c3e2", "Ne2", "c3", "e2", "knight", -2.8, 18.0, null, null, 0, false),
@@ -142,16 +142,16 @@ final class TestGraphs {
      * king move first and takes the knight later in the line. R1 was not the
      * threat, so version 1 of the rules missed it.
      */
-    static EvidenceGraph threatCarriedOutLater() {
+    public static EvidenceGraph threatCarriedOutLater() {
         String fen = "r4rk1/pp3p1p/2pp2p1/q2n4/2P4Q/1P1BPP1P/P2N1P2/R3K1R1 b Q - 0 16";
         return new EvidenceGraph(1,
                 new Header(fen, "BLACK", 32, "MIDDLEGAME", "MISTAKE", 14, "test"),
                 new PositionNode(0.5, 45, 38, 38, "BLACK"),
                 new MoveNode("d5b4", "Nb4", "d5", "b4", "knight", 0.5, 45.0, null, null, 0, false),
                 new MoveNode("a5c3", "Qc3", "a5", "c3", "queen", 3.4, 16.0, null, null, 0, false),
-                new Reply("e1e2", "Ke2", "e1", "e2", false, List.of("Ke2", "Qa5", "Rc1", "Rfd8", "cxd5"),
+                new Reply("e1e2", "Ke2", "e1", "e2", false, List.of("Ke2", "Qa5", "Rac1", "Rfd8", "cxd5"),
                         List.of(new Taken("knight", "d5", "cxd5", 5, 3)), List.of(), 3, false, null, 5),
-                new LineOutcome(List.of("Qc3", "Ke2", "Qa5", "Rc1", "Rfd8", "cxd5"), 3, false, false, null),
+                new LineOutcome(List.of("Qc3", "Ke2", "Qa5", "Rac1", "Rfd8", "cxd5"), 3, false, false, null),
                 new LineOutcome(List.of("Nb4", "Bb1", "Qa3", "Ke2"), 0, false, false, null),
                 new Counterfactual("e1e2", "Ke2", false, true, 0.4, true),
                 // The threat is real; Ke2 as a free move is worth little.
@@ -162,7 +162,7 @@ final class TestGraphs {
     }
 
     /** As {@link #threatCarriedOutLater()}, but the engine's line takes on d5 too. */
-    static EvidenceGraph threatTakenInBothLines() {
+    public static EvidenceGraph threatTakenInBothLines() {
         var g = threatCarriedOutLater();
         return new EvidenceGraph(1, g.header(), g.p0(), g.best(), g.played(), g.reply(),
                 g.playedLine(), new LineOutcome(List.of("Nb4", "cxd5", "Nxd5"), 0, false, false, null),
@@ -177,7 +177,7 @@ final class TestGraphs {
      * @param landingSee -3: the knight can simply be won. 0: it is protected, and
      *                   only the tactic wins it.
      */
-    static EvidenceGraph moverTakenWithGeometry(int landingSee) {
+    public static EvidenceGraph moverTakenWithGeometry(int landingSee) {
         var g = hangingKnight();
         var played = g.played();
         return new EvidenceGraph(1, g.header(), g.p0(), g.best(),
@@ -189,7 +189,7 @@ final class TestGraphs {
     }
 
     /** As {@link #twoCauses()}, but the player was in check, so no probe ran. */
-    static EvidenceGraph inCheck() {
+    public static EvidenceGraph inCheck() {
         var g = twoCauses();
         return new EvidenceGraph(1, g.header(), g.p0(), g.best(), g.played(), g.reply(),
                 g.playedLine(), g.bestLine(), g.cf1(),

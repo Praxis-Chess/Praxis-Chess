@@ -13,6 +13,7 @@
  */
 import type {
   AnalysisProgress,
+  MistakeWhy,
   LabelCard,
   RuleReport,
   EvidenceReport,
@@ -788,4 +789,64 @@ export const ruleReport: RuleReport = {
       human_mechanism: 'IGNORED_THREAT', rule_mechanisms: 'CREATED_TACTIC',
       note: 'Ne5 was coming anyway' },
   ],
+}
+
+// ── "Why?" (Phase 4) ─────────────────────────────────────────────────────────
+// Scholar's mate, shaped exactly as the backend's WhyView serialises it: the
+// rules' verified explanation, one step per claim, the board for each step.
+
+export const WHY_GAME_ID = '7c3c9a2e-1111-4a22-8b33-445566778899'
+const SCHOLAR_FEN = 'r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3'
+
+export const scholarsMistake = {
+  id: 'e1111111-1111-1111-1111-111111111111',
+  move_number: 6,
+  player_color: 'black',
+  move_played: 'Nf6',
+  better_move: 'g7g6',
+  fen_position: SCHOLAR_FEN,
+  severity: 'BLUNDER',
+  tactical_motif: 'OTHER',
+  game_phase: 'OPENING',
+  explanation: 'Nf6 leaves f7 to the queen.',
+  analysis_state: 'EXPLAINED',
+}
+
+export const scholarsWhy: MistakeWhy = {
+  game_id: WHY_GAME_ID,
+  ply: 6,
+  move_label: '3... Nf6',
+  diagnosis: {
+    player: 'BLACK',
+    played_san: 'Nf6', played_uci: 'g8f6', best_san: 'g6', best_uci: 'g7g6',
+    eval_before: 0.3, eval_after: 100,
+    consequence: 'MATED', mechanism: 'IGNORED_THREAT', motif: 'OTHER', visibility: 'SHALLOW',
+    composite: false,
+    explanation: 'Before Nf6, White already threatened Qxf7#. Nf6 does not deal with it: Qxf7# follows, and it is mate in 1. After g6, Qxf7# would not be possible.',
+    verified: true,
+    diagnosed_by: 'RULES',
+    critical_reply: 'Qxf7#',
+    lands_at_ply: 1,
+    played_line: ['Nf6', 'Qxf7#'],
+    best_line: ['g6', 'Qf3', 'Nf6'],
+    steps: [
+      { type: 'THREAT_EXISTS', text: 'Before Nf6, White already threatened Qxf7#.', board: 'P0',
+        arrows: [{ from: 'h5', to: 'f7', kind: 'THREAT' }] },
+      { type: 'DOES_NOT_ADDRESS', text: 'Nf6 does not deal with it.', board: 'P0',
+        arrows: [{ from: 'g8', to: 'f6', kind: 'PLAYED' }, { from: 'h5', to: 'f7', kind: 'THREAT' }] },
+      { type: 'CRITICAL_REPLY', text: 'Qxf7# is the critical reply.', board: 'PP',
+        arrows: [{ from: 'h5', to: 'f7', kind: 'REPLY' }] },
+      { type: 'MATE_IN', text: 'Mate in 1.', board: 'PC', arrows: [] },
+      { type: 'COUNTERFACTUAL', text: 'After g6, Qxf7# is not possible.', board: 'PB', arrows: [] },
+      { type: 'VISIBILITY', text: 'Visibility shallow.', board: 'P0',
+        arrows: [{ from: 'g8', to: 'f6', kind: 'PLAYED' }, { from: 'g7', to: 'g6', kind: 'BEST' }] },
+    ],
+    boards: {
+      P0: { id: 'P0', title: 'Before your move', fen: SCHOLAR_FEN },
+      PP: { id: 'PP', title: 'After Nf6', fen: 'r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4' },
+      PB: { id: 'PB', title: "After g6, the engine's move", fen: 'r1bqkbnr/pppp1p1p/2n3p1/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 0 4' },
+      PC: { id: 'PC', title: 'After Qxf7#, where it costs you', fen: 'r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4' },
+    },
+  },
+  facts: [],
 }

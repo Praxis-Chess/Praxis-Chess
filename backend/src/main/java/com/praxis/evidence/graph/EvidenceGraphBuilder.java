@@ -388,7 +388,7 @@ public final class EvidenceGraphBuilder {
     // ── helpers ──────────────────────────────────────────────────────────────
 
     /** UCI or SAN to a legal move. */
-    static Move resolve(Board board, String token) {
+    public static Move resolve(Board board, String token) {
         if (token == null || token.isBlank()) return null;
         String t = token.trim();
         for (Move move : board.legalMoves()) {
