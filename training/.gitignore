@@ -6,3 +6,6 @@ outputs/
 .venv/
 __pycache__/
 *.egg-info/
+
+# Metrics and per-item outputs on the player's own games: never uploaded (plan §11.6, §15.6).
+results_private/
