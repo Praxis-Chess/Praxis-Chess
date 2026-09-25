@@ -80,6 +80,54 @@ def mcnemar(a: dict[str, bool], b: dict[str, bool]) -> dict:
     return {"items": len(common), "a_only": only_a, "b_only": only_b, "p": round(p, 4)}
 
 
+def paired_precision(a: dict[str, tuple[int, int]], b: dict[str, tuple[int, int]], rng: random.Random) -> dict:
+    """Difference in pooled claim precision, A minus B, bootstrapped over the items both answered.
+
+    The headline paired test. Chain validity sits at the floor for untrained
+    models (almost no answer is free of false claims), so McNemar on it cannot
+    separate them; claim precision can.
+    """
+    common = sorted(a.keys() & b.keys())
+    if not common:
+        return {"items": 0}
+
+    def prec(rows, keys):
+        den = sum(rows[k][1] for k in keys)
+        return sum(rows[k][0] for k in keys) / den if den else 0.0
+
+    diff = prec(a, common) - prec(b, common)
+    n = len(common)
+    boots = []
+    for _ in range(BOOTSTRAP):
+        sample = [common[rng.randrange(n)] for _ in range(n)]
+        boots.append(prec(a, sample) - prec(b, sample))
+    boots.sort()
+    lo, hi = boots[int(0.025 * BOOTSTRAP)], boots[int(0.975 * BOOTSTRAP) - 1]
+    return {"items": n, "diff": round(diff, 3), "ci": [round(lo, 3), round(hi, 3)],
+            "excludes_zero": lo > 0 or hi < 0}
+
+
+def claim_types(rows: list[dict]) -> dict[str, list[int]]:
+    """Per claim type: [made, true]. A claim is false when the verifier's rule 1 or 2 names its type."""
+    out: dict[str, list[int]] = {}
+    for r in rows:
+        if not r.get("parsed"):
+            continue
+        made: dict[str, int] = {}
+        for t in r.get("chain_types", []):
+            made[t] = made.get(t, 0) + 1
+        bad: dict[str, int] = {}
+        for v in r.get("violations", []):
+            if v.startswith("rule 2: ") or v.startswith("rule 1: claim"):
+                t = v.split(": ")[1].split(":")[0].strip()
+                bad[t] = bad.get(t, 0) + 1
+        for t, n in made.items():
+            cell = out.setdefault(t, [0, 0])
+            cell[0] += n
+            cell[1] += max(0, n - bad.get(t, 0))
+    return out
+
+
 def score_system(rows: list[dict], items: dict[str, dict], rng: random.Random) -> dict:
     """Metrics for one (arm, level) over the items it was asked."""
     valid, precision_pairs, cons, mech, parsed = [], [], [], [], []
@@ -174,8 +222,29 @@ def report(metrics: dict) -> str:
     lines += table(f"Each system on everything it answered (up to {a['items']} items)",
                    "Qwen3.5-2B answered every item at every level; this is the R0–R3 comparison "
                    "at full size.", a["systems"])
+    if metrics.get("paired_precision"):
+        lines += ["", "## Paired comparisons: claim precision (the headline test)", "",
+                  "A minus B on the questions both answered; paired bootstrap 95% interval. "
+                  "A difference is real only when the interval excludes zero.", "",
+                  "| A vs B | Questions | Difference | 95% interval | Real? |", "|---|---|---|---|---|"]
+        for name, t in metrics["paired_precision"].items():
+            lines.append(f"| {name} | {t['items']} | {100 * t['diff']:+.1f} pts | "
+                         f"{100 * t['ci'][0]:+.1f} to {100 * t['ci'][1]:+.1f} | {'yes' if t['excludes_zero'] else 'no'} |")
+    if metrics.get("claim_types"):
+        lines += ["", "## Which claims come out true (Qwen3.5-2B, all 890 questions)", "",
+                  "| Claim type | R0 | R1 | R2 | R3 |", "|---|---|---|---|---|"]
+        ct = metrics["claim_types"]
+        types = sorted({t for lvl in ct.values() for t in lvl}, key=lambda t: -sum(ct[l].get(t, [0, 0])[0] for l in ct))
+        for t in types:
+            cells = []
+            for lvl in ["R0", "R1", "R2", "R3"]:
+                made, true = ct.get(lvl, {}).get(t, [0, 0])
+                cells.append("—" if not made else f"{100 * true / made:.0f}% of {made}")
+            lines.append(f"| {t} | " + " | ".join(cells) + " |")
     if metrics.get("paired"):
-        lines += ["", "## Paired comparisons (chain validity, McNemar exact)", "",
+        lines += ["", "## Paired comparisons: whole answer valid (McNemar exact)", "",
+                  "Untrained models almost never produce an answer with zero false claims, so this "
+                  "test sits at the floor and cannot separate them. Reported for completeness.", "",
                   "| A vs B | Items | A only passes | B only passes | p |", "|---|---|---|---|---|"]
         for name, t in metrics["paired"].items():
             lines.append(f"| {name} | {t['items']} | {t['a_only']} | {t['b_only']} | {t['p']} |")
@@ -221,7 +290,18 @@ def main() -> None:
         if a in passes and b in passes:
             paired[f"{a} vs {b}"] = mcnemar(passes[a], passes[b])
 
+    precision_rows = {name: {r["item_id"]: (r.get("claims_true", 0), r.get("claims", 0))
+                             for r in rows if r.get("parsed")} for name, rows in groups.items()}
+    pairs = [("qwen3.5-2b R3", "qwen3.5-2b R2"), ("qwen3.5-2b R2", "qwen3.5-2b R1"),
+             ("qwen3.5-2b R1", "qwen3.5-2b R0"), ("qwen3.5-2b R3", "qwen3.5-2b R0"),
+             ("qwen3.5-4b R3", "qwen3.5-4b R0"), ("qwen3.5-4b R3", "qwen3.5-2b R3"),
+             ("qwen3.5-4b R0", "qwen3.5-2b R0"), ("qwen3.5-2b R1", "qwen2.5-7b R1"),
+             ("qwen3.5-2b R3", "qwen2.5-7b R1"), ("qwen3.5-4b R3", "qwen2.5-7b R1")]
+    precision_pairs = {f"{a} vs {b}": paired_precision(precision_rows[a], precision_rows[b], rng)
+                        for a, b in pairs if a in precision_rows and b in precision_rows}
+    types = {name.split()[-1]: claim_types(rows) for name, rows in groups.items() if name.startswith("qwen3.5-2b")}
     metrics = {"common": {"items": len(common), "slices": slices(common), "systems": systems_common},
+               "paired_precision": precision_pairs, "claim_types": types,
                "all": {"items": len(asked), "slices": slices(asked), "systems": systems_all},
                "paired": paired}
     (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=1), encoding="utf-8")
