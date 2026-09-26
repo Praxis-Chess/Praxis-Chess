@@ -53,6 +53,14 @@ ARMS = [
     {"arm": "qwen2.5-7b", "model": "qwen2.5:7b", "levels": ["R1"], "route": "chat", "sample": SLOW_SAMPLE},
 ]
 
+# Trained systems (Phase 6 on). Never in the default grid: each is asked only by
+# name. Route "trained" is the raw route with the prompt the model was trained
+# on — the dataset's short system message and the item, no worked examples — so
+# the test measures the adapter, not a prompt format it never saw.
+TRAINED = [
+    {"arm": "praxis-0p8b-dev", "model": "praxis-phase6-dev", "levels": ["R3"], "route": "trained", "sample": None},
+]
+
 # Relative cost per answer, used only to guess the time for arms not yet
 # started. Replaced by measured speed as soon as an arm has answers.
 PRIOR_COST = {"qwen3.5-2b": 1.0, "qwen3.5-4b": 2.5, "qwen2.5-7b": 3.4}   # measured: 15 s, 37 s, 51 s
@@ -89,8 +97,16 @@ def system_prompt(schema: dict) -> str:
                          effects=", ".join(schema["counterfactual_effects"]))
 
 
-def messages(system: str, fewshot: list[dict], item: dict, level: str) -> list[dict]:
-    """System, then each worked example at the SAME level as the test item, then the item."""
+def messages(system: str, fewshot: list[dict], item: dict, level: str, route: str = "raw") -> list[dict]:
+    """System, then each worked example at the SAME level as the test item, then the item.
+
+    A trained system gets its training format instead: the dataset's system
+    message and the item alone.
+    """
+    if route == "trained":
+        from praxis_train.build_dataset6 import SYSTEM as TRAINED_SYSTEM
+        return [{"role": "system", "content": TRAINED_SYSTEM},
+                {"role": "user", "content": item["renders"][level]["text"]}]
     out = [{"role": "system", "content": system}]
     for ex in fewshot:
         out.append({"role": "user", "content": ex["renders"][level]["text"]})
@@ -111,7 +127,7 @@ def chatml(msgs: list[dict]) -> str:
 
 
 def ask(model: str, msgs: list[dict], schema: dict, route: str, timeout: int) -> tuple[str, int]:
-    if route == "raw":
+    if route in ("raw", "trained"):
         url = OLLAMA_GENERATE
         body = {"model": model, "prompt": chatml(msgs), "raw": True, "format": schema, "stream": False,
                 "keep_alive": "30m", "options": {**OPTIONS, "stop": ["<|im_end|>"]}}
@@ -123,7 +139,7 @@ def ask(model: str, msgs: list[dict], schema: dict, route: str, timeout: int) ->
     started = time.time()
     with urllib.request.urlopen(req, timeout=timeout) as r:
         payload = json.load(r)
-    text = payload["response"] if route == "raw" else payload["message"]["content"]
+    text = payload["message"]["content"] if route == "chat" else payload["response"]
     return text, int((time.time() - started) * 1000)
 
 
@@ -184,13 +200,14 @@ def run(args) -> None:
     schema = schema_file["json_schema"]
     system = system_prompt(schema_file)
     fewshot = load_jsonl(data / "fewshot.jsonl")
-    items = ordered_items(load_jsonl(data / "testset.jsonl"))
+    testset = Path(args.testset) if args.testset else data / "testset.jsonl"
+    items = ordered_items(load_jsonl(testset))
     if args.limit:
         items = items[: args.limit]
-    arms = [a for a in ARMS if not args.arms or a["arm"] in args.arms.split(",")]
+    arms = ARMS if not args.arms else [a for a in ARMS + TRAINED if a["arm"] in args.arms.split(",")]
 
     (run_dir / "config.json").write_text(json.dumps({
-        "arms": arms, "items": len(items), "fewshot": [f["id"] for f in fewshot],
+        "arms": arms, "testset": str(testset), "items": len(items), "fewshot": [f["id"] for f in fewshot],
         "system_prompt": system, "options": OPTIONS,
     }, indent=1), encoding="utf-8")
 
@@ -213,7 +230,8 @@ def run(args) -> None:
         key = (arm["arm"], level, item["id"])
         row = {"item_id": item["id"], "arm": arm["arm"], "model": arm["model"], "level": level}
         try:
-            raw, ms = ask(arm["model"], messages(system, fewshot, item, level), schema, arm["route"], args.timeout)
+            raw, ms = ask(arm["model"], messages(system, fewshot, item, level, arm["route"]), schema,
+                          arm["route"], args.timeout)
             row.update(raw=raw, latency_ms=ms)
             latencies.setdefault(arm["arm"], []).append(ms)
             done.add(key)
@@ -251,7 +269,8 @@ def main() -> None:
     r.add_argument("--data", default="training/data/phase5")
     r.add_argument("--run-dir", required=True)
     r.add_argument("--limit", type=int, default=0, help="only the first N items of the fixed shuffle")
-    r.add_argument("--arms", default="", help="comma-separated arm names; default all")
+    r.add_argument("--arms", default="", help="comma-separated arm names; default the prompted grid")
+    r.add_argument("--testset", default="", help="a test set other than DATA/testset.jsonl")
     r.add_argument("--timeout", type=int, default=600)
     args = p.parse_args()
     if args.cmd == "run":

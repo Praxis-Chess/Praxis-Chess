@@ -319,8 +319,29 @@ public class DiagnosisService {
         e.setHumanConsequence(consequence);
         e.setHumanMechanism(mechanism);
         e.setHumanNote(note == null || note.isBlank() ? null : note.trim());
-        e.setLabelledAt(OffsetDateTime.now());
+        if (e.getLabelledAt() == null) {
+            e.setLabelledAt(OffsetDateTime.now());
+        } else {
+            e.setRelabelledAt(OffsetDateTime.now());   // a review: the first labelling time stands
+        }
         evidence.save(e);
+    }
+
+    /**
+     * A labelled mistake reopened for a second look, with the player's own label.
+     * Unlike the queue, a review is not blind: it is reached from the list of
+     * disagreements, which shows the rules' verdict. That is the point of it, and
+     * why a relabel keeps the original labelled_at (see MistakeEvidence).
+     */
+    public record Review(LabelCard card, String consequence, String mechanism, String note) {}
+
+    public Optional<Review> review(UUID id) {
+        String user = user();
+        return evidence.findById(id)
+                .filter(e -> user.equals(e.getUsername()) && e.getLabelledAt() != null)
+                .map(e -> new Review(
+                        card(e, evidence.countByUsernameAndLabelledAtIsNotNull(user), evidence.countByUsername(user)),
+                        e.getHumanConsequence(), e.getHumanMechanism(), e.getHumanNote()));
     }
 
     // ── measuring the rules ──────────────────────────────────────────────────
@@ -351,7 +372,32 @@ public class DiagnosisService {
                          List<MechanismScore> mechanisms,
                          double compositeRate, double notConcreteRate,
                          long ruleDiagnosesFailingVerification,
-                         BudgetStats budget, List<Disagreement> disagreements) {}
+                         BudgetStats budget, List<Disagreement> disagreements, Fresh fresh) {}
+
+    /**
+     * The same two scores on the labels given AFTER the first {@link #LABEL_TARGET}:
+     * the only labels the rules were not tuned on (the Phase 3 gap). Ordered by
+     * labelled_at, which a review never moves.
+     */
+    public record Fresh(int labelled, Double consequenceAgreement, double[] consequenceCi,
+                        Double singleCauseAccuracy, int singleCauseLabelled, double[] singleCauseCi) {}
+
+    static Fresh fresh(List<MistakeEvidence> labelled) {
+        List<MistakeEvidence> later = labelled.stream()
+                .sorted(Comparator.comparing(MistakeEvidence::getLabelledAt))
+                .skip(LABEL_TARGET)
+                .toList();
+        int cons = 0, singleN = 0, single = 0;
+        for (MistakeEvidence e : later) {
+            if (e.getRuleConsequence().equals(e.getHumanConsequence())) cons++;
+            if (!e.isRuleComposite() && !"NONE".equals(e.getRuleMechanism())) {
+                singleN++;
+                if (e.getRuleMechanism().equals(e.getHumanMechanism())) single++;
+            }
+        }
+        return new Fresh(later.size(), ratio(cons, later.size()), wilson(cons, later.size()),
+                ratio(single, singleN), singleN, wilson(single, singleN));
+    }
 
     public Report report() {
         String user = user();
@@ -406,7 +452,7 @@ public class DiagnosisService {
                 ratio(singleHits, singleN), singleN, scores,
                 all.isEmpty() ? 0 : (double) composite / all.size(),
                 all.isEmpty() ? 0 : (double) notConcrete / all.size(),
-                unverified, budget(all), disagreements);
+                unverified, budget(all), disagreements, fresh(labelled));
     }
 
     private static BudgetStats budget(List<MistakeEvidence> all) {

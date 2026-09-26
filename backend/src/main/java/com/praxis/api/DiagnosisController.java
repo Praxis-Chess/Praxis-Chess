@@ -61,6 +61,12 @@ public class DiagnosisController {
         return diagnosis.why(gameId, ply).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
     }
 
+    /** A labelled mistake, reopened with its label for review. 404 if it isn't labelled. */
+    @GetMapping("/review/{id}")
+    public ResponseEntity<DiagnosisService.Review> review(@PathVariable UUID id) {
+        return diagnosis.review(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
     /** Rule precision and recall against the labels so far, plus the budget figures. */
     @GetMapping("/report")
     public DiagnosisService.Report report() {

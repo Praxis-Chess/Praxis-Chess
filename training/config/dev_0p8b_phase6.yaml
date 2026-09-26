@@ -1,0 +1,78 @@
+# Phase 6 dev loop — the 0.8B on the REAL dataset (v0, R3), local RTX 3050, 4 GB.
+#
+# Same model and LoRA recipe as Phase 1; what changes is the data. The point is
+# the plan's Phase 6 exit, "the pipeline green end to end locally": real graphs,
+# rules targets and the verifier's format, before any money is spent on the 2B.
+# Long: rows here are ~4x Phase 1's length, so roughly 3 s per row. One epoch of
+# ~5,500 rows is ~4-5 hours: an overnight run. One epoch, because this is a
+# rehearsal of the pipeline, not the model that ships; start it when the laptop
+# is free.
+#
+# (Phase 1 header follows.)
+#
+#
+# 0.8B in bf16 is ~1.7 GB of weights; the plan's ~3 GB figure includes optimiser
+# state and activations, which is why this is the only size that fits here. 2B
+# and 4B are RunPod work (§15).
+#
+# QLoRA is deliberately NOT used: Qwen3.5's own guidance discourages 4-bit
+# fine-tuning of this family, and at 0.8B there is nothing to gain from it.
+
+model:
+  base: Qwen/Qwen3.5-0.8B
+  # Pinned so a rerun is a rerun. Resolved at first download; see README.
+  revision: main
+  dtype: bfloat16
+  max_seq_length: 1536   # R3 (~530) + system + a full JSON diagnosis
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.0
+  # Qwen3.5 is a HYBRID: of 24 layers, only 6 carry classic `self_attn`
+  # (q/k/v/o_proj) and the other 18 carry `linear_attn` (in_proj_qkv/z/b/a,
+  # out_proj). The usual q,k,v,o,gate,up,down list — the one every Qwen2/Qwen3
+  # recipe uses — therefore adapts the attention of a quarter of the stack and
+  # silently skips the rest. Both families are listed here.
+  #
+  # `lm_head` is left alone: embeddings are tied and the vocab is 248k, so it
+  # would cost more than everything else in the run put together.
+  target_modules:
+    - q_proj        # self_attn, 6 layers
+    - k_proj
+    - v_proj
+    - o_proj
+    - in_proj_qkv   # linear_attn, 18 layers
+    - in_proj_z
+    - in_proj_b
+    - in_proj_a
+    - out_proj
+    - gate_proj     # mlp, all 24
+    - up_proj
+    - down_proj
+
+train:
+  epochs: 1
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 2.0e-4
+  warmup_ratio: 0.05
+  lr_scheduler_type: cosine
+  logging_steps: 5
+  seed: 17
+  gradient_checkpointing: true
+  # Only the answer is supervised. Training on the evidence block as well would
+  # spend the run teaching the model to reproduce FENs.
+  completion_only: true
+
+data:
+  train: data/phase6/R3/train.jsonl
+  val: data/phase6/R3/val.jsonl
+
+output:
+  adapter_dir: outputs/phase6-0p8b-r3-lora
+  merged_dir: outputs/phase6-0p8b-r3-merged
+  gguf: outputs/phase6-0p8b-r3-q8_0.gguf
+  ollama_model: praxis-phase6-dev
+  # R3 prompts run to ~1,350 tokens and an answer to ~1,000; 2048 would cut them.
+  num_ctx: 3072

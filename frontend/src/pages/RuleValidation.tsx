@@ -61,8 +61,20 @@ export default function RuleValidation() {
     },
   })
 
+  // A second look at a label you already gave, opened from the disagreements.
+  const [reviewId, setReviewId] = useState<string | null>(null)
+  const review = useQuery({
+    queryKey: ['diagnosis', 'review', reviewId],
+    queryFn: () => api.diagnosis.review(reviewId!),
+    enabled: !!reviewId,
+  })
+
   const card = next.data ?? null
   const rep = report.data
+  const openReview = (id: string) => {
+    setReviewId(id)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
     <div className="page">
@@ -76,7 +88,11 @@ export default function RuleValidation() {
 
       <section className="card" aria-label="Progress"
         style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <strong>{rep ? `${rep.labelled} of ${rep.target} labelled` : '—'}</strong>
+        <strong>
+          {!rep ? '—' : rep.labelled < rep.target
+            ? `${rep.labelled} of ${rep.target} labelled`
+            : `${rep.labelled} labelled · ${rep.fresh.labelled} since the rule fixes`}
+        </strong>
         <span className="muted">{rep ? `${rep.built} mistakes have evidence built` : ''}</span>
         <button onClick={() => build.mutate()} disabled={build.isPending}>
           {build.isPending ? 'Building…' : 'Build evidence for 25 more'}
@@ -112,24 +128,52 @@ export default function RuleValidation() {
         </p>
       )}
 
+      {reviewId && review.data && (
+        <section className="card" aria-label="Reviewing a label" style={{ display: 'grid', gap: 8 }}>
+          <p>
+            <strong>Reviewing your label.</strong>{' '}
+            <span className="muted">
+              You said {review.data.consequence.toLowerCase().replace(/_/g, ' ')} /{' '}
+              {review.data.mechanism.toLowerCase().replace(/_/g, ' ')}. Change it, or save it as it is.
+              Your first labelling time is kept, so this label stays out of the fresh-sample check.
+            </span>
+          </p>
+          <button type="button" className="secondary" style={{ justifySelf: 'start' }}
+            onClick={() => setReviewId(null)}>Back to the queue</button>
+          <Labeller key={`review-${reviewId}`} card={review.data.card}
+            initial={{ consequence: review.data.consequence, mechanism: review.data.mechanism, note: review.data.note }}
+            onSaved={() => setReviewId(null)} />
+        </section>
+      )}
+      {reviewId && review.isError && (
+        <p role="alert" className="error">Couldn’t open that label for review.</p>
+      )}
+
       {next.isLoading && <p className="muted">Loading…</p>}
       {!next.isLoading && !card && (
         <p className="muted">
           Nothing waiting to be labelled. Build evidence for more mistakes to continue.
         </p>
       )}
-      {card && <Labeller key={card.id} card={card} />}
+      {card && !reviewId && <Labeller key={card.id} card={card} />}
 
-      {rep && <Scores report={rep} />}
+      {rep && <Scores report={rep} onReview={openReview} />}
     </div>
   )
 }
 
-function Labeller({ card }: { card: LabelCard }) {
+interface LabellerProps {
+  card: LabelCard
+  /** A saved label, when reviewing one. */
+  initial?: { consequence: string; mechanism: string; note: string | null }
+  onSaved?: () => void
+}
+
+function Labeller({ card, initial, onSaved }: LabellerProps) {
   const qc = useQueryClient()
-  const [consequence, setConsequence] = useState<string | null>(null)
-  const [mechanism, setMechanism] = useState<string | null>(null)
-  const [note, setNote] = useState('')
+  const [consequence, setConsequence] = useState<string | null>(initial?.consequence ?? null)
+  const [mechanism, setMechanism] = useState<string | null>(initial?.mechanism ?? null)
+  const [note, setNote] = useState(initial?.note ?? '')
 
   const save = useMutation({
     mutationFn: () => api.diagnosis.label(card.id, {
@@ -137,6 +181,7 @@ function Labeller({ card }: { card: LabelCard }) {
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['diagnosis'] })
+      onSaved?.()
     },
   })
 
@@ -218,7 +263,7 @@ function ci(x: [number, number] | null | undefined) {
   return x ? `${Math.round(x[0] * 100)}–${Math.round(x[1] * 100)}%` : ''
 }
 
-function Scores({ report }: { report: RuleReport }) {
+function Scores({ report, onReview }: { report: RuleReport; onReview: (id: string) => void }) {
   return (
     <section className="card" aria-label="Rule scores">
       <h2>How the rules score against you</h2>
@@ -232,6 +277,16 @@ function Scores({ report }: { report: RuleReport }) {
             {' · '}single-cause mechanism right on <strong>{pct(report.single_cause_accuracy)}</strong>{' '}
             <span className="muted">of {report.single_cause_labelled}</span>
           </p>
+          {report.fresh.labelled > 0 && (
+            <p aria-label="Fresh labels">
+              <strong>On the {report.fresh.labelled} label{report.fresh.labelled === 1 ? '' : 's'} since the rule fixes</strong>{' '}
+              <span className="muted">(the rules were not tuned on these)</span>: consequence{' '}
+              <strong>{pct(report.fresh.consequence_agreement)}</strong>{' '}
+              <span className="muted">({ci(report.fresh.consequence_ci)})</span>
+              {' · '}single-cause mechanism <strong>{pct(report.fresh.single_cause_accuracy)}</strong>{' '}
+              <span className="muted">of {report.fresh.single_cause_labelled} ({ci(report.fresh.single_cause_ci)})</span>
+            </p>
+          )}
           <table>
             <thead>
               <tr><th>Mechanism</th><th>Precision</th><th>Recall</th><th>Agree / rule only / you only</th></tr>
@@ -280,7 +335,9 @@ function Scores({ report }: { report: RuleReport }) {
                 <strong>{d.move_label}</strong>: you said {d.human_consequence.toLowerCase()} /{' '}
                 {d.human_mechanism.toLowerCase()}, rules said {d.rule_consequence.toLowerCase()} /{' '}
                 {d.rule_mechanisms.toLowerCase() || 'none'}
-                {d.note ? <span className="muted"> — “{d.note}”</span> : null}
+                {d.note ? <span className="muted"> — “{d.note}”</span> : null}{' '}
+                <button type="button" className="secondary" style={{ padding: '1px 10px', fontSize: '0.8rem' }}
+                  onClick={() => onReview(d.id)}>Review</button>
               </li>
             ))}
           </ul>

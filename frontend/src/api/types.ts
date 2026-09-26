@@ -816,6 +816,23 @@ export interface MistakeWhy {
   facts: string[]
 }
 
+export interface FreshScores {
+  labelled: number
+  consequence_agreement: number | null
+  consequence_ci: [number, number] | null
+  single_cause_accuracy: number | null
+  single_cause_labelled: number
+  single_cause_ci: [number, number] | null
+}
+
+/** A labelled mistake reopened for review: the card, plus your own saved label. */
+export interface LabelReview {
+  card: LabelCard
+  consequence: string
+  mechanism: string
+  note: string | null
+}
+
 export interface RuleReport {
   built: number
   labelled: number
@@ -847,4 +864,6 @@ export interface RuleReport {
     rule_mechanisms: string
     note: string | null
   }[]
+  /** Scores on the labels given after the first 100, the ones the rules were not tuned on. */
+  fresh: FreshScores
 }

@@ -1,0 +1,653 @@
+{
+ "c_all": {
+  "S_rules": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 1.0,
+   "claim_precision_ci": [
+    1.0,
+    1.0
+   ],
+   "claims_per_answer": 2.79,
+   "chain_validity": 1.0,
+   "chain_validity_ci": [
+    1.0,
+    1.0
+   ],
+   "consequence_vs_rules": 1.0,
+   "consequence_vs_rules_ci": [
+    1.0,
+    1.0
+   ],
+   "mechanism_vs_rules_single_cause": 1.0,
+   "mechanism_ci": [
+    1.0,
+    1.0
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.79,
+   "mechanism_vs_human": 0.68,
+   "human_n": 100,
+   "abstention": 1.0,
+   "abstention_ci": [
+    1.0,
+    1.0
+   ],
+   "invented_cause_rate": 0.0,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.0,
+   "composite_precision": null,
+   "composite_n": 82,
+   "latency_p50_ms": null,
+   "latency_p95_ms": null,
+   "tokens_in_mean": 531,
+   "citation": 1.0
+  },
+  "qwen3.5-2b R3 (few-shot)": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.503,
+   "claim_precision_ci": [
+    0.487,
+    0.519
+   ],
+   "claims_per_answer": 4.96,
+   "chain_validity": 0.007,
+   "chain_validity_ci": [
+    0.002,
+    0.013
+   ],
+   "consequence_vs_rules": 0.393,
+   "consequence_vs_rules_ci": [
+    0.361,
+    0.425
+   ],
+   "mechanism_vs_rules_single_cause": 0.149,
+   "mechanism_ci": [
+    0.115,
+    0.183
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.32,
+   "mechanism_vs_human": 0.32,
+   "human_n": 100,
+   "abstention": 0.518,
+   "abstention_ci": [
+    0.469,
+    0.569
+   ],
+   "invented_cause_rate": 0.482,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.098,
+   "composite_precision": 0.375,
+   "composite_n": 82,
+   "latency_p50_ms": 13595,
+   "latency_p95_ms": 15349,
+   "tokens_in_mean": 531,
+   "citation": 0.007
+  },
+  "praxis-0p8b-dev R3": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.974,
+   "claim_precision_ci": [
+    0.968,
+    0.979
+   ],
+   "claims_per_answer": 3.15,
+   "chain_validity": 0.806,
+   "chain_validity_ci": [
+    0.776,
+    0.831
+   ],
+   "consequence_vs_rules": 0.9,
+   "consequence_vs_rules_ci": [
+    0.88,
+    0.92
+   ],
+   "mechanism_vs_rules_single_cause": 0.966,
+   "mechanism_ci": [
+    0.947,
+    0.983
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.79,
+   "mechanism_vs_human": 0.66,
+   "human_n": 100,
+   "abstention": 0.827,
+   "abstention_ci": [
+    0.788,
+    0.862
+   ],
+   "invented_cause_rate": 0.173,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.195,
+   "composite_precision": 0.375,
+   "composite_n": 82,
+   "latency_p50_ms": 4496,
+   "latency_p95_ms": 6447,
+   "tokens_in_mean": 531,
+   "citation": 0.806
+  }
+ },
+ "c_shared": {
+  "S_rules": {
+   "items": 300,
+   "parsed": 1.0,
+   "claim_precision": 1.0,
+   "claim_precision_ci": [
+    1.0,
+    1.0
+   ],
+   "claims_per_answer": 2.73,
+   "chain_validity": 1.0,
+   "chain_validity_ci": [
+    1.0,
+    1.0
+   ],
+   "consequence_vs_rules": 1.0,
+   "consequence_vs_rules_ci": [
+    1.0,
+    1.0
+   ],
+   "mechanism_vs_rules_single_cause": 1.0,
+   "mechanism_ci": [
+    1.0,
+    1.0
+   ],
+   "single_cause_n": 143,
+   "consequence_vs_human": 0.818,
+   "mechanism_vs_human": 0.788,
+   "human_n": 33,
+   "abstention": 1.0,
+   "abstention_ci": [
+    1.0,
+    1.0
+   ],
+   "invented_cause_rate": 0.0,
+   "not_concrete_n": 137,
+   "composite_coverage": 0.0,
+   "composite_precision": null,
+   "composite_n": 20,
+   "latency_p50_ms": null,
+   "latency_p95_ms": null,
+   "tokens_in_mean": 532,
+   "citation": 1.0
+  },
+  "qwen3.5-2b R3 (few-shot)": {
+   "items": 300,
+   "parsed": 1.0,
+   "claim_precision": 0.479,
+   "claim_precision_ci": [
+    0.455,
+    0.505
+   ],
+   "claims_per_answer": 5.03,
+   "chain_validity": 0.003,
+   "chain_validity_ci": [
+    0.0,
+    0.01
+   ],
+   "consequence_vs_rules": 0.367,
+   "consequence_vs_rules_ci": [
+    0.313,
+    0.423
+   ],
+   "mechanism_vs_rules_single_cause": 0.126,
+   "mechanism_ci": [
+    0.077,
+    0.182
+   ],
+   "single_cause_n": 143,
+   "consequence_vs_human": 0.273,
+   "mechanism_vs_human": 0.303,
+   "human_n": 33,
+   "abstention": 0.496,
+   "abstention_ci": [
+    0.409,
+    0.584
+   ],
+   "invented_cause_rate": 0.504,
+   "not_concrete_n": 137,
+   "composite_coverage": 0.1,
+   "composite_precision": 0.0,
+   "composite_n": 20,
+   "latency_p50_ms": 13684,
+   "latency_p95_ms": 15573,
+   "tokens_in_mean": 532,
+   "citation": 0.003
+  },
+  "qwen3.5-4b R3 (few-shot)": {
+   "items": 300,
+   "parsed": 1.0,
+   "claim_precision": 0.594,
+   "claim_precision_ci": [
+    0.566,
+    0.621
+   ],
+   "claims_per_answer": 5.51,
+   "chain_validity": 0.057,
+   "chain_validity_ci": [
+    0.033,
+    0.083
+   ],
+   "consequence_vs_rules": 0.6,
+   "consequence_vs_rules_ci": [
+    0.543,
+    0.657
+   ],
+   "mechanism_vs_rules_single_cause": 0.322,
+   "mechanism_ci": [
+    0.245,
+    0.406
+   ],
+   "single_cause_n": 143,
+   "consequence_vs_human": 0.697,
+   "mechanism_vs_human": 0.545,
+   "human_n": 33,
+   "abstention": 0.547,
+   "abstention_ci": [
+    0.46,
+    0.628
+   ],
+   "invented_cause_rate": 0.453,
+   "not_concrete_n": 137,
+   "composite_coverage": 0.1,
+   "composite_precision": 0.5,
+   "composite_n": 20,
+   "latency_p50_ms": 38064,
+   "latency_p95_ms": 46908,
+   "tokens_in_mean": 532,
+   "citation": 0.057
+  },
+  "praxis-0p8b-dev R3": {
+   "items": 300,
+   "parsed": 1.0,
+   "claim_precision": 0.981,
+   "claim_precision_ci": [
+    0.972,
+    0.989
+   ],
+   "claims_per_answer": 2.98,
+   "chain_validity": 0.853,
+   "chain_validity_ci": [
+    0.81,
+    0.89
+   ],
+   "consequence_vs_rules": 0.917,
+   "consequence_vs_rules_ci": [
+    0.883,
+    0.947
+   ],
+   "mechanism_vs_rules_single_cause": 0.965,
+   "mechanism_ci": [
+    0.93,
+    0.993
+   ],
+   "single_cause_n": 143,
+   "consequence_vs_human": 0.848,
+   "mechanism_vs_human": 0.758,
+   "human_n": 33,
+   "abstention": 0.869,
+   "abstention_ci": [
+    0.803,
+    0.927
+   ],
+   "invented_cause_rate": 0.131,
+   "not_concrete_n": 137,
+   "composite_coverage": 0.2,
+   "composite_precision": 0.25,
+   "composite_n": 20,
+   "latency_p50_ms": 4458,
+   "latency_p95_ms": 6439,
+   "tokens_in_mean": 532,
+   "citation": 0.853
+  }
+ },
+ "paired_precision": {
+  "praxis-0p8b-dev R3 vs qwen3.5-2b R3 (few-shot)": {
+   "items": 890,
+   "diff": 0.471,
+   "ci": [
+    0.453,
+    0.488
+   ],
+   "excludes_zero": true
+  },
+  "praxis-0p8b-dev R3 vs qwen3.5-4b R3 (few-shot)": {
+   "items": 300,
+   "diff": 0.387,
+   "ci": [
+    0.357,
+    0.414
+   ],
+   "excludes_zero": true
+  }
+ },
+ "paired_valid": {
+  "praxis-0p8b-dev R3 vs qwen3.5-2b R3 (few-shot)": {
+   "items": 890,
+   "a_only": 713,
+   "b_only": 2,
+   "p": 0.0
+  },
+  "praxis-0p8b-dev R3 vs qwen3.5-4b R3 (few-shot)": {
+   "items": 300,
+   "a_only": 242,
+   "b_only": 3,
+   "p": 0.0
+  }
+ },
+ "claim_types": {
+  "TACTIC_GEOMETRY": [
+   119,
+   84
+  ],
+  "CRITICAL_REPLY": [
+   348,
+   341
+  ],
+  "MATERIAL_CHANGE": [
+   535,
+   534
+  ],
+  "COUNTERFACTUAL": [
+   532,
+   527
+  ],
+  "VISIBILITY": [
+   890,
+   890
+  ],
+  "THREAT_EXISTS": [
+   135,
+   135
+  ],
+  "DOES_NOT_ADDRESS": [
+   135,
+   135
+  ],
+  "MATE_IN": [
+   17,
+   15
+  ],
+  "MOVED_INTO_ATTACK": [
+   52,
+   52
+  ],
+  "LOSING_CAPTURE": [
+   20,
+   14
+  ],
+  "DEFENDER_REMOVED": [
+   23,
+   18
+  ]
+ },
+ "ab": {
+  "all": {
+   "S_rules": {
+    "items": 838,
+    "parsed": 1.0,
+    "claim_precision": 1.0,
+    "claim_precision_ci": [
+     1.0,
+     1.0
+    ],
+    "claims_per_answer": 3.04,
+    "chain_validity": 1.0,
+    "chain_validity_ci": [
+     1.0,
+     1.0
+    ],
+    "consequence_vs_rules": 1.0,
+    "consequence_vs_rules_ci": [
+     1.0,
+     1.0
+    ],
+    "mechanism_vs_rules_single_cause": 1.0,
+    "mechanism_ci": [
+     1.0,
+     1.0
+    ],
+    "single_cause_n": 389,
+    "consequence_vs_human": null,
+    "mechanism_vs_human": null,
+    "human_n": 0,
+    "abstention": 1.0,
+    "abstention_ci": [
+     1.0,
+     1.0
+    ],
+    "invented_cause_rate": 0.0,
+    "not_concrete_n": 337,
+    "composite_coverage": 0.0,
+    "composite_precision": null,
+    "composite_n": 112,
+    "latency_p50_ms": null,
+    "latency_p95_ms": null,
+    "tokens_in_mean": 535,
+    "citation": 1.0
+   },
+   "praxis-0p8b-dev R3": {
+    "items": 838,
+    "parsed": 1.0,
+    "claim_precision": 0.971,
+    "claim_precision_ci": [
+     0.964,
+     0.977
+    ],
+    "claims_per_answer": 3.47,
+    "chain_validity": 0.774,
+    "chain_validity_ci": [
+     0.746,
+     0.803
+    ],
+    "consequence_vs_rules": 0.882,
+    "consequence_vs_rules_ci": [
+     0.862,
+     0.901
+    ],
+    "mechanism_vs_rules_single_cause": 0.972,
+    "mechanism_ci": [
+     0.954,
+     0.987
+    ],
+    "single_cause_n": 389,
+    "consequence_vs_human": null,
+    "mechanism_vs_human": null,
+    "human_n": 0,
+    "abstention": 0.786,
+    "abstention_ci": [
+     0.742,
+     0.831
+    ],
+    "invented_cause_rate": 0.214,
+    "not_concrete_n": 337,
+    "composite_coverage": 0.232,
+    "composite_precision": 0.923,
+    "composite_n": 112,
+    "latency_p50_ms": 4612,
+    "latency_p95_ms": 6490,
+    "tokens_in_mean": 535,
+    "citation": 0.774
+   }
+  },
+  "A": {
+   "S_rules": {
+    "items": 236,
+    "parsed": 1.0,
+    "claim_precision": 1.0,
+    "claim_precision_ci": [
+     1.0,
+     1.0
+    ],
+    "claims_per_answer": 4.41,
+    "chain_validity": 1.0,
+    "chain_validity_ci": [
+     1.0,
+     1.0
+    ],
+    "consequence_vs_rules": 1.0,
+    "consequence_vs_rules_ci": [
+     1.0,
+     1.0
+    ],
+    "mechanism_vs_rules_single_cause": 1.0,
+    "mechanism_ci": [
+     1.0,
+     1.0
+    ],
+    "single_cause_n": 161,
+    "consequence_vs_human": null,
+    "mechanism_vs_human": null,
+    "human_n": 0,
+    "abstention": 1.0,
+    "abstention_ci": [
+     1.0,
+     1.0
+    ],
+    "invented_cause_rate": 0.0,
+    "not_concrete_n": 28,
+    "composite_coverage": 0.0,
+    "composite_precision": null,
+    "composite_n": 47,
+    "latency_p50_ms": null,
+    "latency_p95_ms": null,
+    "tokens_in_mean": 540,
+    "citation": 1.0
+   },
+   "praxis-0p8b-dev R3": {
+    "items": 236,
+    "parsed": 1.0,
+    "claim_precision": 0.975,
+    "claim_precision_ci": [
+     0.966,
+     0.984
+    ],
+    "claims_per_answer": 4.81,
+    "chain_validity": 0.737,
+    "chain_validity_ci": [
+     0.682,
+     0.792
+    ],
+    "consequence_vs_rules": 0.907,
+    "consequence_vs_rules_ci": [
+     0.869,
+     0.941
+    ],
+    "mechanism_vs_rules_single_cause": 0.981,
+    "mechanism_ci": [
+     0.957,
+     1.0
+    ],
+    "single_cause_n": 161,
+    "consequence_vs_human": null,
+    "mechanism_vs_human": null,
+    "human_n": 0,
+    "abstention": 0.571,
+    "abstention_ci": [
+     0.393,
+     0.75
+    ],
+    "invented_cause_rate": 0.429,
+    "not_concrete_n": 28,
+    "composite_coverage": 0.234,
+    "composite_precision": 0.909,
+    "composite_n": 47,
+    "latency_p50_ms": 6134,
+    "latency_p95_ms": 6562,
+    "tokens_in_mean": 540,
+    "citation": 0.737
+   }
+  },
+  "B": {
+   "S_rules": {
+    "items": 602,
+    "parsed": 1.0,
+    "claim_precision": 1.0,
+    "claim_precision_ci": [
+     1.0,
+     1.0
+    ],
+    "claims_per_answer": 2.5,
+    "chain_validity": 1.0,
+    "chain_validity_ci": [
+     1.0,
+     1.0
+    ],
+    "consequence_vs_rules": 1.0,
+    "consequence_vs_rules_ci": [
+     1.0,
+     1.0
+    ],
+    "mechanism_vs_rules_single_cause": 1.0,
+    "mechanism_ci": [
+     1.0,
+     1.0
+    ],
+    "single_cause_n": 228,
+    "consequence_vs_human": null,
+    "mechanism_vs_human": null,
+    "human_n": 0,
+    "abstention": 1.0,
+    "abstention_ci": [
+     1.0,
+     1.0
+    ],
+    "invented_cause_rate": 0.0,
+    "not_concrete_n": 309,
+    "composite_coverage": 0.0,
+    "composite_precision": null,
+    "composite_n": 65,
+    "latency_p50_ms": null,
+    "latency_p95_ms": null,
+    "tokens_in_mean": 533,
+    "citation": 1.0
+   },
+   "praxis-0p8b-dev R3": {
+    "items": 602,
+    "parsed": 1.0,
+    "claim_precision": 0.968,
+    "claim_precision_ci": [
+     0.96,
+     0.976
+    ],
+    "claims_per_answer": 2.94,
+    "chain_validity": 0.789,
+    "chain_validity_ci": [
+     0.757,
+     0.821
+    ],
+    "consequence_vs_rules": 0.872,
+    "consequence_vs_rules_ci": [
+     0.846,
+     0.899
+    ],
+    "mechanism_vs_rules_single_cause": 0.965,
+    "mechanism_ci": [
+     0.939,
+     0.987
+    ],
+    "single_cause_n": 228,
+    "consequence_vs_human": null,
+    "mechanism_vs_human": null,
+    "human_n": 0,
+    "abstention": 0.806,
+    "abstention_ci": [
+     0.761,
+     0.848
+    ],
+    "invented_cause_rate": 0.194,
+    "not_concrete_n": 309,
+    "composite_coverage": 0.231,
+    "composite_precision": 0.933,
+    "composite_n": 65,
+    "latency_p50_ms": 4444,
+    "latency_p95_ms": 6403,
+    "tokens_in_mean": 533,
+    "citation": 0.789
+   }
+  }
+ }
+}

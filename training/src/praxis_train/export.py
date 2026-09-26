@@ -97,7 +97,16 @@ def to_gguf(merged: Path, out: Path, converter: Path, outtype: str = "q8_0") -> 
     return out
 
 
-def write_modelfile(cfg: dict, gguf: Path, windows_gguf: str) -> Path:
+def training_system(cfg: dict) -> str | None:
+    """The system message the training rows carry, if any. Read from the data,
+    not restated, so the Modelfile cannot drift from what the adapter saw."""
+    with open(cfg["data"]["train"], encoding="utf-8") as f:
+        first = json.loads(f.readline())
+    msgs = first.get("messages", [])
+    return msgs[0]["content"] if msgs and msgs[0]["role"] == "system" else None
+
+
+def write_modelfile(cfg: dict, gguf: Path, windows_gguf: str, system: str | None) -> Path:
     """A Modelfile Ollama can build from.
 
     The FROM path is written in Windows form: Ollama runs as a Windows service
@@ -111,20 +120,29 @@ def write_modelfile(cfg: dict, gguf: Path, windows_gguf: str) -> Path:
     saw in training: every reply comes back empty after one token, which looks
     exactly like a broken export and is not.
 
-    No SYSTEM line, for the same reason — the training rows are a bare user turn
-    and an assistant turn, so a system message at inference is a prompt format the
-    adapter has never seen. The instruction lives in the rendered evidence block
-    (`render.PROMPT_INSTRUCTION`) where training put it.
+    The system turn follows the training rows, for the same reason. Phase 1's
+    rows are a bare user turn, so its Modelfile has no system block: a system
+    message would be a prompt format that adapter never saw. Phase 6's rows open
+    with a short fixed system message, so it is pinned as SYSTEM and the template
+    writes it where training put it.
+
+    One Modelfile per Ollama model, so a later export never overwrites the record
+    of an earlier one.
     """
-    path = gguf.parent / "Modelfile"
+    path = gguf.parent / f'{cfg["output"]["ollama_model"]}.Modelfile'
+    system_lines = (
+        ["{{ if .System }}<|im_start|>system", "{{ .System }}<|im_end|>", "{{ end }}<|im_start|>user"]
+        if system else ["<|im_start|>user"]
+    )
     path.write_text(
         "\n".join(
             [
                 f"FROM {windows_gguf}",
                 "",
-                "# The training format, exactly: a user turn, then an assistant turn",
-                "# whose thinking block is already opened and closed.",
-                'TEMPLATE """<|im_start|>user',
+                "# The training format, exactly: the turns the rows had, then an",
+                "# assistant turn whose thinking block is already opened and closed.",
+                'TEMPLATE """' + system_lines[0],
+                *system_lines[1:],
                 "{{ .Prompt }}<|im_end|>",
                 "<|im_start|>assistant",
                 "<think>",
@@ -138,8 +156,9 @@ def write_modelfile(cfg: dict, gguf: Path, windows_gguf: str) -> Path:
                 "# meant to be citing.",
                 "PARAMETER temperature 0",
                 "PARAMETER top_p 1",
-                "PARAMETER num_ctx 2048",
+                f'PARAMETER num_ctx {cfg["output"].get("num_ctx", 2048)}',
                 'PARAMETER stop "<|im_end|>"',
+                *([f'SYSTEM """{system}"""'] if system else []),
                 "",
             ]
         ),
@@ -188,12 +207,12 @@ def main() -> None:
     if windows_gguf.startswith("/mnt/"):
         drive = windows_gguf[5]
         windows_gguf = drive.upper() + ":" + windows_gguf[6:].replace("/", "\\")
-    modelfile = write_modelfile(cfg, gguf, windows_gguf)
+    modelfile = write_modelfile(cfg, gguf, windows_gguf, training_system(cfg))
     report["modelfile"] = str(modelfile)
     # Built by string, not pathlib: `windows_gguf` uses backslashes, which a
     # PosixPath treats as ordinary characters, collapsing the whole thing to a
     # bare filename.
-    windows_modelfile = windows_gguf.rsplit("\\", 1)[0] + "\\Modelfile"
+    windows_modelfile = windows_gguf.rsplit("\\", 1)[0] + "\\" + modelfile.name
     report["ollama_create"] = (
         f'ollama create {cfg["output"]["ollama_model"]} -f "{windows_modelfile}"'
     )

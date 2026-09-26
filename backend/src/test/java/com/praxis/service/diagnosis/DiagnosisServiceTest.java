@@ -94,6 +94,64 @@ class DiagnosisServiceTest {
         verify(evidence).findFirstByUsernameAndLabelledAtIsNullAndSampleKeyLessThanEqualOrderBySampleKeyAsc("player", 500);
     }
 
+    /**
+     * A review changes the label but keeps the FIRST labelling time: labelled_at
+     * is what separates the labels the rules were tuned on from fresh ones.
+     */
+    @Test
+    void aReviewKeepsTheFirstLabellingTime() {
+        var first = java.time.OffsetDateTime.parse("2026-09-23T20:00:00Z");
+        var labelled = row(EvidenceGraphBuilder.GRAPH_VERSION);
+        labelled.setLabelledAt(first);
+        labelled.setHumanConsequence("NOT_CONCRETE");
+        labelled.setHumanMechanism("NONE");
+        UUID id = UUID.randomUUID();
+        when(evidence.findById(id)).thenReturn(Optional.of(labelled));
+
+        service.label(id, "LOST_MATERIAL", "IGNORED_THREAT", null);
+
+        assertThat(labelled.getLabelledAt()).isEqualTo(first);
+        assertThat(labelled.getRelabelledAt()).isNotNull();
+        assertThat(labelled.getHumanMechanism()).isEqualTo("IGNORED_THREAT");
+    }
+
+    @Test
+    void aFirstLabelSetsTheLabellingTime() {
+        var unlabelled = row(EvidenceGraphBuilder.GRAPH_VERSION);
+        UUID id = UUID.randomUUID();
+        when(evidence.findById(id)).thenReturn(Optional.of(unlabelled));
+
+        service.label(id, "MATED", "IGNORED_THREAT", null);
+
+        assertThat(unlabelled.getLabelledAt()).isNotNull();
+        assertThat(unlabelled.getRelabelledAt()).isNull();
+    }
+
+    /** Only labels after the first hundred count as fresh, ordered by first labelling time. */
+    @Test
+    void freshScoresCountOnlyLabelsAfterTheFirstHundred() {
+        var base = java.time.OffsetDateTime.parse("2026-09-23T00:00:00Z");
+        List<MistakeEvidence> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < 103; i++) {
+            var e = row(EvidenceGraphBuilder.GRAPH_VERSION);
+            e.setLabelledAt(base.plusMinutes(i));
+            e.setRuleConsequence("LOST_MATERIAL");
+            e.setRuleMechanism("IGNORED_THREAT");
+            e.setRuleComposite(false);
+            // The first 100 disagree; the 3 fresh ones agree.
+            e.setHumanConsequence(i < 100 ? "NOT_CONCRETE" : "LOST_MATERIAL");
+            e.setHumanMechanism(i < 100 ? "NONE" : "IGNORED_THREAT");
+            rows.add(e);
+        }
+        java.util.Collections.shuffle(rows, new java.util.Random(1));
+
+        var fresh = DiagnosisService.fresh(rows);
+
+        assertThat(fresh.labelled()).isEqualTo(3);
+        assertThat(fresh.consequenceAgreement()).isEqualTo(1.0);
+        assertThat(fresh.singleCauseAccuracy()).isEqualTo(1.0);
+    }
+
     /** Before any sample build, only on-demand rows exist: nothing is up for labelling. */
     @Test
     void onDemandRowsAloneAreNotASample() {

@@ -19,7 +19,10 @@ import { defineConfig, devices } from '@playwright/test'
  * Both are needed. The mocked suite proves the app behaves; the live suite proves
  * the app and the server still agree about what the JSON looks like.
  */
-const PORT = 5173
+// E2E_PORT exists because 5173 is shared: with another Vite app of yours on it,
+// reuseExistingServer happily "reused" that app and every test failed against
+// the wrong page. Pick a free port and the suite starts its own Praxis dev server.
+const PORT = Number(process.env.E2E_PORT ?? 5173)
 const BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`
 
 /**
@@ -124,7 +127,9 @@ export default defineConfig({
    * writing tests.
    */
   webServer: {
-    command: 'npm run dev',
+    // --strictPort: if the port is taken by something else, fail loudly rather
+    // than let Vite drift to the next port while the tests keep the old URL.
+    command: `npm run dev -- --port ${PORT} --strictPort`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

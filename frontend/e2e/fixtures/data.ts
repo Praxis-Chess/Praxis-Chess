@@ -783,6 +783,8 @@ export const ruleReport: RuleReport = {
   not_concrete_rate: 0.35,
   rule_diagnoses_failing_verification: 0,
   budget: { graphs: 60, over_budget: 0, max_items: 25, median_tokens: 409, p95_tokens: 508, max_tokens: 588 },
+  fresh: { labelled: 0, consequence_agreement: null, consequence_ci: null, single_cause_accuracy: null,
+    single_cause_labelled: 0, single_cause_ci: null },
   disagreements: [
     { id: '33333333-3333-3333-3333-333333333333', move_label: '16. a3',
       human_consequence: 'LOST_MATERIAL', rule_consequence: 'LOST_MATERIAL',
