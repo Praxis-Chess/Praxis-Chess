@@ -81,6 +81,11 @@ compared with an earlier one without rerunning it.
 | `teacher.py` | Phase 6: teacher prose and composite chains; scores a pilot in rupees per verified example. |
 | `trained_metrics.py` | Phase 6: a trained model against the Phase 5 baselines, paired, and on held-out A+B. |
 
+Before any 2B/4B training: [`PREREGISTRATION.md`](PREREGISTRATION.md) (tag
+`prereg-v1`) fixes the hypotheses, metrics, statistics and ship rules, and
+`python training/tools/prereg_hashes.py --check` proves a run used the
+registered data.
+
 ## Phase 6: building the training dataset
 
 The Java half (evidence, renders, the rules' targets, the verifier) is the
