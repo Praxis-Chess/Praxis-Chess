@@ -30,7 +30,7 @@ train:
   lr_scheduler_type: cosine
   logging_steps: 10
   seed: 17
-  gradient_checkpointing: true
+  gradient_checkpointing: false
   completion_only: true
 data:
   train: data/phase6_v1/R0/train.jsonl
