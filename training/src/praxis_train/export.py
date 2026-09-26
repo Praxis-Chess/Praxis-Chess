@@ -33,13 +33,12 @@ def load_config(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-def merge(cfg: dict) -> Path:
+def merge(cfg: dict, adapter: Path) -> Path:
     """Fold the LoRA into the base weights. GGUF has no concept of an adapter."""
     from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     base_name = cfg["model"]["base"]
-    adapter = Path(cfg["output"]["adapter_dir"])
     merged = Path(cfg["output"]["merged_dir"])
 
     # On the CPU in fp16: merging needs the whole model resident, and the 4 GB
@@ -173,16 +172,26 @@ def main() -> None:
     ap.add_argument("--llama-cpp", type=Path, default=Path.home() / "src" / "llama.cpp")
     ap.add_argument("--outtype", default="q8_0")
     ap.add_argument("--skip-merge", action="store_true")
+    ap.add_argument("--adapter", type=Path,
+                    help="the adapter to merge; default <adapter_dir>/selected if it exists (Phase 7), else <adapter_dir>")
+    ap.add_argument("--quantize", default="",
+                    help="a llama-quantize binary: convert to bf16, then quantize to --outtype (e.g. Q4_K_M)")
+    ap.add_argument("--relative", action="store_true",
+                    help="write FROM ./<file>.gguf, for a Modelfile that travels with its GGUF (the rented GPU)")
     args = ap.parse_args()
     cfg = load_config(args.config)
 
     report: dict[str, object] = {}
+    adapter = args.adapter or Path(cfg["output"]["adapter_dir"])
+    if not args.adapter and (adapter / "selected").is_dir():
+        adapter = adapter / "selected"
+    report["adapter"] = str(adapter)
 
     if args.skip_merge:
         merged = Path(cfg["output"]["merged_dir"])
     else:
         t0 = time.time()
-        merged = merge(cfg)
+        merged = merge(cfg, adapter)
         report["merge_seconds"] = round(time.time() - t0, 1)
     report["merged_dir"] = str(merged)
 
@@ -190,23 +199,35 @@ def main() -> None:
     t0 = time.time()
     # The filename states the quantisation actually written, so a q8_0 file can
     # never be mistaken for the q4_K_M the plan's config names.
+    outtype = args.outtype.lower()
     gguf_path = Path(cfg["output"]["gguf"])
     gguf_path = gguf_path.with_name(
-        gguf_path.name.replace("q4_k_m", args.outtype).replace(".gguf", "")
-        + ("" if args.outtype in gguf_path.name else "")
+        gguf_path.name.replace("q4_k_m", outtype).replace("q8_0", outtype).replace(".gguf", "")
+        + ("" if outtype in gguf_path.name else f"-{outtype}")
         + ".gguf"
     )
-    gguf = to_gguf(merged, gguf_path, converter, args.outtype)
+    if args.quantize:
+        # K-quants are not a converter output type: write bf16, then quantize
+        # with llama.cpp's compiled tool (built on the rented GPU; §15.2's
+        # quantisation delta is measured against this exact file).
+        full = to_gguf(merged, gguf_path.with_name(gguf_path.stem + "-bf16.gguf"), converter, "bf16")
+        subprocess.run([args.quantize, str(full), str(gguf_path), args.outtype.upper()], check=True)
+        full.unlink()
+        gguf = gguf_path
+    else:
+        gguf = to_gguf(merged, gguf_path, converter, outtype)
     report["convert_seconds"] = round(time.time() - t0, 1)
     report["gguf"] = str(gguf)
     report["gguf_mb"] = round(gguf.stat().st_size / 1e6, 1)
-    report["outtype"] = args.outtype
+    report["outtype"] = outtype
 
     # /mnt/d/Tanm/... -> D:\Tanm\...
     windows_gguf = str(gguf.resolve())
     if windows_gguf.startswith("/mnt/"):
         drive = windows_gguf[5]
         windows_gguf = drive.upper() + ":" + windows_gguf[6:].replace("/", "\\")
+    if args.relative:
+        windows_gguf = "./" + gguf.name
     modelfile = write_modelfile(cfg, gguf, windows_gguf, training_system(cfg))
     report["modelfile"] = str(modelfile)
     # Built by string, not pathlib: `windows_gguf` uses backslashes, which a
@@ -214,6 +235,8 @@ def main() -> None:
     # bare filename.
     windows_modelfile = windows_gguf.rsplit("\\", 1)[0] + "\\" + modelfile.name
     report["ollama_create"] = (
+        f'ollama create {cfg["output"]["ollama_model"]} -f {modelfile.name}   (run in the folder holding both files)'
+        if args.relative else
         f'ollama create {cfg["output"]["ollama_model"]} -f "{windows_modelfile}"'
     )
 
