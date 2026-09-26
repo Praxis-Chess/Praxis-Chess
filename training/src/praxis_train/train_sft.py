@@ -150,7 +150,10 @@ def main() -> None:
         max_length=cfg["model"]["max_seq_length"],
         report_to=[],
         save_strategy="no",
-        eval_strategy="no" if args.max_steps else "epoch",
+        # The grid skips loss passes over the whole validation set: the
+        # checkpoint is chosen by the verifier (select_checkpoint.py), and the
+        # rented GPU's hours are the budget.
+        eval_strategy="epoch" if t.get("eval_each_epoch", True) and not args.max_steps else "no",
         max_steps=args.max_steps or -1,
         # Supervise the answer only; the evidence block is context, not a target.
         completion_only_loss=t["completion_only"],
@@ -233,7 +236,8 @@ def main() -> None:
         "epochs": t["epochs"],
         "trainable_params": trainable,
         "final_loss": round(float(result.training_loss), 4),
-        "eval_loss": None if args.max_steps else round(float(trainer.evaluate()["eval_loss"]), 4),
+        "eval_loss": (round(float(trainer.evaluate()["eval_loss"]), 4)
+                      if t.get("eval_each_epoch", True) and not args.max_steps else None),
         "total_steps": total_steps,
         "steps_done": steps_done,
         "seconds": round(seconds, 1),
