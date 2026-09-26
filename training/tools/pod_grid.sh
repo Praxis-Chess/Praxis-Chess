@@ -20,6 +20,8 @@ cd $REPO/training
 # shellcheck disable=SC1091
 source $W/venv/bin/activate
 export HF_HOME=$W/hf PYTHONPATH=src LOMBOK_JAR=$REPO/training/.javabuild/lib/lombok.jar
+# Variable-length batches fragment the allocator; this lets freed blocks be reused.
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 RESULTS=$W/results/grid_v1
 LOG=$RESULTS/grid_log.tsv
 RATE="${RUPEES_PER_HOUR:-0}"
@@ -37,7 +39,8 @@ if [ "${PILOT:-0}" = "1" ]; then
         echo "=== pilot $arm (30 steps) ==="
         python -m praxis_train.train_sft --config config/grid_v1/$arm.yaml --max-steps 30 2>&1 | tail -25
         cp outputs/grid_v1/$arm/lora-pilot/train_report.json "$RESULTS/pilot-$arm.json"
-        if [ $arm = 2b-r3 ]; then
+        # PILOT_TRAIN_ONLY=1: time and memory only (selection and export already proven).
+        if [ $arm = 2b-r3 ] && [ "${PILOT_TRAIN_ONLY:-0}" != 1 ]; then
             echo "=== pilot $arm: selection (16 rows) and export ==="
             python -m praxis_train.select_checkpoint --config config/grid_v1/$arm.yaml \
                 --adapters outputs/grid_v1/$arm/lora-pilot --rows 16 2>&1 | tail -12
