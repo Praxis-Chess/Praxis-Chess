@@ -198,12 +198,33 @@ def main() -> None:
     import transformers
     import trl
 
+    def importable(module: str) -> bool:
+        try:
+            __import__(module)
+            return True
+        except Exception:
+            return False
+
+    def resolved_revision() -> str | None:
+        """The commit "main" pointed at when the weights were downloaded."""
+        try:
+            from huggingface_hub.constants import HF_HUB_CACHE
+            ref = Path(HF_HUB_CACHE) / f"models--{cfg['model']['base'].replace('/', '--')}" / "refs" / cfg["model"]["revision"]
+            return ref.read_text().strip()
+        except OSError:
+            return getattr(model.config, "_commit_hash", None)
+
     steps_done = int(trainer.state.global_step)
     report = {
         "base": cfg["model"]["base"],
         # The exact snapshot "main" resolved to, so a rerun can pin it.
-        "base_revision": getattr(model.config, "_commit_hash", None),
+        "base_revision": resolved_revision(),
         "kernel_backend": _KERNEL_BACKEND,
+        # Whether the fast linear-attention paths could load at all. Without
+        # either, transformers runs its (much slower) torch reference code.
+        "fast_kernels": {"kernels": importable("kernels"), "fla": importable("fla")},
+        "per_device_batch": t["per_device_batch_size"],
+        "gradient_checkpointing": t["gradient_checkpointing"],
         "gpu": torch.cuda.get_device_name(0),
         "versions": {"torch": torch.__version__, "transformers": transformers.__version__,
                      "peft": peft.__version__, "trl": trl.__version__},

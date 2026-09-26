@@ -26,7 +26,7 @@ from pathlib import Path
 import torch
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]      # the repository
+TRAINING = Path(__file__).resolve().parents[2]      # training/ (src/praxis_train/this.py)
 
 
 def load_rows(path: Path, n: int) -> list[dict]:
@@ -99,14 +99,16 @@ def main() -> None:
         outputs, verified = work / "outputs.jsonl", work / "verified.jsonl"
         label = f"{arm}@{epoch_dir.name}"
         if not outputs.exists():
+            t0 = time.time()
             answers = generate(cfg["model"]["base"], cfg["model"]["revision"], epoch_dir, rows,
                                args.batch, args.max_new_tokens)
             with outputs.open("w", encoding="utf-8") as w:
                 for r, (text, ms) in zip(rows, answers):
                     w.write(json.dumps({"item_id": r["meta"]["source_id"], "arm": label, "level": level,
                                         "raw": text, "latency_ms": ms}, ensure_ascii=False) + "\n")
+            print(f"  {epoch_dir.name}: {len(rows)} answers in {time.time() - t0:.0f} s", flush=True)
         # The same verifier the app and every evaluation use.
-        subprocess.run(["bash", str(ROOT / "training" / "tools" / "javacli.sh"), "EvalCli", "verify",
+        subprocess.run(["bash", str(TRAINING / "tools" / "javacli.sh"), "EvalCli", "verify",
                         "--testset", str(Path(args.graphs).resolve()), "--outputs", str(outputs.resolve()),
                         "--out", str(verified.resolve())], check=True)
         results[epoch_dir.name] = precision(verified, label)

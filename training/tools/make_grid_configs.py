@@ -51,16 +51,19 @@ def config(arm: str) -> dict:
         "lora": {"r": rank, "alpha": 2 * rank, "dropout": 0.0, "target_modules": TARGETS},
         "train": {
             "epochs": 2,
-            # Effective batch 8 (§3); 4 x 2 instead of the laptop's 1 x 8 only
-            # because the rented card has the memory for it.
-            "per_device_batch_size": 4,
-            "gradient_accumulation_steps": 2,
+            # Effective batch 8 (§3), split for the rented 48 GB card. The pilot
+            # at 4 x 2 with checkpointing peaked at 5.6 GB (2B) and ran 6.2 s a
+            # step, ~3 h an arm: the memory was idle and paid for in time. So
+            # the 2B takes all 8 at once and nothing is recomputed. Same
+            # effective batch, same schedule; only the arithmetic's order moves.
+            "per_device_batch_size": 8 if base.endswith("2B") else 4,
+            "gradient_accumulation_steps": 1 if base.endswith("2B") else 2,
             "learning_rate": 2.0e-4,
             "warmup_ratio": 0.05,
             "lr_scheduler_type": "cosine",
             "logging_steps": 10,
             "seed": 17,
-            "gradient_checkpointing": True,
+            "gradient_checkpointing": False,
             "completion_only": True,
         },
         "data": {"train": f"{data}/train.jsonl", "val": f"{data}/val.jsonl"},

@@ -25,8 +25,8 @@ source $W/venv/bin/activate
 pip install -q --upgrade pip
 # torch 2.14 is built for CUDA 13.0, not 12.8: deploy on a machine whose driver
 # offers CUDA 13.0 or newer (the deploy page's CUDA filter).
-pip install -q torch==2.14.0 --index-url https://download.pytorch.org/whl/cu130
-pip install -q transformers==5.17.0 peft==0.21.0 trl==1.13.0 datasets==5.0.1 accelerate==1.15.0 \
+pip install --progress-bar on torch==2.14.0 --index-url https://download.pytorch.org/whl/cu130
+pip install transformers==5.17.0 peft==0.21.0 trl==1.13.0 datasets==5.0.1 accelerate==1.15.0 \
     pyyaml safetensors sentencepiece numpy
 # The fast path for Qwen3.5's linear attention (the laptop never had it). Optional:
 # without it training still runs, on the slow torch fallback, and train_report
@@ -44,7 +44,9 @@ ls -la $W/llama.cpp/build/bin/llama-quantize
 
 echo "[setup] data bundle"
 if [ -f $W/praxis_bundle.tar.gz ] && [ ! -f $REPO/training/data/phase7/val_gold.jsonl ]; then
-    tar -xzf $W/praxis_bundle.tar.gz -C $REPO/training
+    # --no-same-owner: the archive carries the Windows user's id, and the pod's
+    # volume refuses to hand files to an unknown user (tar then exits non-zero).
+    tar --no-same-owner -xzf $W/praxis_bundle.tar.gz -C $REPO/training
 fi
 python $REPO/training/tools/prereg_hashes.py --check --present-only
 
