@@ -46,7 +46,7 @@ if [ "${PILOT:-0}" = "1" ]; then
                 --adapters outputs/grid_v1/$arm/lora-pilot --rows 16 2>&1 | tail -12
             python -m praxis_train.export --config config/grid_v1/$arm.yaml --outtype Q4_K_M \
                 --adapter outputs/grid_v1/$arm/lora-pilot/selected \
-                --quantize $W/llama.cpp/build/bin/llama-quantize --llama-cpp $W/llama.cpp --relative 2>&1 | tail -12
+                --quantize $W/llama.cpp/build/bin/llama-quantize --llama-cpp $W/llama.cpp --relative --merge-on-gpu 2>&1 | tail -12
             ls -la outputs/grid_v1/$arm/*.gguf outputs/grid_v1/$arm/*.Modelfile
         fi
         rm -rf outputs/grid_v1/$arm/lora-pilot outputs/grid_v1/$arm/merged outputs/grid_v1/$arm/*.gguf
@@ -76,7 +76,7 @@ for arm in $ARMS; do
         python -m praxis_train.train_sft --config config/grid_v1/$arm.yaml &&
         python -m praxis_train.select_checkpoint --config config/grid_v1/$arm.yaml &&
         python -m praxis_train.export --config config/grid_v1/$arm.yaml --outtype Q4_K_M \
-            --quantize $W/llama.cpp/build/bin/llama-quantize --llama-cpp $W/llama.cpp --relative \
+            --quantize $W/llama.cpp/build/bin/llama-quantize --llama-cpp $W/llama.cpp --relative --merge-on-gpu \
             > "$out/export_report.json"
     } >> "$dest/run.log" 2>&1 || status=failed
     end=$(date +%s)

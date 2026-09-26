@@ -66,6 +66,7 @@ def config(arm: str) -> dict:
             "seed": 17,
             "gradient_checkpointing": False,
             "completion_only": True,
+            "eval_each_epoch": False,
         },
         "data": {"train": f"{data}/train.jsonl", "val": f"{data}/val.jsonl"},
         "output": {

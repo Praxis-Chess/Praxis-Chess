@@ -33,7 +33,7 @@ def load_config(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-def merge(cfg: dict, adapter: Path) -> Path:
+def merge(cfg: dict, adapter: Path, on_gpu: bool = False) -> Path:
     """Fold the LoRA into the base weights. GGUF has no concept of an adapter."""
     from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -41,10 +41,12 @@ def merge(cfg: dict, adapter: Path) -> Path:
     base_name = cfg["model"]["base"]
     merged = Path(cfg["output"]["merged_dir"])
 
-    # On the CPU in fp16: merging needs the whole model resident, and the 4 GB
-    # card is better spent on the training run than on an arithmetic step.
+    # On the laptop: the CPU in fp16, since the 4 GB card is better spent on
+    # training than on an arithmetic step. On a rented card (on_gpu): bf16 on
+    # the GPU, minutes faster per arm, and the dtype the adapter trained in.
     base = AutoModelForCausalLM.from_pretrained(
-        base_name, revision=cfg["model"]["revision"], dtype=torch.float16, device_map="cpu"
+        base_name, revision=cfg["model"]["revision"],
+        dtype=torch.bfloat16 if on_gpu else torch.float16, device_map={"": 0} if on_gpu else "cpu",
     )
     model = PeftModel.from_pretrained(base, str(adapter))
     model = model.merge_and_unload()
@@ -176,6 +178,7 @@ def main() -> None:
                     help="the adapter to merge; default <adapter_dir>/selected if it exists (Phase 7), else <adapter_dir>")
     ap.add_argument("--quantize", default="",
                     help="a llama-quantize binary: convert to bf16, then quantize to --outtype (e.g. Q4_K_M)")
+    ap.add_argument("--merge-on-gpu", action="store_true", help="merge in bf16 on the GPU (the rented card)")
     ap.add_argument("--relative", action="store_true",
                     help="write FROM ./<file>.gguf, for a Modelfile that travels with its GGUF (the rented GPU)")
     args = ap.parse_args()
@@ -191,7 +194,7 @@ def main() -> None:
         merged = Path(cfg["output"]["merged_dir"])
     else:
         t0 = time.time()
-        merged = merge(cfg, adapter)
+        merged = merge(cfg, adapter, args.merge_on_gpu)
         report["merge_seconds"] = round(time.time() - t0, 1)
     report["merged_dir"] = str(merged)
 

@@ -32,6 +32,7 @@ train:
   seed: 17
   gradient_checkpointing: false
   completion_only: true
+  eval_each_epoch: false
 data:
   train: data/phase6_v1/R3/train.jsonl
   val: data/phase6_v1/R3/val.jsonl
