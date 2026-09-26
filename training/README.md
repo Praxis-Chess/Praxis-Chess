@@ -81,6 +81,31 @@ compared with an earlier one without rerunning it.
 | `teacher.py` | Phase 6: teacher prose and composite chains; scores a pilot in rupees per verified example. |
 | `trained_metrics.py` | Phase 6: a trained model against the Phase 5 baselines, paired, and on held-out A+B. |
 
+## Phase 7: the LoRA grid on a rented GPU
+
+11 arms (`config/grid_v1/`, written by `tools/make_grid_configs.py`): 2B at
+R0–R3, 4B at R0 and R3, and 2B-R3 without the counterfactual, the threat probe,
+the change list or the depth curve (`ablate.py`), plus r=32. Only public data
+goes to the pod; the grid is evaluated on the laptop, where the player's test
+set lives.
+
+| Where | Step | Command |
+|---|---|---|
+| Laptop | Ablated data and test renders | `cd training && set PYTHONPATH=src&& python -m praxis_train.ablate train && python -m praxis_train.ablate testsets` |
+| Laptop (Git Bash) | Pack the pod's data (~80 MB, public only) | `bash training/tools/pod_bundle.sh` → `training/pod_bundle/praxis_bundle.tar.gz` |
+| RunPod | Pod: 48 GB card, CUDA ≥ 13.0, On-Demand, volume 100 GB at `/workspace`, container 30 GB | website |
+| Pod | Code, then upload the bundle to `/workspace` | `cd /workspace && git clone --branch <BRANCH> https://github.com/praxis-chess/Praxis-Chess.git` |
+| Pod | Setup (Java, pinned Python stack, llama.cpp, data, hash check, verifier smoke test) | `bash /workspace/Praxis-Chess/training/tools/pod_setup.sh` |
+| Pod | Pilot: 2b-r3 end to end on 30 steps, 4b-r3 timing | `cd /workspace/Praxis-Chess && PILOT=1 bash training/tools/pod_grid.sh` |
+| Pod | The grid (resumable) | `RUPEES_PER_HOUR=<rate> bash training/tools/pod_grid.sh` |
+| Pod | Progress | `python training/tools/grid_status.py` |
+
+Each arm: `train_sft` (2 epochs, a checkpoint per epoch, loss on the answer
+only) → `select_checkpoint` (the verifier on 200 validation answers per epoch)
+→ `export --quantize … --outtype Q4_K_M --relative` → `/workspace/results/grid_v1/<arm>/`
+(GGUF, Modelfile, adapter, train/selection/export reports; `grid_log.tsv` holds
+wall time and ₹ per arm).
+
 Before any 2B/4B training: [`PREREGISTRATION.md`](PREREGISTRATION.md) (tag
 `prereg-v1`) fixes the hypotheses, metrics, statistics and ship rules, and
 `python training/tools/prereg_hashes.py --check` proves a run used the

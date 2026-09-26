@@ -55,7 +55,15 @@ def main() -> None:
             print(f"| `{f}` | `{h}` |")
         return
     registered = dict(re.findall(r"\| `([^`]+)` \| `([0-9a-f]{64}|MISSING)` \|", REGISTERED.read_text(encoding="utf-8")))
-    bad = [f for f in FILES if registered.get(f) != table[f]]
+    files = FILES
+    if "--present-only" in sys.argv:
+        # The rented GPU holds only the public training data: the player's test
+        # set and the private Phase 5 answers are never uploaded.
+        # Source files are skipped too: git checks them out with this machine's
+        # line endings, and for them the tagged commit is the reference (§5).
+        files = [f for f in FILES if table[f] != "MISSING" and not f.startswith("backend/")]
+        print(f"checking {len(files)} of {len(FILES)} registered files present here")
+    bad = [f for f in files if registered.get(f) != table[f]]
     for f in bad:
         print(f"CHANGED  {f}\n  registered {registered.get(f)}\n  now        {table[f]}")
     print("all files match the registration" if not bad else f"{len(bad)} file(s) differ from the registration")
