@@ -23,8 +23,8 @@ lora:
   - down_proj
 train:
   epochs: 2
-  per_device_batch_size: 4
-  gradient_accumulation_steps: 2
+  per_device_batch_size: 2
+  gradient_accumulation_steps: 4
   learning_rate: 0.0002
   warmup_ratio: 0.05
   lr_scheduler_type: cosine
