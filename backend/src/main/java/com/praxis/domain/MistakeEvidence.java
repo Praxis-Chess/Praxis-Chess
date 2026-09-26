@@ -153,4 +153,13 @@ public class MistakeEvidence {
 
     @Column(name = "labelled_at")
     private OffsetDateTime labelledAt;
+
+    /**
+     * When a label was last changed on review. labelled_at keeps the FIRST
+     * labelling time, because it is what separates the labels the rules were
+     * tuned on from fresh ones (the Phase 3 gap); a review must not move a label
+     * into the fresh set.
+     */
+    @Column(name = "relabelled_at")
+    private OffsetDateTime relabelledAt;
 }

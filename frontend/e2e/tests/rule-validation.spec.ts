@@ -140,6 +140,51 @@ test.describe('Rule validation', () => {
       await expect(page.getByText('2 rule diagnoses fail their own verifier — a bug')).toBeVisible()
     })
 
+    test('the labels given since the rule fixes are scored on their own', async ({ page, api }) => {
+      api.json('/api/diagnosis/report', {
+        ...data.ruleReport, labelled: 130,
+        fresh: { labelled: 30, consequence_agreement: 0.8, consequence_ci: [0.627, 0.905],
+          single_cause_accuracy: 0.6, single_cause_labelled: 15, single_cause_ci: [0.357, 0.802] },
+      })
+      await page.goto('/labels')
+      await expect(page.getByLabel('Fresh labels')).toContainText('On the 30 labels since the rule fixes')
+      await expect(page.getByLabel('Fresh labels')).toContainText('80%')
+      await expect(page.getByLabel('Fresh labels')).toContainText('60%')
+      await expect(page.getByRole('region', { name: 'Progress' })).toContainText('130 labelled · 30 since the rule fixes')
+    })
+
+    test('no fresh line until there are labels past the first hundred', async ({ page }) => {
+      await page.goto('/labels')
+      await expect(page.getByRole('region', { name: 'Rule scores' })).toBeVisible()
+      await expect(page.getByLabel('Fresh labels')).toHaveCount(0)
+    })
+
+    test('a disagreement can be reopened with your label already chosen, and saved again', async ({ page, api }) => {
+      api.json(/^\/api\/diagnosis\/review\//, {
+        card: data.labelCard, consequence: 'LOST_MATERIAL', mechanism: 'IGNORED_THREAT', note: 'Ne5 was coming anyway',
+      })
+      const sent: unknown[] = []
+      api.set(/^\/api\/diagnosis\/label\//, (req: Request) => {
+        sent.push(req.postDataJSON())
+        return { status: 200, body: { saved: true } }
+      })
+      await page.goto('/labels')
+      await page.getByText('1 disagreement', { exact: true }).click()
+      await page.getByRole('button', { name: 'Review' }).click()
+
+      const review = page.getByRole('region', { name: 'Reviewing a label' })
+      await expect(review).toContainText('You said lost material / ignored threat')
+      await expect(review.getByRole('radio', { name: /^lost material/ })).toBeChecked()
+      await expect(review.getByRole('radio', { name: /^ignored threat/ })).toBeChecked()
+      await expect(review.locator('#label-note')).toHaveValue('Ne5 was coming anyway')
+
+      await review.getByRole('radio', { name: /^created tactic/ }).check()
+      await review.getByRole('button', { name: 'Save and next' }).click()
+      await expect.poll(() => sent.length).toBe(1)
+      expect(sent[0]).toEqual({ consequence: 'LOST_MATERIAL', mechanism: 'CREATED_TACTIC', note: 'Ne5 was coming anyway' })
+      await expect(page.getByRole('region', { name: 'Reviewing a label' })).toHaveCount(0)
+    })
+
     test('disagreements can be read, with the labeller’s note', async ({ page }) => {
       await page.goto('/labels')
       await page.getByText('1 disagreement', { exact: true }).click()

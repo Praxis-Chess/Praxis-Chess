@@ -9,3 +9,6 @@ __pycache__/
 
 # Metrics and per-item outputs on the player's own games: never uploaded (plan §11.6, §15.6).
 results_private/
+
+# Local build of the backend for the dataset tools (training/tools/javacli.sh).
+.javabuild/
