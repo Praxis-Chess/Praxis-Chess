@@ -106,6 +106,28 @@ only) → `select_checkpoint` (the verifier on 200 validation answers per epoch)
 (GGUF, Modelfile, adapter, train/selection/export reports; `grid_log.tsv` holds
 wall time and ₹ per arm).
 
+## Phase 8: judging the grid (on the laptop)
+
+1. **On the pod, before terminating:**
+   - The bf16 half of the quantisation delta:
+     `python -m praxis_train.quant_delta --adapter /workspace/results/grid_v1/2b-r3/adapter --testset data/phase6_v1/test_ab.jsonl --out /workspace/results/grid_v1/quant_delta_bf16.jsonl`.
+     Upload `test_ab.jsonl` first; it is public.
+   - Download `/workspace/results/grid_v1/` into `training/outputs/grid_v1_results/`.
+2. **Here** (`bash training/tools/phase8_eval.sh <stage>`, each stage resumable):
+
+| Stage | What | Time |
+|---|---|---|
+| `import` | `ollama create` for the 11 GGUFs (checks each arm's DONE and selection) | minutes |
+| `tc` | every arm on T_C, the player's 890 mistakes, at its own level | ~1 day of GPU |
+| `ab` | 2B-R3 on T_AB (H4 pools composites); `AB_ARMS=` adds the rest | ~2 h |
+| `quant` | the q4_K_M side of the quantisation delta, no schema | ~30 min |
+| `verify` | the verifier over all of it | minutes |
+| `fresh` | labels made after `prereg-v1` (backend running, restarted on this code) | seconds |
+| `report` | hash check, then every H1–H5 verdict and ship rule → `reports/grid_v1.md` | seconds |
+
+`grid_report.py` computes only what `PREREGISTRATION.md` defines. A missing
+arm makes its verdicts "not computable" rather than estimated.
+
 Before any 2B/4B training: [`PREREGISTRATION.md`](PREREGISTRATION.md) (tag
 `prereg-v1`) fixes the hypotheses, metrics, statistics and ship rules, and
 `python training/tools/prereg_hashes.py --check` proves a run used the
