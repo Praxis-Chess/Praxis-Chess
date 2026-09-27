@@ -49,7 +49,12 @@ def generate(base_name: str, revision: str, adapter: Path, rows: list[dict], bat
     base = AutoModelForCausalLM.from_pretrained(base_name, revision=revision, dtype=torch.bfloat16, device_map={"": 0})
     model = PeftModel.from_pretrained(base, str(adapter)).eval()
     stop = [t for t in {tok.convert_tokens_to_ids("<|im_end|>"), tok.eos_token_id} if t is not None]
-    prompts = [tok.apply_chat_template(r["messages"][:-1], tokenize=False, add_generation_prompt=True) for r in rows]
+    # enable_thinking=False, explicitly: the training format and the served
+    # Modelfile both close the thinking block empty. Qwen3.5-2B's template does
+    # that by default; the 4B's opens "<think>\n" instead, and the first grid's
+    # 4B selection answers were all "Thinking Process: ..." and scored 0.
+    prompts = [tok.apply_chat_template(r["messages"][:-1], tokenize=False, add_generation_prompt=True,
+                                       enable_thinking=False) for r in rows]
     out: list[tuple[str, int]] = []
     for i in range(0, len(prompts), batch):
         enc = tok(prompts[i:i + batch], return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
