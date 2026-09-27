@@ -98,6 +98,10 @@ public class TrainingController {
             row.put("rule_diagnosis", GraphJson.readDiagnosis(e.getRuleDiagnosisJson()));
             row.put("human_consequence", e.getHumanConsequence());
             row.put("human_mechanism", e.getHumanMechanism());
+            // When each label was first given (and last revised): the Phase 8 ship
+            // rule counts only labels made after the pre-registration tag.
+            row.put("labelled_at", e.getLabelledAt());
+            row.put("relabelled_at", e.getRelabelledAt());
             row.put("analysis_settings_id", e.getAnalysisSettingsId());
             out.append(GraphJson.write(row)).append('\n');
         }

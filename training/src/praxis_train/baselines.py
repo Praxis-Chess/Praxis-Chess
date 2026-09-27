@@ -60,6 +60,18 @@ ARMS = [
 TRAINED = [
     {"arm": "praxis-0p8b-dev", "model": "praxis-phase6-dev", "levels": ["R3"], "route": "trained", "sample": None},
 ]
+# The Phase 7 grid (PREREGISTRATION.md §3): each arm at its own level, every
+# test item. Ask them with --arms lora-2b-r3,... and a --testset carrying the
+# ablated renders (ablate.py testsets).
+from praxis_train.grid import arms as _grid_arms   # noqa: E402
+
+TRAINED += [{"arm": a.system, "model": a.model, "levels": [a.level], "route": "trained", "sample": None}
+            for a in _grid_arms()]
+# The served half of the quantisation delta (§3): the 2B-R3 GGUF without the
+# JSON schema, on the fixed 300-item sample, to pair with quant_delta.py's bf16
+# answers, which cannot be schema-constrained either. Descriptive only.
+TRAINED += [{"arm": "gguf-2b-r3-free", "model": "praxis-grid-2b-r3", "levels": ["R3"], "route": "trained",
+             "sample": 300, "schema": False}]
 
 # Relative cost per answer, used only to guess the time for arms not yet
 # started. Replaced by measured speed as soon as an arm has answers.
@@ -129,8 +141,14 @@ def chatml(msgs: list[dict]) -> str:
 def ask(model: str, msgs: list[dict], schema: dict, route: str, timeout: int) -> tuple[str, int]:
     if route in ("raw", "trained"):
         url = OLLAMA_GENERATE
-        body = {"model": model, "prompt": chatml(msgs), "raw": True, "format": schema, "stream": False,
-                "keep_alive": "30m", "options": {**OPTIONS, "stop": ["<|im_end|>"]}}
+        # A trained model reads a short prompt: its Modelfile's 3,072-token
+        # context is enough, and on the 4 GB card a smaller context keeps the
+        # 4B's cache on the GPU. The answer is the same either way.
+        options = {**OPTIONS, "stop": ["<|im_end|>"], **({"num_ctx": 3072} if route == "trained" else {})}
+        body = {"model": model, "prompt": chatml(msgs), "raw": True, "stream": False,
+                "keep_alive": "30m", "options": options}
+        if schema is not None:
+            body["format"] = schema
     else:
         url = OLLAMA_CHAT
         body = {"model": model, "messages": msgs, "format": schema, "stream": False,
@@ -230,7 +248,8 @@ def run(args) -> None:
         key = (arm["arm"], level, item["id"])
         row = {"item_id": item["id"], "arm": arm["arm"], "model": arm["model"], "level": level}
         try:
-            raw, ms = ask(arm["model"], messages(system, fewshot, item, level, arm["route"]), schema,
+            raw, ms = ask(arm["model"], messages(system, fewshot, item, level, arm["route"]),
+                          schema if arm.get("schema", True) else None,
                           arm["route"], args.timeout)
             row.update(raw=raw, latency_ms=ms)
             latencies.setdefault(arm["arm"], []).append(ms)
