@@ -100,8 +100,10 @@ public class TrainingController {
             row.put("human_mechanism", e.getHumanMechanism());
             // When each label was first given (and last revised): the Phase 8 ship
             // rule counts only labels made after the pre-registration tag.
-            row.put("labelled_at", e.getLabelledAt());
-            row.put("relabelled_at", e.getRelabelledAt());
+            // As ISO-8601 text: GraphJson's mapper has no java.time module, and an
+            // OffsetDateTime handed to it fails the whole export with a 500.
+            row.put("labelled_at", e.getLabelledAt() == null ? null : e.getLabelledAt().toString());
+            row.put("relabelled_at", e.getRelabelledAt() == null ? null : e.getRelabelledAt().toString());
             row.put("analysis_settings_id", e.getAnalysisSettingsId());
             out.append(GraphJson.write(row)).append('\n');
         }
