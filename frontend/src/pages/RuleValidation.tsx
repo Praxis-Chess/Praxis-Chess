@@ -107,6 +107,8 @@ export default function RuleValidation() {
         <Link to="/games" className="muted" style={{ marginLeft: 'auto' }}>Evidence lab is on each game →</Link>
       </section>
 
+      <LibraryDiagnosis />
+
       {rep && rep.stale > 0 && (
         <section className="card" aria-label="Out of date"
           style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -346,3 +348,67 @@ function Scores({ report, onReview }: { report: RuleReport; onReview: (id: strin
     </section>
   )
 }
+
+/**
+ * Phase 9: a verified diagnosis for every mistake in the library. Newly analysed
+ * games are diagnosed as they finish; this is the backfill, and the catch-up
+ * after a rule change. It runs on the server, one engine run per mistake, and
+ * queues behind an analysis run rather than competing with it.
+ */
+function LibraryDiagnosis() {
+  const qc = useQueryClient()
+  const status = useQuery({
+    queryKey: ['diagnosis', 'library'],
+    queryFn: () => api.diagnosis.library(),
+    refetchInterval: (q) => (q.state.data && ['QUEUED', 'RUNNING'].includes(q.state.data.state) ? 3000 : false),
+  })
+  const start = useMutation({
+    mutationFn: () => api.diagnosis.libraryStart(),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['diagnosis', 'library'] }),
+  })
+  const stop = useMutation({
+    mutationFn: () => api.diagnosis.libraryStop(),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['diagnosis', 'library'] }),
+  })
+  const s = status.data
+  const busy = !!s && (s.state === 'QUEUED' || s.state === 'RUNNING')
+  const undiagnosed = s ? s.missing + s.stale : 0
+  const uncommented = s ? s.uncommented : 0
+  const left = undiagnosed + uncommented
+
+  return (
+    <section className="card" aria-label="Whole library"
+      style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span>
+        {!s ? '—' : busy
+          ? <>Diagnosing the library: <strong>{s.built + s.rebuilt}</strong> diagnosed
+              {s.commentary_enabled ? <>, <strong>{s.commented}</strong> commented</> : ''}
+              {s.failed > 0 ? ` · ${s.failed} failed` : ''}{s.state === 'QUEUED' ? ' · waiting for an analysis run to finish' : ''}</>
+          : left === 0
+            ? <>Every mistake in the library has a verified diagnosis{s.commentary_enabled ? ' and checked AI commentary' : ''}.</>
+            : <>
+                {undiagnosed > 0 && <><strong>{undiagnosed}</strong> {undiagnosed === 1 ? 'mistake has' : 'mistakes have'} no
+                  current verified diagnosis{s.stale > 0 ? ` (${s.stale} from older rules)` : ''}. </>}
+                {uncommented > 0 && <><strong>{uncommented}</strong> {uncommented === 1 ? 'is' : 'are'} waiting for the
+                  trained model's commentary (about 5 s each).</>}
+              </>}
+      </span>
+      {!busy && left > 0 && (
+        <button onClick={() => start.mutate()} disabled={start.isPending}>
+          {undiagnosed > 0 ? `Diagnose all ${undiagnosed}` : `Write commentary for ${uncommented}`}
+        </button>
+      )}
+      {busy && <button onClick={() => stop.mutate()} disabled={stop.isPending}>Stop</button>}
+      {s && !busy && (s.state === 'DONE' || s.state === 'STOPPED') && (
+        <span role="status" className="muted">
+          Last run {s.state === 'DONE' ? 'finished' : 'stopped'}: {s.built} built, {s.rebuilt} rebuilt
+          {s.commentary_enabled ? `, ${s.commented} commented` : ''}
+          {s.failed > 0 ? `, ${s.failed} failed` : ''}
+        </span>
+      )}
+      {s?.state === 'FAILED' && <span role="alert" className="error">The last run failed: {s.error}</span>}
+      {start.isError && <span role="alert" className="error">{(start.error as Error).message}</span>}
+    </section>
+  )
+}
+

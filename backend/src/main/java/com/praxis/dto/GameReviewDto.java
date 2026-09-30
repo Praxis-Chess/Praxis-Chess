@@ -1,6 +1,7 @@
 package com.praxis.dto;
 
 import com.praxis.domain.Game;
+import com.praxis.domain.MistakeEvidence;
 import com.praxis.domain.MoveError;
 import com.praxis.service.analysis.ParsedGame;
 import com.praxis.service.analysis.ParsedMove;
@@ -58,6 +59,12 @@ public record GameReviewDto(
     ) {}
 
     public static GameReviewDto from(Game game, ParsedGame parsed, List<MoveError> errors) {
+        return from(game, parsed, errors, Map.of());
+    }
+
+    /** With each mistake's verified diagnosis, by ply (Phase 9). */
+    public static GameReviewDto from(Game game, ParsedGame parsed, List<MoveError> errors,
+                                     Map<Integer, MistakeEvidence> verified) {
         // MoveError.moveNumber and ParsedMove.moveNumber are both 1-indexed ply,
         // so they key against each other directly.
         Map<Integer, MoveError> byPly = errors.stream()
@@ -70,7 +77,7 @@ public record GameReviewDto(
         boolean playerIsWhite = "white".equals(parsed.playerColor());
 
         List<ReviewMove> moves = parsed.moves().stream()
-                .map(m -> toReviewMove(m, playerIsWhite, byPly.get(m.moveNumber())))
+                .map(m -> toReviewMove(m, playerIsWhite, byPly.get(m.moveNumber()), verified.get(m.moveNumber())))
                 .toList();
 
         return new GameReviewDto(
@@ -78,7 +85,8 @@ public record GameReviewDto(
                 parsed.result(), game.getAccuracy(), game.getAnalysisStatus().name(), moves);
     }
 
-    private static ReviewMove toReviewMove(ParsedMove m, boolean playerIsWhite, MoveError error) {
+    private static ReviewMove toReviewMove(ParsedMove m, boolean playerIsWhite, MoveError error,
+                                           MistakeEvidence evidence) {
         boolean isWhiteMove = m.moveNumber() % 2 == 1;
         return new ReviewMove(
                 m.moveNumber(),
@@ -88,6 +96,6 @@ public record GameReviewDto(
                 playerIsWhite == isWhiteMove,
                 m.fenBefore(),
                 m.fenAfter(),
-                error == null ? null : MoveErrorDto.from(error));
+                error == null ? null : MoveErrorDto.from(error, evidence));
     }
 }

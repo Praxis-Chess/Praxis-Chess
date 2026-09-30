@@ -814,6 +814,27 @@ export const scholarsMistake = {
   analysis_state: 'EXPLAINED',
 }
 
+/** The same mistake after Phase 9: it carries the rules' verified diagnosis. */
+export const scholarsMistakeVerified = {
+  ...scholarsMistake,
+  verified: {
+    consequence: 'MATED',
+    mechanism: 'IGNORED_THREAT',
+    motif: 'OTHER',
+    explanation: 'Qxf7# was already threatened; Nf6 does not stop it, and after Qxf7# the game is over.',
+    passed: true,
+    commentary: null,
+    commentary_model: null,
+  },
+}
+
+/** No whole-library job running, and nothing left to diagnose. */
+export const libraryIdle = {
+  state: 'IDLE', built: 0, rebuilt: 0, failed: 0, missing: 0, stale: 0,
+  commented: 0, uncommented: 0, commentary_enabled: false,
+  started_at: null, finished_at: null, error: null,
+}
+
 export const scholarsWhy: MistakeWhy = {
   game_id: WHY_GAME_ID,
   ply: 6,

@@ -140,6 +140,26 @@ public class MistakeEvidence {
     @Column(name = "on_demand")
     private Boolean onDemand;
 
+    // ── trained-model commentary (Phase 9b) ──────────────────────────────────
+
+    /**
+     * The trained model's explanation for this mistake, written from the same
+     * evidence (R3) it was trained on. Shown as "AI commentary" only when
+     * commentaryVerified is true: every claim in the answer passed the verifier.
+     * A failed answer is kept for the record, never shown.
+     */
+    @Column(name = "commentary", columnDefinition = "text")
+    private String commentary;
+
+    @Column(name = "commentary_model", length = 64)
+    private String commentaryModel;
+
+    @Column(name = "commentary_verified")
+    private Boolean commentaryVerified;
+
+    @Column(name = "commentary_at")
+    private OffsetDateTime commentaryAt;
+
     // ── human label ──────────────────────────────────────────────────────────
 
     @Column(name = "human_consequence", length = 24)

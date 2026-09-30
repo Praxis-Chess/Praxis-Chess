@@ -64,6 +64,14 @@ public interface MoveErrorRepository extends JpaRepository<MoveError, UUID> {
         """)
     List<MoveError> findByGameIdAndPlyWithGame(@Param("gameId") UUID gameId, @Param("ply") int ply);
 
+    /** Every mistake of one game, with the game loaded: diagnosed right after its analysis. */
+    @Query("""
+        SELECT me FROM MoveError me
+        JOIN FETCH me.game g
+        WHERE g.id = :gameId
+        """)
+    List<MoveError> findByGameIdWithGame(@Param("gameId") UUID gameId);
+
     // Only mistakes where LLM produced an explanation — used for motif frequency
     @Query("""
         SELECT me FROM MoveError me

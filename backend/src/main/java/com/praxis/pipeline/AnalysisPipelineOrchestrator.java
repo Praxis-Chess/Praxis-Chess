@@ -9,6 +9,7 @@ import com.praxis.repository.GameRepository;
 import com.praxis.service.PatternAggregator;
 import com.praxis.service.analysis.AnalysisProfile;
 import com.praxis.service.analysis.AnalysisProgressSink;
+import com.praxis.service.diagnosis.DiagnosisService;
 import com.praxis.service.practice.PracticeLedgerService;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -29,19 +30,22 @@ public class AnalysisPipelineOrchestrator {
     private final AnalysisProgressTracker progressTracker;
     private final PracticeLedgerService practiceLedger;
     private final SettingsService settings;
+    private final DiagnosisService diagnosis;
 
     public AnalysisPipelineOrchestrator(GameAnalysisTransactionService gameAnalysisTransactionService,
                                         GameRepository gameRepository,
                                         PatternAggregator patternAggregator,
                                         AnalysisProgressTracker progressTracker,
                                         PracticeLedgerService practiceLedger,
-                                        SettingsService settings) {
+                                        SettingsService settings,
+                                        DiagnosisService diagnosis) {
         this.gameAnalysisTransactionService = gameAnalysisTransactionService;
         this.gameRepository = gameRepository;
         this.patternAggregator = patternAggregator;
         this.progressTracker = progressTracker;
         this.practiceLedger = practiceLedger;
         this.settings = settings;
+        this.diagnosis = diagnosis;
     }
 
     @PostConstruct
@@ -84,6 +88,7 @@ public class AnalysisPipelineOrchestrator {
                 gameAnalysisTransactionService.analyzeOne(
                         game, active.profile(), active.id(), AnalysisProgressSink.NOOP);
                 analysed++;
+                diagnose(game);
             } catch (Exception e) {
                 log.error("Pipeline failed for game {}: {}", game.getChessComId(), e.getMessage(), e);
                 try {
@@ -103,6 +108,23 @@ public class AnalysisPipelineOrchestrator {
         } finally {
             progressTracker.finish();
             markPracticeDay(username, analysed);
+        }
+    }
+
+    /**
+     * Phase 9: every mistake of a newly analysed game gets the rules' verified
+     * diagnosis, about half a second of engine time each, after the game has
+     * committed. A diagnosis failure is logged and never fails the analysis: the
+     * "Why?" panel still builds on demand.
+     */
+    private void diagnose(Game game) {
+        try {
+            int n = diagnosis.buildForGame(game.getId());
+            // Phase 9b: the trained model's checked commentary, when one is configured.
+            int c = diagnosis.commentForGame(game.getId());
+            log.debug("Diagnosed {} mistake(s) in game {}; {} commented", n, game.getChessComId(), c);
+        } catch (Exception e) {
+            log.warn("Diagnosis skipped for game {}: {}", game.getChessComId(), e.getMessage());
         }
     }
 

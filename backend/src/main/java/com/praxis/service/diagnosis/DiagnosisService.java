@@ -22,8 +22,10 @@ import org.springframework.stereotype.Service;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -50,13 +52,15 @@ public class DiagnosisService {
     private final MistakeEvidenceRepository evidence;
     private final EvidenceEngine engine;
     private final AppProperties props;
+    private final TrainedCommentary commentary;
 
     public DiagnosisService(MoveErrorRepository moveErrors, MistakeEvidenceRepository evidence,
-                            EvidenceEngine engine, AppProperties props) {
+                            EvidenceEngine engine, AppProperties props, TrainedCommentary commentary) {
         this.moveErrors = moveErrors;
         this.evidence = evidence;
         this.engine = engine;
         this.props = props;
+        this.commentary = commentary;
     }
 
     // ── building ─────────────────────────────────────────────────────────────
@@ -249,6 +253,124 @@ public class DiagnosisService {
             row.setOnDemand(true);
         }
         return Optional.of(new Diagnosed(evidence.save(row), g));
+    }
+
+    /**
+     * Diagnose every mistake of one game that has no current diagnosis yet.
+     * Called by the analysis pipeline right after a game commits (Phase 9), so a
+     * newly analysed game opens with a verified diagnosis on every mistake.
+     * About half a second of engine time per mistake; a failure is logged and
+     * skipped, never allowed to fail the game's analysis.
+     *
+     * <p>Built on demand (not in sample order), so the labelling queue's sample
+     * is not disturbed.
+     *
+     * @return how many mistakes now have a current diagnosis
+     */
+    public int buildForGame(UUID gameId) {
+        int current = 0;
+        for (MoveError m : moveErrors.findByGameIdWithGame(gameId)) {
+            try {
+                if (buildOnDemand(m).isPresent()) current++;
+            } catch (Exception e) {
+                log.warn("[diagnosis] could not diagnose {} ply {}: {}", gameId, m.getMoveNumber(), e.getMessage());
+            }
+        }
+        return current;
+    }
+
+    /**
+     * The current diagnoses of one game's mistakes, by ply. A row from an older
+     * builder is left out: it may say what the current rules no longer would, and
+     * the "Why?" panel rebuilds it on the next look.
+     */
+    public Map<Integer, MistakeEvidence> currentForGame(UUID gameId) {
+        Map<Integer, MistakeEvidence> out = new HashMap<>();
+        for (MistakeEvidence e : evidence.findByGameId(gameId)) {
+            if (e.getGraphVersion() >= EvidenceGraphBuilder.GRAPH_VERSION && e.getRuleDiagnosisJson() != null) {
+                out.put(e.getMoveNumber(), e);
+            }
+        }
+        return out;
+    }
+
+    // ── trained-model commentary (Phase 9b) ──────────────────────────────────
+
+    /** Whether a current diagnosis still needs the configured model's commentary. */
+    private boolean needsCommentary(MistakeEvidence e) {
+        return commentary.enabled() && !commentary.model().equals(e.getCommentaryModel());
+    }
+
+    /**
+     * Ask the trained model about one diagnosed mistake and store its answer with
+     * the verifier's verdict. False if the model could not be reached or read.
+     */
+    private boolean writeCommentary(MistakeEvidence e) {
+        var result = commentary.write(GraphJson.readGraph(e.getGraphJson()));
+        if (result.isEmpty()) return false;
+        var r = result.get();
+        e.setCommentary(r.explanation());
+        e.setCommentaryModel(r.model());
+        e.setCommentaryVerified(r.verified());
+        e.setCommentaryAt(OffsetDateTime.now());
+        evidence.save(e);
+        return true;
+    }
+
+    /** The commentary for one freshly diagnosed game, after buildForGame. */
+    public int commentForGame(UUID gameId) {
+        int written = 0;
+        for (MistakeEvidence e : currentForGame(gameId).values()) {
+            if (needsCommentary(e) && writeCommentary(e)) written++;
+        }
+        return written;
+    }
+
+    /** The next {@code limit} current diagnoses without the model's commentary, in sample order. */
+    public BuildResult comment(int limit) {
+        long started = System.currentTimeMillis();
+        List<MistakeEvidence> pending = new ArrayList<>();
+        for (MistakeEvidence e : evidence.findByUsername(user())) {
+            if (e.getGraphVersion() >= EvidenceGraphBuilder.GRAPH_VERSION && needsCommentary(e)) pending.add(e);
+        }
+        pending.sort(Comparator.comparingInt(MistakeEvidence::getSampleKey));
+        int written = 0;
+        int failed = 0;
+        for (MistakeEvidence e : pending.subList(0, Math.min(Math.max(limit, 0), pending.size()))) {
+            if (writeCommentary(e)) written++; else failed++;
+        }
+        return new BuildResult(written, failed, evidence.countByUsername(user()), pending.size() - written,
+                System.currentTimeMillis() - started);
+    }
+
+    public boolean commentaryEnabled() {
+        return commentary.enabled();
+    }
+
+    /** Mistakes with no diagnosis at all, and diagnoses made by an older builder. */
+    public record Coverage(long diagnosed, long missing, long stale) {}
+
+    /** Current diagnoses still waiting for the trained model's commentary (0 when it is off). */
+    public long uncommented() {
+        if (!commentary.enabled()) return 0;
+        return evidence.findByUsername(user()).stream()
+                .filter(e -> e.getGraphVersion() >= EvidenceGraphBuilder.GRAPH_VERSION && needsCommentary(e))
+                .count();
+    }
+
+    public Coverage coverage() {
+        String user = user();
+        Set<String> current = new HashSet<>();
+        long stale = 0;
+        for (MistakeEvidence e : evidence.findByUsername(user)) {
+            current.add(key(e.getGameId(), e.getMoveNumber()));
+            if (e.getGraphVersion() < EvidenceGraphBuilder.GRAPH_VERSION) stale++;
+        }
+        long missing = moveErrors.findAllByUsernameWithGame(user).stream()
+                .filter(m -> m.getFenPosition() != null && m.getMovePlayed() != null)
+                .filter(m -> !current.contains(key(m.getGame().getId(), m.getMoveNumber())))
+                .count();
+        return new Coverage(current.size() - stale, missing, stale);
     }
 
     /** The "Why?" for one mistake: its verified diagnosis, the steps and the boards. */

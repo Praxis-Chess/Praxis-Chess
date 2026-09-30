@@ -68,28 +68,8 @@ public final class EvalCli {
      * arguments anyway (rule 1). The required arguments go to the prompt instead.
      */
     static void schema(Path out) throws IOException {
-        Map<String, Object> claim = new LinkedHashMap<>();
-        claim.put("type", "object");
-        claim.put("properties", ordered(
-                "type", Map.of("type", "string", "enum", sorted(Diagnosis.CLAIM_TYPES)),
-                "args", Map.of("type", "object"),
-                "cites", Map.of("type", "array", "items", Map.of("type", "string")),
-                "text", Map.of("type", "string")));
-        claim.put("required", List.of("type", "args", "cites", "text"));
-
-        Map<String, Object> schema = new LinkedHashMap<>();
-        schema.put("type", "object");
-        // Chain first: reason, then answer (§8.1). Property order is generation order.
-        schema.put("properties", ordered(
-                "reasoning_chain", Map.of("type", "array", "items", claim, "maxItems", Diagnosis.MAX_CHAIN),
-                "consequence", Map.of("type", "string", "enum", sorted(Diagnosis.CONSEQUENCES)),
-                "mechanism", Map.of("type", "string", "enum", sorted(Diagnosis.MECHANISMS)),
-                "motif", Map.of("type", "string", "enum", sorted(Diagnosis.MOTIFS)),
-                "critical_response", Map.of("type", "string"),
-                "visibility", Map.of("type", "string", "enum", sorted(Diagnosis.VISIBILITIES)),
-                "explanation", Map.of("type", "string")));
-        schema.put("required", List.of("reasoning_chain", "consequence", "mechanism", "motif",
-                "critical_response", "visibility", "explanation"));
+        // One definition, shared with the app's trained-model commentary (Phase 9b).
+        Map<String, Object> schema = com.praxis.evidence.diagnosis.AnswerSchema.jsonSchema();
 
         Map<String, Object> file = new LinkedHashMap<>();
         file.put("json_schema", schema);

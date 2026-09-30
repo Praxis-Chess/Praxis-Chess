@@ -134,6 +134,8 @@ export class ApiMock {
     this.json('/api/patterns', null)
     this.json('/api/training-plan', null)
     this.json(/^\/api\/drills/, [])
+    // Phase 9's whole-library diagnosis: nothing left to do, nothing running.
+    this.json('/api/diagnosis/library', data.libraryIdle)
 
     // Play & Improve
     this.json('/api/play/status', { available: true })
