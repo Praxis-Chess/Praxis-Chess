@@ -119,6 +119,8 @@ def main() -> None:
     ap.add_argument("--fresh", default="data/phase8/fresh_labels.jsonl")
     ap.add_argument("--quant", default="results_private/phase8/quant/verified.jsonl")
     ap.add_argument("--out", default="reports/grid_v1.md")
+    ap.add_argument("--disclosures", default="reports/grid_v1_disclosures.md",
+                    help="what the reader must know that the numbers do not show")
     args = ap.parse_args()
 
     tc_items = {i["id"]: i for i in load_jsonl(Path(args.tc_data))}
@@ -257,7 +259,8 @@ def main() -> None:
     elif s2.get("computable", True) is not False and s2.get("a") and s2.get("b") and s2.get("c"):
         decision = "Ship the rules: the model is about S_rules with no composite gain. The graph and the Why? panel ship regardless."
     else:
-        decision = "Ship the rules: 2B-R3-LoRA does not meet (a)–(c)."
+        failed = [k for k in "abcd" if s2.get("computable", True) is not False and not s2.get(k)]
+        decision = f"Ship the rules: 2B-R3-LoRA does not meet {', '.join(f'({k})' for k in failed) or '(a)–(d)'}."
     if m["hypotheses"]["H1"].get("verdict") == "refuted":
         decision += " H1 is refuted, which is the headline finding."
     m["decision"] = decision
@@ -278,6 +281,9 @@ def main() -> None:
         cell(s, "c", lambda s: pct(s["c_invented_cause"])) for s in (s2, s4)) + " |")
     L.append("| (d) H4 supported | " + " | ".join(cell(s, "d", lambda s: "") for s in (s2, s4)) + " |")
 
+    notes = Path(args.disclosures)
+    if notes.exists():
+        L += ["", "## Disclosures", "", notes.read_text(encoding="utf-8").strip()]
     L += ["", "## Hypotheses (§8)", "", "| | Verdict | Test |", "|---|---|---|"]
     def fmt(d):
         return f"{100 * d['value']:+.1f} pts{interval(d['ci'])}"

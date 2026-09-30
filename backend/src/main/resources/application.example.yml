@@ -109,6 +109,12 @@ praxis-chess:
     cache-search-hours: 24
     cache-page-days: 7
 
+  # Development machine only: /api/admin/training/{render,verify,export}, which
+  # the training pipeline calls (fresh_labels.py reads the export). Off, the
+  # endpoints do not exist at all.
+  # training:
+  #   enabled: true
+
 springdoc:
   api-docs:
     path: /v3/api-docs

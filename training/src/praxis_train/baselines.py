@@ -77,6 +77,11 @@ TRAINED += [{"arm": "gguf-2b-r3-free", "model": "praxis-grid-2b-r3", "levels": [
 # started. Replaced by measured speed as soon as an arm has answers.
 PRIOR_COST = {"qwen3.5-2b": 1.0, "qwen3.5-4b": 2.5, "qwen2.5-7b": 3.4}   # measured: 15 s, 37 s, 51 s
 
+
+def prior_cost(arm: str) -> float:
+    """A guess for an arm not yet measured: trained arms by size (a 4B ~2x a 2B)."""
+    return PRIOR_COST.get(arm, 2.0 if "4b" in arm else 1.0)
+
 SYSTEM = """You are Prax, a chess coach. Diagnose the player's mistake using ONLY the evidence given. Output JSON.
 
 Reason first. reasoning_chain is a list of typed claims, at most {max_chain}. Each claim has:
@@ -187,7 +192,7 @@ def write_progress(run_dir: Path, plan: list[tuple], done: set, latencies: dict,
         elif measured:
             # Guess from a measured arm, scaled by the prior. Rough until measured.
             ref_arm, ref_ms = next(iter(measured.items()))
-            seconds += left * ref_ms / 1000 * PRIOR_COST[arm] / PRIOR_COST[ref_arm]
+            seconds += left * ref_ms / 1000 * prior_cost(arm) / prior_cost(ref_arm)
             rough = True
         else:
             rough = True

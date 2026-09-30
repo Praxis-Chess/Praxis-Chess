@@ -1,0 +1,1066 @@
+{
+ "missing_arms": [],
+ "hypotheses": {
+  "H1": {
+   "verdict": "supported",
+   "R3-R0": {
+    "n": 890,
+    "value": 0.6755,
+    "ci": [
+     0.6433,
+     0.7034
+    ]
+   },
+   "R3-R1": {
+    "n": 890,
+    "value": 0.4484,
+    "ci": [
+     0.4264,
+     0.4714
+    ]
+   },
+   "steps": {
+    "R1-R0": {
+     "n": 890,
+     "value": 0.227,
+     "ci": [
+      0.201,
+      0.2548
+     ]
+    },
+    "R2-R1": {
+     "n": 890,
+     "value": -0.0102,
+     "ci": [
+      -0.0247,
+      0.0039
+     ]
+    },
+    "R3-R2": {
+     "n": 890,
+     "value": 0.4587,
+     "ci": [
+      0.4363,
+      0.481
+     ]
+    }
+   },
+   "by_length": {
+    "tertile 2": {
+     "n": 34,
+     "value": 0.4845,
+     "ci": [
+      0.3679,
+      0.6058
+     ]
+    }
+   },
+   "length_caveat": false,
+   "precision": {
+    "lora-2b-r0": 0.3217,
+    "lora-2b-r1": 0.5487,
+    "lora-2b-r2": 0.5384,
+    "lora-2b-r3": 0.9971
+   }
+  },
+  "H2": {
+   "verdict": "supported",
+   "gain(R3)-gain(R0)": {
+    "n": 890,
+    "value": 0.2483,
+    "ci": [
+     0.2158,
+     0.2784
+    ]
+   },
+   "gain(R3)-gain(R1)": {
+    "n": 890,
+    "value": 0.1166,
+    "ci": [
+     0.0892,
+     0.1432
+    ]
+   },
+   "gain(R3)-gain(R2)": {
+    "n": 890,
+    "value": 0.1342,
+    "ci": [
+     0.1059,
+     0.1596
+    ]
+   },
+   "gains": {
+    "R0": 0.2461,
+    "R1": 0.3778,
+    "R2": 0.3602,
+    "R3": 0.4944
+   }
+  },
+  "H3": {
+   "verdict": "supported",
+   "gap(R0)-gap(R3)": {
+    "n": 890,
+    "value": 0.0201,
+    "ci": [
+     0.0025,
+     0.037
+    ]
+   },
+   "gap_R0": 0.018,
+   "gap_R3": -0.0021
+  },
+  "H4": {
+   "verdict": "not supported",
+   "composites": 194,
+   "named": 45,
+   "named_and_passed": 27,
+   "named_coverage": 0.1392,
+   "wilson_low": 0.0974,
+   "named_precision": 0.6,
+   "verified_rate": 0.7165,
+   "t_ab_included": true
+  },
+  "H5": {
+   "verdict": "refuted",
+   "single_cause_items": 416,
+   "drops": {
+    "CF": -0.3005,
+    "T": -0.113,
+    "DELTA": -0.3173,
+    "D": -0.3197
+   },
+   "drop(CF)-drop(T)": {
+    "n": 416,
+    "value": -0.1875,
+    "ci": [
+     -0.2284,
+     -0.1466
+    ]
+   },
+   "drop(CF)-drop(DELTA)": {
+    "n": 416,
+    "value": 0.0168,
+    "ci": [
+     -0.0024,
+     0.0361
+    ]
+   },
+   "drop(CF)-drop(D)": {
+    "n": 416,
+    "value": 0.0192,
+    "ci": [
+     0.0048,
+     0.0361
+    ]
+   }
+  }
+ },
+ "rules": {
+  "lora-2b-r3": {
+   "a_claim_precision": {
+    "n": 890,
+    "value": 0.9971,
+    "ci": [
+     0.9949,
+     0.9992
+    ]
+   },
+   "a": true,
+   "b_fresh_labels": {
+    "n": 33,
+    "value": -0.0303,
+    "ci": [
+     -0.1818,
+     0.1212
+    ]
+   },
+   "b": false,
+   "c_invented_cause": 0.0714,
+   "c": true,
+   "d": false,
+   "all": false
+  },
+  "lora-4b-r3": {
+   "a_claim_precision": {
+    "n": 890,
+    "value": 0.995,
+    "ci": [
+     0.9924,
+     0.9975
+    ]
+   },
+   "a": true,
+   "b_fresh_labels": {
+    "n": 33,
+    "value": 0.0909,
+    "ci": [
+     0.0,
+     0.2121
+    ]
+   },
+   "b": true,
+   "c_invented_cause": 0.1582,
+   "c": false,
+   "d": false,
+   "all": false
+  }
+ },
+ "decision": "Ship the rules: 2B-R3-LoRA does not meet (b), (d).",
+ "t_c": {
+  "S_rules": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 1.0,
+   "claim_precision_ci": [
+    1.0,
+    1.0
+   ],
+   "claims_per_answer": 2.79,
+   "chain_validity": 1.0,
+   "chain_validity_ci": [
+    1.0,
+    1.0
+   ],
+   "consequence_vs_rules": 1.0,
+   "consequence_vs_rules_ci": [
+    1.0,
+    1.0
+   ],
+   "mechanism_vs_rules_single_cause": 1.0,
+   "mechanism_ci": [
+    1.0,
+    1.0
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.79,
+   "mechanism_vs_human": 0.68,
+   "human_n": 100,
+   "abstention": 1.0,
+   "abstention_ci": [
+    1.0,
+    1.0
+   ],
+   "invented_cause_rate": 0.0,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.0,
+   "composite_precision": null,
+   "composite_n": 82,
+   "latency_p50_ms": null,
+   "latency_p95_ms": null,
+   "tokens_in_mean": 531
+  },
+  "qwen3.5-2b R0": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.076,
+   "claim_precision_ci": [
+    0.068,
+    0.082
+   ],
+   "claims_per_answer": 5.62,
+   "chain_validity": 0.001,
+   "chain_validity_ci": [
+    0.0,
+    0.003
+   ],
+   "consequence_vs_rules": 0.109,
+   "consequence_vs_rules_ci": [
+    0.089,
+    0.13
+   ],
+   "mechanism_vs_rules_single_cause": 0.221,
+   "mechanism_ci": [
+    0.183,
+    0.26
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.14,
+   "mechanism_vs_human": 0.24,
+   "human_n": 100,
+   "abstention": 0.015,
+   "abstention_ci": [
+    0.005,
+    0.028
+   ],
+   "invented_cause_rate": 0.985,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.122,
+   "composite_precision": 0.0,
+   "composite_n": 82,
+   "latency_p50_ms": 15577,
+   "latency_p95_ms": 18622,
+   "tokens_in_mean": 120
+  },
+  "qwen3.5-2b R1": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.171,
+   "claim_precision_ci": [
+    0.159,
+    0.183
+   ],
+   "claims_per_answer": 5.19,
+   "chain_validity": 0.001,
+   "chain_validity_ci": [
+    0.0,
+    0.003
+   ],
+   "consequence_vs_rules": 0.23,
+   "consequence_vs_rules_ci": [
+    0.204,
+    0.257
+   ],
+   "mechanism_vs_rules_single_cause": 0.13,
+   "mechanism_ci": [
+    0.099,
+    0.163
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.27,
+   "mechanism_vs_human": 0.14,
+   "human_n": 100,
+   "abstention": 0.005,
+   "abstention_ci": [
+    0.0,
+    0.013
+   ],
+   "invented_cause_rate": 0.995,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.11,
+   "composite_precision": 0.0,
+   "composite_n": 82,
+   "latency_p50_ms": 14576,
+   "latency_p95_ms": 16850,
+   "tokens_in_mean": 186
+  },
+  "qwen3.5-2b R2": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.178,
+   "claim_precision_ci": [
+    0.166,
+    0.191
+   ],
+   "claims_per_answer": 5.15,
+   "chain_validity": 0.004,
+   "chain_validity_ci": [
+    0.001,
+    0.009
+   ],
+   "consequence_vs_rules": 0.111,
+   "consequence_vs_rules_ci": [
+    0.092,
+    0.133
+   ],
+   "mechanism_vs_rules_single_cause": 0.161,
+   "mechanism_ci": [
+    0.125,
+    0.197
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.14,
+   "mechanism_vs_human": 0.17,
+   "human_n": 100,
+   "abstention": 0.066,
+   "abstention_ci": [
+    0.043,
+    0.094
+   ],
+   "invented_cause_rate": 0.934,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.11,
+   "composite_precision": 0.0,
+   "composite_n": 82,
+   "latency_p50_ms": 14563,
+   "latency_p95_ms": 17088,
+   "tokens_in_mean": 261
+  },
+  "qwen3.5-2b R3": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.503,
+   "claim_precision_ci": [
+    0.487,
+    0.519
+   ],
+   "claims_per_answer": 4.96,
+   "chain_validity": 0.007,
+   "chain_validity_ci": [
+    0.002,
+    0.012
+   ],
+   "consequence_vs_rules": 0.393,
+   "consequence_vs_rules_ci": [
+    0.361,
+    0.424
+   ],
+   "mechanism_vs_rules_single_cause": 0.149,
+   "mechanism_ci": [
+    0.115,
+    0.183
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.32,
+   "mechanism_vs_human": 0.32,
+   "human_n": 100,
+   "abstention": 0.518,
+   "abstention_ci": [
+    0.469,
+    0.569
+   ],
+   "invented_cause_rate": 0.482,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.098,
+   "composite_precision": 0.375,
+   "composite_n": 82,
+   "latency_p50_ms": 13595,
+   "latency_p95_ms": 15349,
+   "tokens_in_mean": 531
+  },
+  "qwen3.5-4b R0": {
+   "items": 300,
+   "parsed": 1.0,
+   "claim_precision": 0.11,
+   "claim_precision_ci": [
+    0.092,
+    0.13
+   ],
+   "claims_per_answer": 3.99,
+   "chain_validity": 0.003,
+   "chain_validity_ci": [
+    0.0,
+    0.01
+   ],
+   "consequence_vs_rules": 0.233,
+   "consequence_vs_rules_ci": [
+    0.187,
+    0.28
+   ],
+   "mechanism_vs_rules_single_cause": 0.147,
+   "mechanism_ci": [
+    0.091,
+    0.203
+   ],
+   "single_cause_n": 143,
+   "consequence_vs_human": 0.242,
+   "mechanism_vs_human": 0.333,
+   "human_n": 33,
+   "abstention": 0.387,
+   "abstention_ci": [
+    0.307,
+    0.467
+   ],
+   "invented_cause_rate": 0.591,
+   "not_concrete_n": 137,
+   "composite_coverage": 0.1,
+   "composite_precision": 0.0,
+   "composite_n": 20,
+   "latency_p50_ms": 33313,
+   "latency_p95_ms": 40656,
+   "tokens_in_mean": 120
+  },
+  "qwen3.5-4b R3": {
+   "items": 300,
+   "parsed": 1.0,
+   "claim_precision": 0.594,
+   "claim_precision_ci": [
+    0.566,
+    0.622
+   ],
+   "claims_per_answer": 5.51,
+   "chain_validity": 0.057,
+   "chain_validity_ci": [
+    0.033,
+    0.087
+   ],
+   "consequence_vs_rules": 0.6,
+   "consequence_vs_rules_ci": [
+    0.547,
+    0.657
+   ],
+   "mechanism_vs_rules_single_cause": 0.322,
+   "mechanism_ci": [
+    0.245,
+    0.392
+   ],
+   "single_cause_n": 143,
+   "consequence_vs_human": 0.697,
+   "mechanism_vs_human": 0.545,
+   "human_n": 33,
+   "abstention": 0.547,
+   "abstention_ci": [
+    0.467,
+    0.628
+   ],
+   "invented_cause_rate": 0.453,
+   "not_concrete_n": 137,
+   "composite_coverage": 0.1,
+   "composite_precision": 0.5,
+   "composite_n": 20,
+   "latency_p50_ms": 38064,
+   "latency_p95_ms": 46908,
+   "tokens_in_mean": 532
+  },
+  "lora-2b-r3": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.997,
+   "claim_precision_ci": [
+    0.995,
+    0.999
+   ],
+   "claims_per_answer": 2.73,
+   "chain_validity": 0.739,
+   "chain_validity_ci": [
+    0.709,
+    0.766
+   ],
+   "consequence_vs_rules": 0.797,
+   "consequence_vs_rules_ci": [
+    0.769,
+    0.822
+   ],
+   "mechanism_vs_rules_single_cause": 0.649,
+   "mechanism_ci": [
+    0.603,
+    0.692
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.81,
+   "mechanism_vs_human": 0.69,
+   "human_n": 100,
+   "abstention": 0.921,
+   "abstention_ci": [
+    0.893,
+    0.946
+   ],
+   "invented_cause_rate": 0.071,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.207,
+   "composite_precision": 0.294,
+   "composite_n": 82,
+   "latency_p50_ms": 4645,
+   "latency_p95_ms": 8677,
+   "tokens_in_mean": 531
+  },
+  "lora-2b-r1": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.549,
+   "claim_precision_ci": [
+    0.527,
+    0.57
+   ],
+   "claims_per_answer": 3.1,
+   "chain_validity": 0.144,
+   "chain_validity_ci": [
+    0.12,
+    0.167
+   ],
+   "consequence_vs_rules": 0.708,
+   "consequence_vs_rules_ci": [
+    0.675,
+    0.738
+   ],
+   "mechanism_vs_rules_single_cause": 0.464,
+   "mechanism_ci": [
+    0.418,
+    0.512
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.75,
+   "mechanism_vs_human": 0.6,
+   "human_n": 100,
+   "abstention": 0.773,
+   "abstention_ci": [
+    0.73,
+    0.814
+   ],
+   "invented_cause_rate": 0.222,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.159,
+   "composite_precision": 0.0,
+   "composite_n": 82,
+   "latency_p50_ms": 5120,
+   "latency_p95_ms": 7732,
+   "tokens_in_mean": 186
+  },
+  "lora-2b-r0": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.322,
+   "claim_precision_ci": [
+    0.292,
+    0.352
+   ],
+   "claims_per_answer": 1.03,
+   "chain_validity": 0.011,
+   "chain_validity_ci": [
+    0.004,
+    0.019
+   ],
+   "consequence_vs_rules": 0.439,
+   "consequence_vs_rules_ci": [
+    0.408,
+    0.472
+   ],
+   "mechanism_vs_rules_single_cause": 0.005,
+   "mechanism_ci": [
+    0.0,
+    0.012
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.44,
+   "mechanism_vs_human": 0.41,
+   "human_n": 100,
+   "abstention": 0.992,
+   "abstention_ci": [
+    0.982,
+    1.0
+   ],
+   "invented_cause_rate": 0.008,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.0,
+   "composite_precision": null,
+   "composite_n": 82,
+   "latency_p50_ms": 4027,
+   "latency_p95_ms": 4164,
+   "tokens_in_mean": 120
+  },
+  "lora-2b-r2": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.538,
+   "claim_precision_ci": [
+    0.517,
+    0.56
+   ],
+   "claims_per_answer": 2.94,
+   "chain_validity": 0.137,
+   "chain_validity_ci": [
+    0.115,
+    0.16
+   ],
+   "consequence_vs_rules": 0.7,
+   "consequence_vs_rules_ci": [
+    0.671,
+    0.731
+   ],
+   "mechanism_vs_rules_single_cause": 0.538,
+   "mechanism_ci": [
+    0.493,
+    0.587
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.72,
+   "mechanism_vs_human": 0.59,
+   "human_n": 100,
+   "abstention": 0.74,
+   "abstention_ci": [
+    0.696,
+    0.783
+   ],
+   "invented_cause_rate": 0.255,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.183,
+   "composite_precision": 0.067,
+   "composite_n": 82,
+   "latency_p50_ms": 5054,
+   "latency_p95_ms": 7684,
+   "tokens_in_mean": 261
+  },
+  "lora-4b-r3": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.995,
+   "claim_precision_ci": [
+    0.992,
+    0.997
+   ],
+   "claims_per_answer": 3.14,
+   "chain_validity": 0.848,
+   "chain_validity_ci": [
+    0.824,
+    0.871
+   ],
+   "consequence_vs_rules": 0.892,
+   "consequence_vs_rules_ci": [
+    0.871,
+    0.911
+   ],
+   "mechanism_vs_rules_single_cause": 0.923,
+   "mechanism_ci": [
+    0.897,
+    0.947
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.79,
+   "mechanism_vs_human": 0.69,
+   "human_n": 100,
+   "abstention": 0.839,
+   "abstention_ci": [
+    0.801,
+    0.875
+   ],
+   "invented_cause_rate": 0.158,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.207,
+   "composite_precision": 0.647,
+   "composite_n": 82,
+   "latency_p50_ms": 14649,
+   "latency_p95_ms": 27405,
+   "tokens_in_mean": 531
+  },
+  "lora-4b-r0": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.34,
+   "claim_precision_ci": [
+    0.309,
+    0.371
+   ],
+   "claims_per_answer": 1.01,
+   "chain_validity": 0.01,
+   "chain_validity_ci": [
+    0.004,
+    0.018
+   ],
+   "consequence_vs_rules": 0.442,
+   "consequence_vs_rules_ci": [
+    0.409,
+    0.474
+   ],
+   "mechanism_vs_rules_single_cause": 0.0,
+   "mechanism_ci": [
+    0.0,
+    0.0
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.44,
+   "mechanism_vs_human": 0.41,
+   "human_n": 100,
+   "abstention": 1.0,
+   "abstention_ci": [
+    1.0,
+    1.0
+   ],
+   "invented_cause_rate": 0.0,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.0,
+   "composite_precision": null,
+   "composite_n": 82,
+   "latency_p50_ms": 9032,
+   "latency_p95_ms": 10096,
+   "tokens_in_mean": 120
+  },
+  "lora-2b-r3-nocf": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.982,
+   "claim_precision_ci": [
+    0.977,
+    0.987
+   ],
+   "claims_per_answer": 3.14,
+   "chain_validity": 0.837,
+   "chain_validity_ci": [
+    0.812,
+    0.861
+   ],
+   "consequence_vs_rules": 0.907,
+   "consequence_vs_rules_ci": [
+    0.887,
+    0.926
+   ],
+   "mechanism_vs_rules_single_cause": 0.95,
+   "mechanism_ci": [
+    0.928,
+    0.969
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.8,
+   "mechanism_vs_human": 0.68,
+   "human_n": 100,
+   "abstention": 0.844,
+   "abstention_ci": [
+    0.811,
+    0.88
+   ],
+   "invented_cause_rate": 0.148,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.207,
+   "composite_precision": 0.471,
+   "composite_n": 82,
+   "latency_p50_ms": 5252,
+   "latency_p95_ms": 7909,
+   "tokens_in_mean": 511
+  },
+  "lora-2b-r3-not": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.993,
+   "claim_precision_ci": [
+    0.99,
+    0.996
+   ],
+   "claims_per_answer": 2.89,
+   "chain_validity": 0.791,
+   "chain_validity_ci": [
+    0.765,
+    0.817
+   ],
+   "consequence_vs_rules": 0.896,
+   "consequence_vs_rules_ci": [
+    0.875,
+    0.916
+   ],
+   "mechanism_vs_rules_single_cause": 0.762,
+   "mechanism_ci": [
+    0.719,
+    0.803
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.78,
+   "mechanism_vs_human": 0.59,
+   "human_n": 100,
+   "abstention": 0.89,
+   "abstention_ci": [
+    0.857,
+    0.921
+   ],
+   "invented_cause_rate": 0.097,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.207,
+   "composite_precision": 0.412,
+   "composite_n": 82,
+   "latency_p50_ms": 5226,
+   "latency_p95_ms": 7859,
+   "tokens_in_mean": 483
+  },
+  "lora-2b-r3-nodelta": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.992,
+   "claim_precision_ci": [
+    0.988,
+    0.995
+   ],
+   "claims_per_answer": 3.18,
+   "chain_validity": 0.86,
+   "chain_validity_ci": [
+    0.836,
+    0.882
+   ],
+   "consequence_vs_rules": 0.911,
+   "consequence_vs_rules_ci": [
+    0.892,
+    0.93
+   ],
+   "mechanism_vs_rules_single_cause": 0.966,
+   "mechanism_ci": [
+    0.947,
+    0.981
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.79,
+   "mechanism_vs_human": 0.67,
+   "human_n": 100,
+   "abstention": 0.819,
+   "abstention_ci": [
+    0.781,
+    0.857
+   ],
+   "invented_cause_rate": 0.176,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.207,
+   "composite_precision": 0.529,
+   "composite_n": 82,
+   "latency_p50_ms": 5275,
+   "latency_p95_ms": 7988,
+   "tokens_in_mean": 463
+  },
+  "lora-2b-r3-nod": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.788,
+   "claim_precision_ci": [
+    0.774,
+    0.802
+   ],
+   "claims_per_answer": 3.16,
+   "chain_validity": 0.306,
+   "chain_validity_ci": [
+    0.276,
+    0.336
+   ],
+   "consequence_vs_rules": 0.913,
+   "consequence_vs_rules_ci": [
+    0.897,
+    0.931
+   ],
+   "mechanism_vs_rules_single_cause": 0.969,
+   "mechanism_ci": [
+    0.95,
+    0.983
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.8,
+   "mechanism_vs_human": 0.67,
+   "human_n": 100,
+   "abstention": 0.832,
+   "abstention_ci": [
+    0.791,
+    0.867
+   ],
+   "invented_cause_rate": 0.161,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.207,
+   "composite_precision": 0.353,
+   "composite_n": 82,
+   "latency_p50_ms": 5284,
+   "latency_p95_ms": 7940,
+   "tokens_in_mean": 502
+  },
+  "lora-2b-r3-r32": {
+   "items": 890,
+   "parsed": 1.0,
+   "claim_precision": 0.997,
+   "claim_precision_ci": [
+    0.995,
+    0.999
+   ],
+   "claims_per_answer": 3.19,
+   "chain_validity": 0.878,
+   "chain_validity_ci": [
+    0.855,
+    0.899
+   ],
+   "consequence_vs_rules": 0.908,
+   "consequence_vs_rules_ci": [
+    0.887,
+    0.925
+   ],
+   "mechanism_vs_rules_single_cause": 0.976,
+   "mechanism_ci": [
+    0.962,
+    0.988
+   ],
+   "single_cause_n": 416,
+   "consequence_vs_human": 0.79,
+   "mechanism_vs_human": 0.67,
+   "human_n": 100,
+   "abstention": 0.814,
+   "abstention_ci": [
+    0.776,
+    0.852
+   ],
+   "invented_cause_rate": 0.179,
+   "not_concrete_n": 392,
+   "composite_coverage": 0.207,
+   "composite_precision": 0.588,
+   "composite_n": 82,
+   "latency_p50_ms": 5564,
+   "latency_p95_ms": 8590,
+   "tokens_in_mean": 531
+  }
+ },
+ "t_ab": {
+  "S_rules": {
+   "items": 838,
+   "parsed": 1.0,
+   "claim_precision": 1.0,
+   "claim_precision_ci": [
+    1.0,
+    1.0
+   ],
+   "claims_per_answer": 3.04,
+   "chain_validity": 1.0,
+   "chain_validity_ci": [
+    1.0,
+    1.0
+   ],
+   "consequence_vs_rules": 1.0,
+   "consequence_vs_rules_ci": [
+    1.0,
+    1.0
+   ],
+   "mechanism_vs_rules_single_cause": 1.0,
+   "mechanism_ci": [
+    1.0,
+    1.0
+   ],
+   "single_cause_n": 389,
+   "consequence_vs_human": null,
+   "mechanism_vs_human": null,
+   "human_n": 0,
+   "abstention": 1.0,
+   "abstention_ci": [
+    1.0,
+    1.0
+   ],
+   "invented_cause_rate": 0.0,
+   "not_concrete_n": 337,
+   "composite_coverage": 0.0,
+   "composite_precision": null,
+   "composite_n": 112,
+   "latency_p50_ms": null,
+   "latency_p95_ms": null,
+   "tokens_in_mean": 535
+  },
+  "lora-2b-r3": {
+   "items": 838,
+   "parsed": 1.0,
+   "claim_precision": 0.997,
+   "claim_precision_ci": [
+    0.995,
+    0.999
+   ],
+   "claims_per_answer": 3.24,
+   "chain_validity": 0.78,
+   "chain_validity_ci": [
+    0.753,
+    0.809
+   ],
+   "consequence_vs_rules": 0.837,
+   "consequence_vs_rules_ci": [
+    0.814,
+    0.86
+   ],
+   "mechanism_vs_rules_single_cause": 0.794,
+   "mechanism_ci": [
+    0.756,
+    0.833
+   ],
+   "single_cause_n": 389,
+   "consequence_vs_human": null,
+   "mechanism_vs_human": null,
+   "human_n": 0,
+   "abstention": 0.852,
+   "abstention_ci": [
+    0.816,
+    0.887
+   ],
+   "invented_cause_rate": 0.122,
+   "not_concrete_n": 337,
+   "composite_coverage": 0.25,
+   "composite_precision": 0.786,
+   "composite_n": 112,
+   "latency_p50_ms": 5658,
+   "latency_p95_ms": 8247,
+   "tokens_in_mean": 535
+  }
+ },
+ "quantisation_delta": {
+  "items": 300,
+  "bf16": 0.9991,
+  "q4_k_m": 0.998,
+  "q4-bf16": {
+   "n": 300,
+   "value": -0.0011,
+   "ci": [
+    -0.0049,
+    0.0019
+   ]
+  }
+ }
+}

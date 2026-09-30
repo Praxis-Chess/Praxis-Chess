@@ -27,6 +27,15 @@ DEFAULT = Path("training/results_private/phase5/full")
 MEASURED_S = {"qwen3.5-2b": 15.5, "qwen3.5-4b": 37.0, "qwen2.5-7b": 51.0}
 
 
+def guess(arm: str) -> float:
+    """Seconds per answer for an arm not measured yet. Trained arms read a short
+    prompt with no worked examples: the 2B-R3 LoRA measured 4.7 s on the 3050;
+    a 4B is about twice that."""
+    if arm.startswith("lora-"):
+        return 9.5 if "4b" in arm else 4.7
+    return 30.0
+
+
 def recent_medians(run_dir: Path) -> dict[str, float]:
     by_arm: dict[str, list[float]] = {}
     f = run_dir / "outputs.jsonl"
@@ -67,7 +76,7 @@ def main() -> None:
         print("  remaining  none: the run has finished")
     else:
         left = p.get("left_per_arm", {})
-        seconds = sum(n * medians.get(arm, MEASURED_S.get(arm, 30.0)) for arm, n in left.items())
+        seconds = sum(n * medians.get(arm, MEASURED_S.get(arm, guess(arm))) for arm, n in left.items())
         finish = datetime.now() + timedelta(seconds=seconds)
         pending = [arm for arm in left if arm not in medians]
         note = f" (using pre-run timing for {', '.join(pending)})" if pending else ""
