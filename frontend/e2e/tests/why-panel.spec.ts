@@ -118,3 +118,57 @@ test.describe('Why? panel', () => {
     await expect(page.getByRole('region', { name: 'Why this was a mistake' })).toHaveCount(0)
   })
 })
+
+/**
+ * Phase 9: the rules won the pre-registered comparison, so a mistake's card leads
+ * with their verified diagnosis — on every mistake, not only the three per game
+ * the LLM wrote up — and the LLM's text, where one exists, follows as commentary.
+ */
+test.describe('Mistake card (Phase 9)', () => {
+  test('leads with the verified diagnosis, and keeps the AI text as commentary', async ({ page, api }) => {
+    api.json(/^\/api\/analysis\/[0-9a-f-]+$/, [data.scholarsMistakeVerified])
+    await page.goto(`/games/${data.WHY_GAME_ID}`)
+
+    const verified = page.getByLabel('Verified diagnosis').first()
+    await expect(verified).toContainText('✓ Verified')
+    await expect(verified).toContainText('Got mated')
+    await expect(verified).toContainText('Ignored a threat')
+    await expect(verified).toContainText('Qxf7# was already threatened')
+    await expect(page.getByText('AI commentary:').first()).toBeVisible()
+    await expect(page.getByText('Nf6 leaves f7 to the queen.').first()).toBeVisible()
+  })
+
+  test('a verified mistake is never shown as "not written up"', async ({ page, api }) => {
+    api.json(/^\/api\/analysis\/[0-9a-f-]+$/, [{
+      ...data.scholarsMistakeVerified, explanation: null, analysis_state: 'SKIPPED',
+    }])
+    await page.goto(`/games/${data.WHY_GAME_ID}`)
+
+    await expect(page.getByLabel('Verified diagnosis').first()).toContainText('Qxf7# was already threatened')
+    await expect(page.getByText('not among the mistakes written up')).toHaveCount(0)
+  })
+
+  test('the trained model’s checked commentary replaces the old AI text (Phase 9b)', async ({ page, api }) => {
+    api.json(/^\/api\/analysis\/[0-9a-f-]+$/, [{
+      ...data.scholarsMistakeVerified,
+      verified: { ...data.scholarsMistakeVerified.verified,
+        commentary: 'Nf6 leaves the mate on f7 standing; g6 would have blocked the queen.',
+        commentary_model: 'praxis-grid-2b-r3' },
+    }])
+    await page.goto(`/games/${data.WHY_GAME_ID}`)
+
+    const commentary = page.getByLabel('AI commentary').first()
+    await expect(commentary).toContainText('checked')
+    await expect(commentary).toContainText('g6 would have blocked the queen')
+    await expect(page.getByText('Nf6 leaves f7 to the queen.')).toHaveCount(0)
+  })
+
+  test('without a verified diagnosis, the card is as before', async ({ page, api }) => {
+    api.json(/^\/api\/analysis\/[0-9a-f-]+$/, [data.scholarsMistake])
+    await page.goto(`/games/${data.WHY_GAME_ID}`)
+
+    await expect(page.getByLabel('Verified diagnosis')).toHaveCount(0)
+    await expect(page.getByText('Nf6 leaves f7 to the queen.').first()).toBeVisible()
+    await expect(page.getByText('AI commentary:')).toHaveCount(0)
+  })
+})

@@ -11,8 +11,13 @@ public record AppProperties(
     Practice practice,
     Web web
 ) {
+    /**
+     * @param commentaryModel Phase 9b: the Ollama model that writes the checked
+     *                        "AI commentary" from the evidence (the trained
+     *                        praxis-grid-2b-r3). Unset, no commentary is written.
+     */
     public record Ollama(String baseUrl, String model, String moveModel, String reportModel,
-                         String reasoningModel) {}
+                         String reasoningModel, String commentaryModel) {}
     public record ChessCom(String username) {}
     public record Stockfish(String path) {}
 

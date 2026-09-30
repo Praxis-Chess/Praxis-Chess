@@ -32,7 +32,7 @@ interface Props {
   onShowBoard: (board: WhyBoardView | null) => void
 }
 
-const CONSEQUENCE: Record<string, string> = {
+export const CONSEQUENCE: Record<string, string> = {
   MATED: 'Got mated',
   LOST_MATERIAL: 'Lost material',
   MISSED_MATE: 'Missed a mate',
@@ -40,7 +40,7 @@ const CONSEQUENCE: Record<string, string> = {
   NOT_CONCRETE: 'Positional',
 }
 
-const MECHANISM: Record<string, string> = {
+export const MECHANISM: Record<string, string> = {
   IGNORED_THREAT: 'Ignored a threat',
   REMOVED_DEFENDER: 'Removed a defender',
   MOVED_INTO_ATTACK: 'Moved into attack',

@@ -89,6 +89,41 @@ test.describe('Rule validation', () => {
     expect(api.requestsMatching(/\/api\/diagnosis\/build\?limit=25$/)).toHaveLength(1)
   })
 
+  test.describe('the whole library (Phase 9)', () => {
+    test('says so when every mistake has a verified diagnosis', async ({ page }) => {
+      await page.goto('/labels')
+      await expect(page.getByRole('region', { name: 'Whole library' }))
+        .toContainText('Every mistake in the library has a verified diagnosis')
+      await expect(page.getByRole('button', { name: /^Diagnose all/ })).toHaveCount(0)
+    })
+
+    test('offers to diagnose what is left, then shows the run and can stop it', async ({ page, api }) => {
+      api.json('/api/diagnosis/library', { ...data.libraryIdle, missing: 120, stale: 5 })
+      api.json('/api/diagnosis/library/stop', { ...data.libraryIdle, state: 'RUNNING' })
+      await page.goto('/labels')
+      const library = page.getByRole('region', { name: 'Whole library' })
+      await expect(library).toContainText('125 mistakes have no current verified diagnosis (5 from older rules)')
+
+      // Accepted: the next status poll finds the job running.
+      api.set('/api/diagnosis/library', (req: Request) => req.method() === 'POST'
+        ? { status: 202, body: { ...data.libraryIdle, state: 'QUEUED', missing: 120, stale: 5 } }
+        : { status: 200, body: { ...data.libraryIdle, state: 'RUNNING', built: 40, rebuilt: 5, missing: 80 } })
+      await library.getByRole('button', { name: 'Diagnose all 125' }).click()
+      await expect(library).toContainText('Diagnosing the library: 45 diagnosed')
+
+      await library.getByRole('button', { name: 'Stop' }).click()
+      expect(api.requestsMatching(/\/api\/diagnosis\/library\/stop$/)).toHaveLength(1)
+    })
+
+    test('offers the trained model’s commentary once every mistake is diagnosed (Phase 9b)', async ({ page, api }) => {
+      api.json('/api/diagnosis/library', { ...data.libraryIdle, commentary_enabled: true, uncommented: 890 })
+      await page.goto('/labels')
+      const library = page.getByRole('region', { name: 'Whole library' })
+      await expect(library).toContainText("890 are waiting for the trained model's commentary")
+      await expect(library.getByRole('button', { name: 'Write commentary for 890' })).toBeVisible()
+    })
+  })
+
   test.describe('after a rule fix', () => {
     test('nothing is offered while every graph is current', async ({ page }) => {
       await page.goto('/labels')

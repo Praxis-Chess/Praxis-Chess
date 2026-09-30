@@ -38,6 +38,7 @@ class DiagnosisServiceTest {
     private MoveErrorRepository moveErrors;
     private EvidenceEngine engine;
     private DiagnosisService service;
+    private TrainedCommentary commentary;
 
     @BeforeEach
     void setUp() {
@@ -46,7 +47,8 @@ class DiagnosisServiceTest {
         engine = mock(EvidenceEngine.class);
         AppProperties props = mock(AppProperties.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
         when(props.chessCom().username()).thenReturn("player");
-        service = new DiagnosisService(moveErrors, evidence, engine, props);
+        commentary = mock(TrainedCommentary.class);
+        service = new DiagnosisService(moveErrors, evidence, engine, props, commentary);
     }
 
     private static MistakeEvidence row(int version) {
@@ -150,6 +152,70 @@ class DiagnosisServiceTest {
         assertThat(fresh.labelled()).isEqualTo(3);
         assertThat(fresh.consequenceAgreement()).isEqualTo(1.0);
         assertThat(fresh.singleCauseAccuracy()).isEqualTo(1.0);
+    }
+
+    private static MistakeEvidence diagnosed(int ply, int version) {
+        var e = row(version);
+        e.setMoveNumber(ply);
+        e.setRuleDiagnosisJson(GraphJson.write(
+                com.praxis.evidence.diagnosis.DiagnosisRules.diagnose(TestGraphs.scholarsMate())));
+        return e;
+    }
+
+    /** Game Analysis shows only diagnoses the current rules would make; an older one waits for its rebuild. */
+    @Test
+    void aGameShowsOnlyCurrentDiagnoses() {
+        when(evidence.findByGameId(GAME)).thenReturn(List.of(
+                diagnosed(6, EvidenceGraphBuilder.GRAPH_VERSION), diagnosed(8, EvidenceGraphBuilder.GRAPH_VERSION - 1)));
+
+        var byPly = service.currentForGame(GAME);
+
+        assertThat(byPly).containsOnlyKeys(6);
+        verifyNoInteractions(engine);
+    }
+
+    /** Diagnosing a freshly analysed game skips mistakes that already have a current diagnosis. */
+    @Test
+    void aGamesCurrentDiagnosesAreNotRebuilt() {
+        var game = mock(com.praxis.domain.Game.class);
+        when(game.getId()).thenReturn(GAME);
+        var mistake = mock(com.praxis.domain.MoveError.class);
+        when(mistake.getGame()).thenReturn(game);
+        when(mistake.getMoveNumber()).thenReturn(6);
+        when(moveErrors.findByGameIdWithGame(GAME)).thenReturn(List.of(mistake));
+        when(evidence.findByGameIdAndMoveNumber(GAME, 6))
+                .thenReturn(Optional.of(diagnosed(6, EvidenceGraphBuilder.GRAPH_VERSION)));
+
+        assertThat(service.buildForGame(GAME)).isEqualTo(1);
+        verifyNoInteractions(engine);
+    }
+
+    /** Phase 9b: each current diagnosis gets the model's commentary once, with the verifier's verdict. */
+    @Test
+    void aGameIsCommentedOnceByTheConfiguredModel() {
+        when(commentary.enabled()).thenReturn(true);
+        when(commentary.model()).thenReturn("praxis-grid-2b-r3");
+        when(commentary.write(org.mockito.ArgumentMatchers.any())).thenReturn(Optional.of(
+                new TrainedCommentary.Result("Nf6 ignores Qxf7#.", "OTHER", true, "praxis-grid-2b-r3", 4600)));
+        var fresh = diagnosed(6, EvidenceGraphBuilder.GRAPH_VERSION);
+        var done = diagnosed(8, EvidenceGraphBuilder.GRAPH_VERSION);
+        done.setCommentaryModel("praxis-grid-2b-r3");
+        when(evidence.findByGameId(GAME)).thenReturn(List.of(fresh, done));
+
+        assertThat(service.commentForGame(GAME)).isEqualTo(1);
+        assertThat(fresh.getCommentary()).isEqualTo("Nf6 ignores Qxf7#.");
+        assertThat(fresh.getCommentaryVerified()).isTrue();
+        verify(evidence).save(fresh);
+        verify(evidence, never()).save(done);
+    }
+
+    @Test
+    void noCommentaryIsWrittenWhenNoModelIsConfigured() {
+        when(commentary.enabled()).thenReturn(false);
+        when(evidence.findByGameId(GAME)).thenReturn(List.of(diagnosed(6, EvidenceGraphBuilder.GRAPH_VERSION)));
+
+        assertThat(service.commentForGame(GAME)).isZero();
+        verify(commentary, never()).write(org.mockito.ArgumentMatchers.any());
     }
 
     /** Before any sample build, only on-demand rows exist: nothing is up for labelling. */

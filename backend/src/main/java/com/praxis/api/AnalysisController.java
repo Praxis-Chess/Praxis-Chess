@@ -13,6 +13,7 @@ import com.praxis.repository.AttemptRepository;
 import com.praxis.repository.CardRepository;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
+import com.praxis.service.diagnosis.DiagnosisService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -34,6 +35,7 @@ public class AnalysisController {
     private final AppProperties appProperties;
     private final AnalysisProgressTracker progressTracker;
     private final SettingsService settings;
+    private final DiagnosisService diagnosis;
 
     public AnalysisController(MoveErrorRepository moveErrorRepository,
                               GameRepository gameRepository,
@@ -42,7 +44,8 @@ public class AnalysisController {
                               AnalysisPipelineOrchestrator pipelineOrchestrator,
                               AppProperties appProperties,
                               AnalysisProgressTracker progressTracker,
-                              SettingsService settings) {
+                              SettingsService settings,
+                              DiagnosisService diagnosis) {
         this.moveErrorRepository = moveErrorRepository;
         this.gameRepository = gameRepository;
         this.cardRepository = cardRepository;
@@ -51,13 +54,15 @@ public class AnalysisController {
         this.appProperties = appProperties;
         this.progressTracker = progressTracker;
         this.settings = settings;
+        this.diagnosis = diagnosis;
     }
 
     @GetMapping("/{gameId}")
     public ResponseEntity<List<MoveErrorDto>> getMoveErrors(@PathVariable UUID gameId) {
+        var verified = diagnosis.currentForGame(gameId);
         List<MoveErrorDto> errors = moveErrorRepository.findByGameId(gameId)
                 .stream()
-                .map(MoveErrorDto::from)
+                .map(e -> MoveErrorDto.from(e, verified.get(e.getMoveNumber())))
                 .toList();
         return ResponseEntity.ok(errors);
     }

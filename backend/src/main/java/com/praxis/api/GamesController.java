@@ -10,6 +10,7 @@ import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
 import com.praxis.service.analysis.ParsedGame;
 import com.praxis.service.analysis.PgnParserService;
+import com.praxis.service.diagnosis.DiagnosisService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,17 +28,20 @@ public class GamesController {
     private final AnalysisPipelineOrchestrator orchestrator;
     private final AppProperties appProperties;
     private final PgnParserService pgnParser;
+    private final DiagnosisService diagnosis;
 
     public GamesController(GameRepository gameRepository,
                            MoveErrorRepository moveErrorRepository,
                            AnalysisPipelineOrchestrator orchestrator,
                            AppProperties appProperties,
-                           PgnParserService pgnParser) {
+                           PgnParserService pgnParser,
+                           DiagnosisService diagnosis) {
         this.gameRepository = gameRepository;
         this.moveErrorRepository = moveErrorRepository;
         this.orchestrator = orchestrator;
         this.appProperties = appProperties;
         this.pgnParser = pgnParser;
+        this.diagnosis = diagnosis;
     }
 
     @GetMapping
@@ -85,7 +89,8 @@ public class GamesController {
                             game.getId().toString(), game.getRawPgn(),
                             appProperties.chessCom().username());
                     return GameReviewDto.from(
-                            game, parsed, moveErrorRepository.findByGameId(game.getId()));
+                            game, parsed, moveErrorRepository.findByGameId(game.getId()),
+                            diagnosis.currentForGame(game.getId()));
                 })
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

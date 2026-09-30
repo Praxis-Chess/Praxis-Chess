@@ -21,6 +21,8 @@ public interface MistakeEvidenceRepository extends JpaRepository<MistakeEvidence
 
     Optional<MistakeEvidence> findByGameIdAndMoveNumber(UUID gameId, int moveNumber);
 
+    List<MistakeEvidence> findByGameId(UUID gameId);
+
     /**
      * How far the sample build has reached, in sample order. Rows built on demand
      * past this point are not part of the sample yet.

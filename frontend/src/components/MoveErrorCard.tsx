@@ -1,4 +1,5 @@
 import type { MoveError } from '../api/types'
+import { CONSEQUENCE, MECHANISM } from './WhyPanel'
 
 interface Props {
   error: MoveError
@@ -56,12 +57,34 @@ export function MoveErrorCard({ error, isSelected, onClick }: Props) {
           Engine best: <strong>{error.better_move}</strong>
         </div>
       )}
-      {error.explanation && error.analysis_state === 'EXPLAINED' && (
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+      {/* Phase 9: the rules' verified diagnosis leads. The rules won the
+          pre-registered comparison, and they cover every mistake. */}
+      {error.verified && (
+        <div aria-label="Verified diagnosis" style={{ marginBottom: 6 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: error.verified.passed ? 'var(--green)' : 'var(--orange)' }}>
+              {error.verified.passed ? '✓ Verified' : 'Unverified'}
+            </span>
+            <span className="badge">{CONSEQUENCE[error.verified.consequence] ?? error.verified.consequence}</span>
+            {MECHANISM[error.verified.mechanism] && <span className="badge">{MECHANISM[error.verified.mechanism]}</span>}
+          </div>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.5 }}>{error.verified.explanation}</p>
+        </div>
+      )}
+      {/* Phase 9b: the trained model's commentary, shown only when every claim of it
+          passed the verifier. It replaces the old LLM's text, which checks nothing. */}
+      {error.verified?.commentary ? (
+        <p aria-label="AI commentary" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 600 }}>AI commentary</span>
+          <span style={{ color: 'var(--green)', fontWeight: 600 }}> · checked</span>: {error.verified.commentary}
+        </p>
+      ) : error.explanation && error.analysis_state === 'EXPLAINED' && (
+        <p style={{ fontSize: error.verified ? '0.76rem' : '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          {error.verified && <span style={{ fontWeight: 600 }}>AI commentary: </span>}
           {error.explanation}
         </p>
       )}
-      {error.analysis_state === 'SKIPPED' && (
+      {!error.verified && error.analysis_state === 'SKIPPED' && (
         <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
           Found by the engine, but not among the mistakes written up for this game.
         </p>

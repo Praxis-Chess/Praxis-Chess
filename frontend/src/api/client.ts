@@ -32,6 +32,7 @@ import type {
   TrainingPlan,
   EvidenceReport,
   BuildResult,
+  LibraryStatus,
   LabelCard,
   RuleReport,
 } from './types'
@@ -205,6 +206,10 @@ export const api = {
     review: (id: string) => request<LabelReview>(`/diagnosis/review/${id}`),
     /** Why one mistake was a mistake. Built on first view (about a second), stored after. */
     why: (gameId: string, ply: number) => request<MistakeWhy>(`/diagnosis/why/${gameId}/${ply}`),
+    /** Whole-library diagnosis: what is left, and the background job's progress. */
+    library: () => request<LibraryStatus>('/diagnosis/library'),
+    libraryStart: () => request<LibraryStatus>('/diagnosis/library', { method: 'POST' }),
+    libraryStop: () => request<LibraryStatus>('/diagnosis/library/stop', { method: 'POST' }),
   },
 
   evidence: {

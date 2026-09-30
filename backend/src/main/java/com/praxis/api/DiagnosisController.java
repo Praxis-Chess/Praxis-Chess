@@ -1,6 +1,7 @@
 package com.praxis.api;
 
 import com.praxis.service.diagnosis.DiagnosisService;
+import com.praxis.service.diagnosis.LibraryDiagnosisJob;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,9 +17,32 @@ import java.util.UUID;
 public class DiagnosisController {
 
     private final DiagnosisService diagnosis;
+    private final LibraryDiagnosisJob library;
 
-    public DiagnosisController(DiagnosisService diagnosis) {
+    public DiagnosisController(DiagnosisService diagnosis, LibraryDiagnosisJob library) {
         this.diagnosis = diagnosis;
+        this.library = library;
+    }
+
+    /** Where the whole-library diagnosis stands: counts left, and the job's progress. */
+    @GetMapping("/library")
+    public LibraryDiagnosisJob.Status libraryStatus() {
+        return library.status();
+    }
+
+    /** Diagnose every mistake in the library, in the background. 409 if it is already queued or running. */
+    @PostMapping("/library")
+    public ResponseEntity<LibraryDiagnosisJob.Status> libraryStart() {
+        if (!library.tryQueue()) return ResponseEntity.status(409).body(library.status());
+        library.run();
+        return ResponseEntity.accepted().body(library.status());
+    }
+
+    /** Stop after the batch in progress; what was built stays. */
+    @PostMapping("/library/stop")
+    public LibraryDiagnosisJob.Status libraryStop() {
+        library.requestStop();
+        return library.status();
     }
 
     /** Build graphs for up to {@code limit} more mistakes. Bounded, so progress is visible. */

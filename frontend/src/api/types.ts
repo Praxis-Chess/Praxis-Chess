@@ -33,6 +33,20 @@ export interface MoveError {
   game_phase: GamePhase | null
   clock_remaining: number | null
   analysis_state: AnalysisState | null  // null for legacy rows before migration
+  /** The rules' verified diagnosis (Phase 9). Null until the mistake has a current one. */
+  verified?: VerifiedDiagnosis | null
+}
+
+/** What the rules concluded from the evidence, every claim checked against it. */
+export interface VerifiedDiagnosis {
+  consequence: string
+  mechanism: string
+  motif: string | null
+  explanation: string
+  passed: boolean
+  /** Phase 9b: the trained model's commentary, present only when every claim of it passed the verifier. */
+  commentary: string | null
+  commentary_model: string | null
 }
 
 export interface ReviewMove {
@@ -716,6 +730,23 @@ export interface EvidenceReport {
 // Hand labels for the player's own mistakes, and how the rules score against
 // them. snake_case: the backend serialises records through Jackson's naming
 // strategy, and the Phase 2 lab shipped camelCase types once already.
+
+/** The whole-library diagnosis job (Phase 9). Counts are fresh whenever no job is in flight. */
+export interface LibraryStatus {
+  state: 'IDLE' | 'QUEUED' | 'RUNNING' | 'DONE' | 'STOPPED' | 'FAILED'
+  built: number
+  rebuilt: number
+  failed: number
+  missing: number
+  stale: number
+  /** Phase 9b: commentary written by the trained model this run, and diagnoses still without it. */
+  commented: number
+  uncommented: number
+  commentary_enabled: boolean
+  started_at: string | null
+  finished_at: string | null
+  error: string | null
+}
 
 export interface BuildResult {
   built: number

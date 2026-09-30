@@ -56,6 +56,10 @@ praxis-chess:
     model: qwen2.5:7b          # fallback if move-model / report-model not set
     move-model: qwen2.5:7b    # per-move explanations (×N per game) — try qwen3:4b for 3× speedup
     report-model: qwen2.5:7b  # pattern report + training plan (×2 total, quality matters)
+    # Phase 9b: the trained model that writes the checked "AI commentary" on each
+    # mistake (training/outputs/grid_v1_results/2b-r3). Only answers whose every
+    # claim passes the verifier are shown. Unset: no commentary is written.
+    # commentary-model: praxis-grid-2b-r3
     # Prax chat agent. Separate from the analysis models so a batch run and a
     # live conversation don't compete for VRAM. Must support tool calling.
     # Use the -instruct tag: plain `qwen3:4b` resolves to the Thinking variant,
