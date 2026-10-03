@@ -47,8 +47,10 @@ public class SyncService {
     private volatile boolean syncing = false;
     private volatile boolean syncQueued = false;
 
-    // Cached "new games available on Chess.com" check — avoids hammering the API
-    private volatile int cachedNewGamesCount = 0;
+    // Cached Chess.com game ids for the current month — avoids hammering the API.
+    // The ids are cached, not the count: "new" is worked out against the database
+    // on every call, so a game stops counting the moment it is synced.
+    private volatile Set<String> cachedRemoteIds = Set.of();
     private volatile long newGamesCacheTimestamp = 0L;
     private static final long NEW_GAMES_CACHE_TTL_MS = 10 * 60 * 60 * 1000L; // 10 hours
     private final AtomicInteger gamesFetched  = new AtomicInteger(0);
@@ -168,10 +170,11 @@ public class SyncService {
             }
 
             lastSyncedAt.set(OffsetDateTime.now(ZoneOffset.UTC).toString());
-            // Only games inside the analysis range are analysed automatically. The
-            // rest are stored as PENDING and show up on the Settings coverage view.
+            // Every time class is synced; only games inside the analysis range and
+            // the analysed time classes (rapid by default) are analysed automatically.
+            // The rest are stored as PENDING and show up on the Settings coverage view.
             List<Game> toAnalyse = newGames.stream()
-                    .filter(g -> settings.inAnalysisRange(g.getPlayedAt()))
+                    .filter(settings::inAnalysisScope)
                     .toList();
             gamesQueued.set(toAnalyse.size());
 
@@ -183,12 +186,16 @@ public class SyncService {
             return newGames.size();
         } finally {
             syncing = false;
+            // A finished sync may have fetched games Chess.com added since the last
+            // check; look again next time rather than trusting a stale id list.
+            newGamesCacheTimestamp = 0L;
         }
     }
 
     public SyncStatus getStatus() {
         String username = appProperties.chessCom().username();
-        long pending  = gameRepository.countByUsernameAndAnalysisStatus(username, AnalysisStatus.PENDING);
+        long pending  = gameRepository.countByUsernameAndAnalysisStatusInTimeClasses(username, AnalysisStatus.PENDING,
+                settings.analysisTimeClasses(), SettingsService.TIME_CLASSES);
         long analyzed = gameRepository.countByUsernameAndAnalysisStatus(username, AnalysisStatus.ANALYZED);
         // Always read from DB so it survives server restarts
         String lastSync = syncHistoryRepository
@@ -211,23 +218,23 @@ public class SyncService {
      */
     public int countNewGamesAvailable() {
         long now = System.currentTimeMillis();
-        if (now - newGamesCacheTimestamp < NEW_GAMES_CACHE_TTL_MS) return cachedNewGamesCount;
-
         String username = appProperties.chessCom().username();
-        LocalDate today = LocalDate.now();
-        try {
-            List<ChessComGame> chessComGames = apiClient.fetchGames(username, today.getYear(), today.getMonthValue());
-            Set<String> knownIds = new HashSet<>(gameRepository.findAllChessComIdsByUsername(username));
-            int newCount = (int) chessComGames.stream()
-                    .filter(g -> g.uuid() != null && !knownIds.contains(g.uuid()))
-                    .count();
-            cachedNewGamesCount = newCount;
-            newGamesCacheTimestamp = now;
-            return newCount;
-        } catch (Exception e) {
-            log.warn("Failed to check for new Chess.com games: {}", e.getMessage());
-            return 0;
+        if (now - newGamesCacheTimestamp >= NEW_GAMES_CACHE_TTL_MS) {
+            LocalDate today = LocalDate.now();
+            try {
+                Set<String> remote = new HashSet<>();
+                for (ChessComGame g : apiClient.fetchGames(username, today.getYear(), today.getMonthValue())) {
+                    if (g.uuid() != null) remote.add(g.uuid());
+                }
+                cachedRemoteIds = remote;
+                newGamesCacheTimestamp = now;
+            } catch (Exception e) {
+                log.warn("Failed to check for new Chess.com games: {}", e.getMessage());
+                return 0;
+            }
         }
+        Set<String> knownIds = new HashSet<>(gameRepository.findAllChessComIdsByUsername(username));
+        return (int) cachedRemoteIds.stream().filter(id -> !knownIds.contains(id)).count();
     }
 
     public void clearSyncHistory(String username, int months) {

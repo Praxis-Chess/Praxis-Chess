@@ -141,6 +141,44 @@ public class SettingsService {
         return a.getAnalysisFrom() != null || a.getAnalysisTo() != null;
     }
 
+    // ── time classes ─────────────────────────────────────────────────────────
+
+    /** Chess.com's time classes, in speed order. */
+    public static final List<String> TIME_CLASSES = List.of("bullet", "blitz", "rapid", "daily");
+    public static final List<String> DEFAULT_TIME_CLASSES = List.of("rapid");
+
+    /** The time classes analysed: the saved choice, or rapid only by default. */
+    public List<String> analysisTimeClasses() {
+        return parseTimeClasses(appSettings().getAnalysisTimeClasses());
+    }
+
+    static List<String> parseTimeClasses(String stored) {
+        if (stored == null || stored.isBlank()) return DEFAULT_TIME_CLASSES;
+        Set<String> chosen = new HashSet<>();
+        for (String s : stored.split(",")) chosen.add(s.trim().toLowerCase(Locale.ROOT));
+        List<String> out = TIME_CLASSES.stream().filter(chosen::contains).toList();
+        return out.isEmpty() ? DEFAULT_TIME_CLASSES : out;
+    }
+
+    /** True unless every time class is analysed. */
+    public boolean hasTimeClassFilter() {
+        return analysisTimeClasses().size() < TIME_CLASSES.size();
+    }
+
+    /**
+     * Whether a game's time class is analysed. A game without a Chess.com time
+     * class (a practice game, or one synced before the field existed) always is:
+     * the filter is about mixing speeds, and those carry none.
+     */
+    public boolean timeClassAnalysed(String timeClass) {
+        return timeClass == null || !TIME_CLASSES.contains(timeClass) || analysisTimeClasses().contains(timeClass);
+    }
+
+    /** The one test every "which games get analysed" path uses: date range and time class. */
+    public boolean inAnalysisScope(com.praxis.domain.Game g) {
+        return inAnalysisRange(g.getPlayedAt()) && timeClassAnalysed(g.getTimeClass());
+    }
+
     /** Whether a game falls inside the analysis range. Open bounds are unlimited. */
     public boolean inAnalysisRange(OffsetDateTime playedAt) {
         AppSettings a = appSettings();
@@ -156,6 +194,7 @@ public class SettingsService {
     public View view() {
         AppSettings a = appSettings();
         return new View(a.getSyncFrom(), a.getSyncTo(), a.getAnalysisFrom(), a.getAnalysisTo(),
+                parseTimeClasses(a.getAnalysisTimeClasses()),
                 toVersion(active(AnalysisSettings.LIBRARY).settings()),
                 toVersion(active(AnalysisSettings.PRACTICE).settings()),
                 bounds());
@@ -186,7 +225,7 @@ public class SettingsService {
         if (errors.isEmpty() && u.practice() != null) {
             KindEstimate pe = estimateKind(AnalysisSettings.PRACTICE, params(u.practice()));
             if (pe.measured() && pe.perGameMs() != null && pe.perGameMs() > PRACTICE_BUDGET_MS) {
-                errors.put("practice_budget", "Estimated " + (pe.perGameMs() / 1000) + " s per practice game — "
+                errors.put("practice_budget", "Estimated " + (pe.perGameMs() / 1000) + " s per practice game, "
                         + "over the " + (PRACTICE_BUDGET_MS / 1000) + " s the report waits for. "
                         + "Lower the depth or candidate moves.");
             }
@@ -198,6 +237,9 @@ public class SettingsService {
         a.setSyncTo(u.syncTo());
         a.setAnalysisFrom(u.analysisFrom());
         a.setAnalysisTo(u.analysisTo());
+        if (u.analysisTimeClasses() != null) {
+            a.setAnalysisTimeClasses(String.join(",", parseTimeClasses(String.join(",", u.analysisTimeClasses()))));
+        }
         app.save(a);
 
         boolean lib = u.library() != null && saveIfChanged(AnalysisSettings.LIBRARY, u.library());
@@ -252,6 +294,13 @@ public class SettingsService {
         if (u.analysisFrom() != null && u.analysisTo() != null && u.analysisFrom().isAfter(u.analysisTo())) {
             e.put("analysis_range", "The analysis range starts after it ends.");
         }
+        if (u.analysisTimeClasses() != null) {
+            if (u.analysisTimeClasses().isEmpty()) {
+                e.put("analysis_time_classes", "Pick at least one time control to analyse.");
+            } else if (!TIME_CLASSES.containsAll(u.analysisTimeClasses())) {
+                e.put("analysis_time_classes", "Time controls must be among " + String.join(", ", TIME_CLASSES) + ".");
+            }
+        }
 
         engine(e, "library", u.library());
         engine(e, "practice", u.practice());
@@ -297,10 +346,11 @@ public class SettingsService {
                        COALESCE(source, 'CHESS_COM')    AS src,
                        analysis_status                  AS status,
                        analysis_settings_id             AS sid,
+                       time_class                       AS tc,
                        COUNT(*)                         AS n
                 FROM games
                 WHERE username = ? AND played_at IS NOT NULL
-                GROUP BY 1, 2, 3, 4
+                GROUP BY 1, 2, 3, 4, 5
                 """, zone, user);
 
         TreeMap<LocalDate, int[]> days = new TreeMap<>(Comparator.reverseOrder());   // [synced, analyzed, pending, failed]
@@ -313,6 +363,9 @@ public class SettingsService {
             String status = String.valueOf(r.get("status"));
             int n = ((Number) r.get("n")).intValue();
             Long sid = r.get("sid") == null ? null : ((Number) r.get("sid")).longValue();
+            // A time control that isn't analysed is synced, not waiting: counting it
+            // as pending would show a queue that never drains.
+            boolean inScope = timeClassAnalysed((String) r.get("tc"));
 
             if ("PRACTICE".equals(r.get("src"))) {
                 practicePlayed += n;
@@ -328,9 +381,10 @@ public class SettingsService {
                     monthSettings.computeIfAbsent(YearMonth.from(day).toString(), m -> new LinkedHashMap<>())
                             .merge(sid, n, Integer::sum);
                     allSettings.merge(sid, n, Integer::sum);
-                    if (!sameRuler.contains(sid) && inAnalysisRangeDate(day)) outdated += n;
+                    if (!sameRuler.contains(sid) && inAnalysisRangeDate(day) && inScope) outdated += n;
                 }
-                case "PENDING", "ANALYZING" -> c[2] += n;
+                case "PENDING" -> { if (inScope) c[2] += n; }
+                case "ANALYZING" -> c[2] += n;
                 case "FAILED" -> c[3] += n;
                 default -> { }
             }

@@ -10,7 +10,7 @@ import com.praxis.domain.enums.GamePhase;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
 import com.praxis.repository.PlayerPatternRepository;
-import com.praxis.service.ai.OllamaAnalysisClient;
+import com.praxis.service.ai.AnalysisLlmClient;
 import com.praxis.service.ai.PromptTemplates;
 import com.praxis.service.ai.dto.PatternReportResult;
 import org.slf4j.Logger;
@@ -32,18 +32,18 @@ public class PatternAggregator {
     private final MoveErrorRepository moveErrorRepository;
     private final GameRepository gameRepository;
     private final PlayerPatternRepository playerPatternRepository;
-    private final OllamaAnalysisClient ollamaClient;
+    private final AnalysisLlmClient analysisLlm;
     private final ObjectMapper objectMapper;
 
     public PatternAggregator(MoveErrorRepository moveErrorRepository,
                              GameRepository gameRepository,
                              PlayerPatternRepository playerPatternRepository,
-                             OllamaAnalysisClient ollamaClient,
+                             AnalysisLlmClient analysisLlm,
                              ObjectMapper objectMapper) {
         this.moveErrorRepository = moveErrorRepository;
         this.gameRepository = gameRepository;
         this.playerPatternRepository = playerPatternRepository;
-        this.ollamaClient = ollamaClient;
+        this.analysisLlm = analysisLlm;
         this.objectMapper = objectMapper;
     }
 
@@ -101,7 +101,7 @@ public class PatternAggregator {
 
         PatternReportResult llmResult = null;
         try {
-            llmResult = ollamaClient.analyzeReport(prompt, PatternReportResult.class);
+            llmResult = analysisLlm.analyzeReport(prompt, PatternReportResult.class);
         } catch (Exception e) {
             log.warn("Ollama pattern report failed: {}", e.getMessage());
         }

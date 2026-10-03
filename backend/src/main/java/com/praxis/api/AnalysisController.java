@@ -79,7 +79,8 @@ public class AnalysisController {
         // (covers restarts and cases where the flag was lost)
         if (!running && !queued && !patternGen) {
             String username = appProperties.chessCom().username();
-            long pending   = gameRepository.countByUsernameAndAnalysisStatus(username, AnalysisStatus.PENDING);
+            long pending   = gameRepository.countByUsernameAndAnalysisStatusInTimeClasses(username, AnalysisStatus.PENDING,
+                    settings.analysisTimeClasses(), SettingsService.TIME_CLASSES);
             long analyzing = gameRepository.countByUsernameAndAnalysisStatus(username, AnalysisStatus.ANALYZING);
             if (pending > 0 || analyzing > 0) {
                 queued = true;
@@ -109,7 +110,7 @@ public class AnalysisController {
     public ResponseEntity<Map<String, Object>> analyzePending() {
         String username = appProperties.chessCom().username();
         List<Game> pending = gameRepository.findByUsernameAndAnalysisStatus(username, AnalysisStatus.PENDING)
-                .stream().filter(g -> settings.inAnalysisRange(g.getPlayedAt())).toList();
+                .stream().filter(settings::inAnalysisScope).toList();
         if (!pending.isEmpty()) {
             progressTracker.setQueued(true);
             pipelineOrchestrator.analyzeGames(pending, username);
@@ -131,10 +132,12 @@ public class AnalysisController {
         // Inside the analysis range; with outdated_only, just the games not yet
         // analysed with the current settings — "re-analyse with current settings".
         List<Game> games = gameRepository.findByUsernameOrderByPlayedAtDesc(username).stream()
-                .filter(g -> settings.inAnalysisRange(g.getPlayedAt()))
+                .filter(settings::inAnalysisScope)
                 .filter(g -> !outdatedOnly || !sameRuler.contains(g.getAnalysisSettingsId()))
                 .toList();
-        boolean wholeLibrary = !outdatedOnly && !settings.hasAnalysisRange();
+        // With a time-class filter the deck is wiped only for these games: a bullet
+        // game analysed before the filter keeps its cards.
+        boolean wholeLibrary = !outdatedOnly && !settings.hasAnalysisRange() && !settings.hasTimeClassFilter();
 
         // Delete in FK order: attempts → cards → move_errors → reset game status.
         // Cards hold a non-null FK to move_errors; attempts hold a non-null FK to cards.

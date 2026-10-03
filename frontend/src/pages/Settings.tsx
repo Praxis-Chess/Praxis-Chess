@@ -4,6 +4,8 @@ import { api } from '../api/client'
 import type {
   AppSettingsView, Coverage, EngineConfig, EngineVersion, KindEstimate, SettingsBounds, SettingsEstimate,
 } from '../api/types'
+import { LibraryCard } from '../components/LibraryCard'
+import { AiModelsCard } from '../components/AiModelsCard'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { PraxAnchor, praxInteract } from '../prax/PraxHost'
 
@@ -21,8 +23,12 @@ import { PraxAnchor, praxInteract } from '../prax/PraxHost'
 type EngineDraft = { sweep: string; depth: string; lines: string; explanations: string; all: boolean }
 type Draft = {
   sync_from: string; sync_to: string; analysis_from: string; analysis_to: string
+  time_classes: string[]
   library: EngineDraft; practice: EngineDraft
 }
+
+/** Chess.com's time classes, in speed order: every one is synced, the ticked ones analysed. */
+const TIME_CLASSES = ['bullet', 'blitz', 'rapid', 'daily']
 
 const toDraft = (v: EngineVersion): EngineDraft => ({
   sweep: String(v.sweep_move_time_ms),
@@ -35,6 +41,7 @@ const toDraft = (v: EngineVersion): EngineDraft => ({
 const fromView = (s: AppSettingsView): Draft => ({
   sync_from: s.sync_from ?? '', sync_to: s.sync_to ?? '',
   analysis_from: s.analysis_from ?? '', analysis_to: s.analysis_to ?? '',
+  time_classes: s.analysis_time_classes ?? ['rapid'],
   library: toDraft(s.library), practice: toDraft(s.practice),
 })
 
@@ -70,9 +77,12 @@ function Field({ id, label, help, error, children }: {
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-      <label htmlFor={id} style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>{label}</label>
+      <label htmlFor={id} style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+        {label}
+        {/* One-line help lives in a hover hint: the page was mostly prose. */}
+        {help && <span title={help} aria-label={help} style={{ marginLeft: 6, color: 'var(--text-tertiary)', cursor: 'help' }}>ⓘ</span>}
+      </label>
       {children}
-      {help && <span style={{ ...muted, fontSize: '0.72rem' }}>{help}</span>}
       {error && <span role="alert" style={errorStyle}>{error}</span>}
     </div>
   )
@@ -92,14 +102,12 @@ function CoverageCard({ coverage, onReanalyseOutdated, reanalysing }: {
       <h2 id="coverage-title" style={{ fontSize: '1rem', marginBottom: 6 }}>Coverage</h2>
       <p style={muted}>
         {coverage.first_game
-          ? <>Games from <span className="mono">{coverage.first_game}</span> to <span className="mono">{coverage.last_game}</span>. </>
-          : 'No games synced yet. '}
+          ? <><span className="mono">{coverage.first_game}</span> → <span className="mono">{coverage.last_game}</span> · </>
+          : 'No games yet · '}
         <span className="mono">{coverage.synced}</span> synced · <span className="mono">{coverage.analyzed}</span> analysed
         · <span className="mono">{coverage.pending}</span> pending · <span className="mono">{coverage.failed}</span> failed
-      </p>
-      <p style={{ ...muted, marginTop: 2 }}>
-        Practice games (counted separately): <span className="mono">{coverage.practice.played}</span> played
-        · <span className="mono">{coverage.practice.analyzed}</span> analysed
+        {' · practice '}<span className="mono">{coverage.practice.played}</span> played,
+        {' '}<span className="mono">{coverage.practice.analyzed}</span> analysed
       </p>
 
       {coverage.mixed_settings && (
@@ -108,8 +116,7 @@ function CoverageCard({ coverage, onReanalyseOutdated, reanalysing }: {
           background: 'rgba(229, 176, 75, 0.08)', ...muted,
         }}>
           Your analysed games span {coverage.analyzed_with.length} engine settings:{' '}
-          {coverage.analyzed_with.map(c => `${c.label} (${c.games})`).join(', ')}. Reports compare only games
-          analysed with matching settings.
+          {coverage.analyzed_with.map(c => `${c.label} (${c.games})`).join(', ')}.
         </div>
       )}
 
@@ -170,7 +177,7 @@ function CoverageCard({ coverage, onReanalyseOutdated, reanalysing }: {
                     <td style={{ padding: '6px 8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ ...muted, whiteSpace: 'nowrap' }}>
-                          {m.analyzed_with.map(c => `${c.label}${m.analyzed_with.length > 1 ? ` (${c.games})` : ''}`).join(' · ') || '—'}
+                          {m.analyzed_with.map(c => `${c.label}${m.analyzed_with.length > 1 ? ` (${c.games})` : ''}`).join(' · ') || 'none'}
                         </span>
                         {/* Share of the month analysed, against the busiest month. */}
                         <span aria-hidden="true" style={{
@@ -217,7 +224,7 @@ function EngineCard({ kind, title, intro, draft, onChange, active, bounds, error
     <section className="card" aria-labelledby={id('title')}>
       <h2 id={id('title')} style={{ fontSize: '1rem', marginBottom: 4 }}>{title}</h2>
       <p style={{ ...muted, marginBottom: 12 }}>
-        {intro} Active: <span className="mono">{active.label}</span>.
+        {intro && <>{intro} · </>}Active <span className="mono">{active.label}</span>
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Field id={id('sweep')} label={`Scan time per move (${bounds.sweep_min}–${bounds.sweep_max} ms)`}
@@ -264,8 +271,7 @@ function EstimateLine({ label, e, extra }: { label: string; e: KindEstimate | un
   if (!e.measured || e.per_game_ms == null) {
     return (
       <p style={muted}>
-        {label}: no estimate yet. Timings are recorded as games are analysed; after three, this shows a
-        measured figure.
+        {label}: no estimate yet (needs three analysed games).
       </p>
     )
   }
@@ -308,6 +314,7 @@ export function Settings() {
     mutationFn: (d: Draft) => api.settings.save({
       sync_from: orNull(d.sync_from), sync_to: orNull(d.sync_to),
       analysis_from: orNull(d.analysis_from), analysis_to: orNull(d.analysis_to),
+      analysis_time_classes: d.time_classes,
       library: toEngine(d.library), practice: toEngine(d.practice),
     }),
     onSuccess: r => {
@@ -323,7 +330,7 @@ export function Settings() {
         r.saved.practice_version_created && r.saved.settings.practice.label,
       ].filter(Boolean)
       setNotice(made.length
-        ? `Saved. New engine settings: ${made.join(', ')}. Games analysed from now on record this version; earlier games keep theirs.`
+        ? `Saved. New engine settings: ${made.join(', ')} (earlier games keep theirs).`
         : 'Saved.')
       qc.invalidateQueries({ queryKey: ['settings'] })
       qc.invalidateQueries({ queryKey: ['settings-coverage'] })
@@ -347,18 +354,19 @@ export function Settings() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 920 }}>
       <div>
         <h1 style={{ fontSize: '1.3rem' }}>Settings</h1>
-        <p style={muted}>Which games are synced and analysed, and how deeply the engine looks at them.</p>
       </div>
+
+      <LibraryCard />
 
       <CoverageCard coverage={coverage} reanalysing={reanalyse.isPending}
                     onReanalyseOutdated={() => { praxInteract('PRIMARY_ACTION'); reanalyse.mutate() }} />
 
       <section className="card" aria-labelledby="ranges-title">
-        <h2 id="ranges-title" style={{ fontSize: '1rem', marginBottom: 4 }}>Date ranges</h2>
-        <p style={{ ...muted, marginBottom: 12 }}>
-          Games already stored outside a range are kept. A range decides what gets fetched and analysed from
-          now on; it doesn't delete anything.
-        </p>
+        <h2 id="ranges-title" style={{ fontSize: '1rem', marginBottom: 12 }}>
+          What to sync and analyse
+          <span title="A range decides what is fetched and analysed from now on. Games already stored are never deleted."
+                style={{ marginLeft: 6, color: 'var(--text-tertiary)', cursor: 'help', fontWeight: 400 }}>ⓘ</span>
+        </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 16 }}>
           <fieldset style={{ border: 'none', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
             <legend style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: 6 }}>Sync</legend>
@@ -372,9 +380,7 @@ export function Settings() {
                        onChange={e => set({ sync_to: e.target.value })} />
               </Field>
             </div>
-            <span style={{ ...muted, fontSize: '0.72rem' }}>
-              Leave both empty for the default: Sync Now fetches this month, Re-Sync the last three.
-            </span>
+            <span style={{ ...muted, fontSize: '0.72rem' }}>Empty: this month (Sync Now), last three (Re-Sync).</span>
             {errors.sync_range && <span role="alert" style={errorStyle}>{errors.sync_range}</span>}
           </fieldset>
           <fieldset style={{ border: 'none', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
@@ -389,35 +395,50 @@ export function Settings() {
                        onChange={e => set({ analysis_to: e.target.value })} />
               </Field>
             </div>
-            <span style={{ ...muted, fontSize: '0.72rem' }}>
-              Analyze Pending and Re-analyze All act only on games inside this range. Either end may be left open.
-            </span>
             {errors.analysis_range && <span role="alert" style={errorStyle}>{errors.analysis_range}</span>}
+            <div role="group" aria-label="Time controls to analyse" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>
+              {TIME_CLASSES.map(tc => (
+                <label key={tc} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', textTransform: 'capitalize' }}>
+                  <input type="checkbox" checked={draft.time_classes.includes(tc)}
+                         onChange={e => set({ time_classes: e.target.checked
+                           ? TIME_CLASSES.filter(t => t === tc || draft.time_classes.includes(t))
+                           : draft.time_classes.filter(t => t !== tc) })} />
+                  {tc}
+                </label>
+              ))}
+            </div>
+            <span style={{ ...muted, fontSize: '0.72rem' }}
+                  title="Every game is synced. Mixing speeds blurs the patterns (bullet blunders are mostly the clock), so rapid alone is the default.">
+              Only ticked speeds are analysed.
+            </span>
+            {errors.analysis_time_classes && <span role="alert" style={errorStyle}>{errors.analysis_time_classes}</span>}
           </fieldset>
         </div>
       </section>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 16 }}>
-        <EngineCard kind="library" title="Engine — your Chess.com games"
-                    intro="Used when analysing synced games." draft={draft.library}
+        <EngineCard kind="library" title="Engine for your Chess.com games"
+                    intro="" draft={draft.library}
                     onChange={d => set({ library: d })} active={view.library} bounds={b} errors={errors} />
-        <EngineCard kind="practice" title="Engine — practice games"
-                    intro={`A practice report must arrive within ${fmtDuration(b.practice_budget_ms)}, so these are checked against that.`}
+        <EngineCard kind="practice" title="Engine for practice games"
+                    intro={`Must finish within ${fmtDuration(b.practice_budget_ms)}`}
                     draft={draft.practice} onChange={d => set({ practice: d })}
                     active={view.practice} bounds={b} errors={errors} />
       </div>
+
+      <AiModelsCard />
 
       <section className="card" aria-labelledby="estimate-title">
         <h2 id="estimate-title" style={{ fontSize: '1rem', marginBottom: 6 }}>Estimated time</h2>
         <EstimateLine label="Chess.com games" e={estimate?.library}
                       extra={estimate?.library_total_ms != null
-                        ? <> — re-analysing the {estimate.games_in_range} game{estimate.games_in_range === 1 ? '' : 's'} in
+                        ? <>. Re-analysing the {estimate.games_in_range} game{estimate.games_in_range === 1 ? '' : 's'} in
                             range: ≈ <span className="mono">{fmtDuration(estimate.library_total_ms)}</span></>
                         : null} />
         <EstimateLine label="Practice games" e={estimate?.practice}
                       extra={estimate?.practice_within_budget === false
-                        ? <span style={{ color: 'var(--loss)' }}> — over the report window</span>
-                        : estimate?.practice_within_budget ? ' — within the report window' : null} />
+                        ? <span style={{ color: 'var(--loss)' }}>, over the report window</span>
+                        : estimate?.practice_within_budget ? ', within the report window' : null} />
         {errors.practice_budget && <p role="alert" style={errorStyle}>{errors.practice_budget}</p>}
       </section>
 
@@ -428,7 +449,7 @@ export function Settings() {
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
         {notice && <span role="status" style={muted}>{notice}</span>}
         {Object.keys(errors).length > 0 && (
-          <span role="alert" style={errorStyle}>Some settings need fixing — see the highlighted fields.</span>
+          <span role="alert" style={errorStyle}>Some settings need fixing. See the highlighted fields.</span>
         )}
         <button className="solid" onClick={() => { praxInteract('PRIMARY_ACTION'); save.mutate(draft) }}
                 disabled={save.isPending}>

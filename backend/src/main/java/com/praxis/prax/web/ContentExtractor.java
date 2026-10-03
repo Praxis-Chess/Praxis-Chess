@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * banners, related-article rails and footers, because on a modern page those
  * outnumber the article and would fill the model's context with menu items.
  *
- * The budget is small on purpose. OllamaChatClient runs at num_ctx 4096, so
+ * The budget is small on purpose. Prax runs in a 4096-token context, so
  * three pages at 1500 characters is already most of the window before the
  * question, the system prompt and the answer are counted.
  */

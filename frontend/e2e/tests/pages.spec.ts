@@ -88,6 +88,19 @@ test.describe('Library', () => {
     await expect(app.main).toContainText('Sicilian Defense')
   })
 
+  test('"Needs analysis" holds only games that will be analysed', async ({ page, api }) => {
+    api.json('/api/games', [
+      { ...data.games[2], in_analysis_scope: true },                        // rapid, pending: waiting
+      { ...data.games[2], id: 'a1000000-0000-4000-8000-000000000009', opening_name: 'Bullet Scramble',
+        time_class: 'bullet', in_analysis_scope: false },                   // bullet: synced on purpose
+    ])
+    const app = new AppPage(page)
+    await app.goto('/library')
+
+    await expect(app.main).toContainText('Needs analysis (1)')
+    await expect(page.getByRole('link', { name: /Bullet Scramble/ })).toContainText('not analysed')
+  })
+
   test('renders an empty library without erroring', async ({ page, api, consoleErrors }) => {
     api.json('/api/games', [])
 
@@ -107,6 +120,56 @@ test.describe('Insights', () => {
     await expect(app.main).toContainText(/accuracy/i)
     // Opponent-strength buckets come straight from the fixture.
     await expect(app.main).toContainText('1200-1400')
+  })
+
+  test('draws Elo beside accuracy, on its own axis', async ({ page }) => {
+    const app = new AppPage(page)
+    await app.goto('/insights')
+
+    await expect(app.main).toContainText('Accuracy & Elo Trend')
+    const chart = page.getByLabel('Accuracy and Elo trend')
+    await expect(chart.getByText('Elo', { exact: true })).toBeVisible()
+    await expect(chart.getByText('10-game avg', { exact: true })).toBeVisible()
+    // The right-hand axis is fitted to the fixture's ratings (1180-1224), not 0-100.
+    await expect(chart).toContainText('1250')
+    await expect(chart).toContainText('1150')
+  })
+
+  test('without ratings, the chart stays the accuracy trend it was', async ({ page, api }) => {
+    api.json('/api/insights', { ...data.insights,
+      accuracy_trend: data.insights.accuracy_trend.map(p => ({ ...p, rating: null })) })
+    const app = new AppPage(page)
+    await app.goto('/insights')
+
+    await expect(app.main).toContainText('Accuracy Trend')
+    await expect(page.getByLabel('Accuracy and Elo trend').getByText('Elo', { exact: true })).toHaveCount(0)
+  })
+
+  test('opens on the analysed time control and switches speeds on request', async ({ page, api }) => {
+    const app = new AppPage(page)
+    await app.goto('/insights')
+
+    const picker = page.getByRole('group', { name: 'Time control' })
+    await expect(picker.getByRole('button', { name: 'Rapid · 113' })).toHaveAttribute('aria-pressed', 'true')
+    // The first load leaves the choice to the server (rapid by default).
+    expect(api.requested).toContain('/api/insights')
+
+    api.json('/api/insights', { ...data.insights, time_class: null,
+      accuracy_trend: data.insights.accuracy_trend.map(p => ({ ...p, rating: null })) })
+    await picker.getByRole('button', { name: 'All' }).click()
+    await expect(picker.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+    expect(api.requested).toContain('/api/insights?time_class=all')
+    // Ratings differ per speed, so the mixed view draws no Elo line.
+    await expect(page.getByLabel('Accuracy and Elo trend').getByText('Elo', { exact: true })).toHaveCount(0)
+  })
+
+  test('a thrown-away win links to the move where it slipped', async ({ page }) => {
+    const app = new AppPage(page)
+    await app.goto('/insights')
+
+    const row = page.getByRole('link', { name: /Sicilian Defense/ })
+    await expect(row).toContainText('slipped at 24.f3')
+    await expect(row).toHaveAttribute('href', '/games/a1000000-0000-4000-8000-000000000002?ply=47&from=thrown')
   })
 
   test('survives an insights endpoint failure', async ({ page, api }) => {

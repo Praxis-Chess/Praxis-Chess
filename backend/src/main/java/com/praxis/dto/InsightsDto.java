@@ -16,14 +16,23 @@ public record InsightsDto(
         Conversion conversion,
         List<MotifCount> missedTactics,
         Tilt tilt,
-        List<OpeningInsight> openings
+        List<OpeningInsight> openings,
+        String timeClass,
+        List<TimeClassCount> timeClasses
 ) {
+
+    /**
+     * The time class these insights cover ({@code timeClass}, null = all), and every
+     * time class in the library with its game count, for the page's selector.
+     */
+    public record TimeClassCount(String timeClass, int games, boolean analysed) {}
 
     // Win rate + accuracy vs stronger / even / weaker opponents.
     public record OpponentBucket(String bucket, int games, int wins, double winPct, Double avgAccuracy) {}
 
     // Per-game accuracy over time with a rolling average.
-    public record AccuracyTrendPoint(String date, double accuracy, double movingAvg) {}
+    /** @param rating the player's rating in that game, drawn beside accuracy; null when not recorded */
+    public record AccuracyTrendPoint(String date, double accuracy, double movingAvg, Integer rating) {}
 
     // Win rate grouped by a time bucket (part of day or weekday).
     public record TimeBucket(String label, int games, int wins, double winPct) {}
@@ -41,7 +50,13 @@ public record InsightsDto(
     // Winning-position conversion.
     public record Conversion(int winningGames, int converted, double conversionPct, List<BlownGame> blownGames) {}
 
-    public record BlownGame(String gameId, String openingName, double maxAdvantage, String result, String playedAt) {}
+    /**
+     * @param turningPly  the ply of the move that let the win go, for Game Analysis to open on;
+     *                    null when the game has no recorded mistakes
+     * @param turningMove that move as a reader writes it, e.g. "24.f3"
+     */
+    public record BlownGame(String gameId, String openingName, double maxAdvantage, String result, String playedAt,
+                            Integer turningPly, String turningMove) {}
 
     // Frequency of missed tactical motifs.
     public record MotifCount(String motif, int count) {}

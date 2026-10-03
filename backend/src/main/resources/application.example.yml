@@ -66,6 +66,28 @@ praxis-chess:
     # which spends its whole output budget inside <think> and returns an empty
     # answer. ~3.6GB — mostly fits a 4GB card, ~18% of layers stay on CPU.
     reasoning-model: qwen3:4b-instruct
+  # Optional: a cloud model provider instead of Ollama, chosen per feature.
+  # Default (this block absent or use-cloud-for empty): everything runs on Ollama
+  # and nothing leaves this machine. A listed feature sends your positions and
+  # game data to the provider. Any OpenAI-compatible endpoint works: OpenAI,
+  # OpenRouter, Groq, Together, DeepSeek, Mistral, Gemini's compatible endpoint,
+  # or a local LM Studio / vLLM server (no key needed).
+  # The trained commentary model (commentary-model above) always stays on Ollama.
+  # ai:
+  #   use-cloud-for: [prax, explanations, reports]   # any subset
+  #   cloud:
+  #     base-url: https://api.openai.com/v1
+  #     api-key: ${PRAXIS_AI_API_KEY:}                # set the environment variable; keep keys out of files
+  #     model: gpt-4o-mini                            # default for every listed feature
+  #     # prax-model: …                               # optional per-feature overrides
+  #     # explanation-model: …
+  #     # report-model: …
+  #     # json-mode: false                            # only if the provider rejects response_format
+  #     # max-tokens:                                 # per answer kind; defaults 1024 / 2048
+  #     #   explanation: 1024                         # explanation, insight, report, tool_turn, chat_answer
+  #     #   report: 2048
+  #     # reasoning: true                             # o-series, DeepSeek-R1 and similar: more room,
+  #     #                                             # max_completion_tokens, no temperature
   chess-com:
     username: YOUR_CHESS_COM_USERNAME_HERE
   tts:

@@ -116,6 +116,7 @@ export class ApiMock {
     // Settings — Insights also reads the coverage, for its mixed-settings notice.
     this.json('/api/settings', data.settingsView)
     this.json('/api/settings/coverage', data.coverage)
+    this.json('/api/settings/ai', data.aiLocal)
     this.json('/api/settings/estimate', data.estimate)
     this.json('/api/analysis/progress', data.analysisIdle)
     this.json('/api/dashboard/stats', data.dashboardStats)

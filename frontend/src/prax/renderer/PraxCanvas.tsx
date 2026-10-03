@@ -287,7 +287,7 @@ function PraxScene() {
  * pointer-events is `none` permanently: the canvas is fullscreen and fixed, so
  * any other value would swallow every click in the app.
  */
-export function PraxCanvas() {
+export function PraxCanvas({ hidden = false }: { hidden?: boolean }) {
   if (!webglAvailable) return null
 
   return (
@@ -299,6 +299,8 @@ export function PraxCanvas() {
           inset: 0,
           zIndex: 50, // above the sync banner, below the nav (100)
           pointerEvents: 'none',
+          // Hidden, never unmounted: the body survives pages that don't show it.
+          visibility: hidden ? 'hidden' : 'visible',
         }}
       >
         <PraxScene />

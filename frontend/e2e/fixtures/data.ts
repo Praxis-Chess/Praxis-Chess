@@ -11,7 +11,7 @@
  * ids — tests must not depend on the operator's personal data, and this file is
  * committed.
  */
-import type {
+import type { AiStatus,
   AnalysisProgress,
   MistakeWhy,
   LabelCard,
@@ -192,10 +192,10 @@ export const insights: Insights = {
     { bucket: 'Above 1400', games: 19, wins: 6, win_pct: 31.6, avg_accuracy: 63.0 },
   ],
   accuracy_trend: [
-    { date: '2026-08-10', accuracy: 63.1, moving_avg: 64.0 },
-    { date: '2026-08-14', accuracy: 66.8, moving_avg: 65.2 },
-    { date: '2026-08-17', accuracy: 70.2, moving_avg: 66.9 },
-    { date: '2026-08-20', accuracy: 71.4, moving_avg: 68.2 },
+    { date: '2026-08-10', accuracy: 63.1, moving_avg: 64.0, rating: 1180 },
+    { date: '2026-08-14', accuracy: 66.8, moving_avg: 65.2, rating: 1196 },
+    { date: '2026-08-17', accuracy: 70.2, moving_avg: 66.9, rating: 1210 },
+    { date: '2026-08-20', accuracy: 71.4, moving_avg: 68.2, rating: 1224 },
   ],
   time_of_day: [
     { label: 'Morning', games: 18, wins: 10, win_pct: 55.6 },
@@ -223,6 +223,8 @@ export const insights: Insights = {
         max_advantage: 5.3,
         result: 'loss',
         played_at: '2026-08-20T17:44:00Z',
+        turning_ply: 47,
+        turning_move: '24.f3',
       },
     ],
   },
@@ -240,6 +242,12 @@ export const insights: Insights = {
   openings: [
     { eco: 'A01', name: 'Nimzovich-Larsen Attack', games: 12, win_pct: 33.3, avg_accuracy: 49.2 },
     { eco: 'B20', name: 'Sicilian Defense', games: 21, win_pct: 52.4, avg_accuracy: 68.8 },
+  ],
+  // Opens on rapid, the analysed time class; bullet is synced but not analysed.
+  time_class: 'rapid',
+  time_classes: [
+    { time_class: 'bullet', games: 64, analysed: false },
+    { time_class: 'rapid', games: 113, analysed: true },
   ],
 }
 
@@ -546,6 +554,7 @@ export const settingsView: AppSettingsView = {
   sync_to: null,
   analysis_from: null,
   analysis_to: null,
+  analysis_time_classes: ['rapid'],
   library: {
     id: 1, label: 'library-v0', sweep_move_time_ms: 100, multi_pv_depth: 18,
     multi_pv_lines: 3, max_explanations: 3, created_at: '2026-09-22T10:00:00Z',
@@ -872,4 +881,29 @@ export const scholarsWhy: MistakeWhy = {
     },
   },
   facts: [],
+}
+
+// ── AI models (Settings) ──────────────────────────────────────────────────────
+
+/** The default: everything on Ollama, nothing configured for the cloud. */
+export const aiLocal: AiStatus = {
+  features: [
+    { feature: 'prax', label: 'Prax chat', cloud: false, model: 'qwen3:4b-instruct', requested: false, always_local: false },
+    { feature: 'explanations', label: 'Move explanations', cloud: false, model: 'qwen2.5:7b', requested: false, always_local: false },
+    { feature: 'reports', label: "Pattern report, training plan, today's insight", cloud: false, model: 'qwen2.5:7b', requested: false, always_local: false },
+    { feature: 'commentary', label: 'Checked commentary (your trained model)', cloud: false, model: 'praxis-grid-2b-r3', requested: false, always_local: true },
+  ],
+  cloud_configured: false,
+  key_set: false,
+  cloud_host: null,
+}
+
+/** Prax and the reports sent to a configured cloud provider. */
+export const aiCloud: AiStatus = {
+  ...aiLocal,
+  features: aiLocal.features.map(f => f.feature === 'prax' || f.feature === 'reports'
+    ? { ...f, cloud: true, requested: true, model: 'gpt-4o-mini' } : f),
+  cloud_configured: true,
+  key_set: true,
+  cloud_host: 'api.openai.com',
 }

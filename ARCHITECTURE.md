@@ -22,19 +22,20 @@
 12. [Web Research](#web-research)
 13. [Ask Prax — The Workspace](#ask-prax--the-workspace)
 14. [Play & Improve](#play--improve)
-15. [Practice Streaks](#practice-streaks)
-16. [Testing Strategy](#testing-strategy)
-17. [Schema Repair and Backfills](#schema-repair-and-backfills)
-18. [Prax — Presence & Voice](#prax--presence--voice)
-19. [Frontend Architecture](#frontend-architecture)
-20. [Backend Architecture](#backend-architecture)
-21. [Progress Tracking](#progress-tracking)
-22. [Key Design Decisions](#key-design-decisions)
-23. [REST API Reference](#rest-api-reference)
-24. [Non-Functional Considerations](#non-functional-considerations)
-25. [Future Considerations](#future-considerations)
-26. [Hardware Reality](#hardware-reality)
-27. [How It All Connects (High Level)](#how-it-all-connects-high-level)
+15. [Evidence Graph and Verified Diagnosis](#evidence-graph-and-verified-diagnosis)
+16. [Practice Streaks](#practice-streaks)
+17. [Testing Strategy](#testing-strategy)
+18. [Schema Repair and Backfills](#schema-repair-and-backfills)
+19. [Prax — Presence & Voice](#prax--presence--voice)
+20. [Frontend Architecture](#frontend-architecture)
+21. [Backend Architecture](#backend-architecture)
+22. [Progress Tracking](#progress-tracking)
+23. [Key Design Decisions](#key-design-decisions)
+24. [REST API Reference](#rest-api-reference)
+25. [Non-Functional Considerations](#non-functional-considerations)
+26. [Future Considerations](#future-considerations)
+27. [Hardware Reality](#hardware-reality)
+28. [How It All Connects (High Level)](#how-it-all-connects-high-level)
 
 ---
 
@@ -1099,6 +1100,92 @@ not the same claim.** The report now gates on `AnalysisStatus.ANALYZED`.
 
 ---
 
+## Evidence Graph and Verified Diagnosis
+
+```
+evidence/                            Attacks, See, ThreatProbe, DepthCurve, PositionDiff, …
+evidence/graph/EvidenceGraph         one mistake's facts, typed; items() gives the citable IDs
+evidence/graph/EvidenceGraphBuilder  Stockfish (deterministic) → EvidenceGraph
+evidence/graph/Representations       R0–R3 text; R3 is one "[ID] text" line per item
+evidence/graph/GraphBudget           ≤ 40 items, ≈ 900 tokens; never drops CF1/T1/D1
+evidence/diagnosis/DiagnosisRules    the rules' diagnosis; UNCLEAR on composites
+evidence/diagnosis/DiagnosisVerifier claim mode (vs the full graph) and citation mode
+evidence/diagnosis/AnswerSchema      the answer's JSON schema, from the verifier's vocabularies
+evidence/eval/EvalCli, DatasetCli    the same code, run from the command line for training/
+service/diagnosis/DiagnosisService   build, rebuild, current-for-game, comment
+service/diagnosis/LibraryDiagnosisJob  backfill on analysisExecutor, stoppable
+service/diagnosis/TrainedCommentary  the fine-tuned 2B, asked in its training format
+domain/MistakeEvidence               table mistake_evidence: graph, rules, verdict, commentary, label
+```
+
+This is what the per-move LLM's free text was replaced with. The engine
+computes the facts, the rules state the cause, and the verifier checks every
+claim before it reaches a card. The LoRA research (`training/reports/writeup_v1.md`)
+was run on exactly this code.
+
+```mermaid
+flowchart LR
+    A[game commits<br/>AnalysisPipelineOrchestrator.diagnose] --> D[DiagnosisService.buildForGame]
+    D --> B[EvidenceGraphBuilder<br/>Stockfish, depth 14]
+    B --> G[(mistake_evidence.graph_json)]
+    G --> R[DiagnosisRules]
+    R --> V{DiagnosisVerifier<br/>claim mode}
+    V -->|passed| H["✓ Verified" headline]
+    G --> T[TrainedCommentary<br/>praxis-grid-2b-r3]
+    T --> V2{DiagnosisVerifier<br/>claim mode}
+    V2 -->|every claim true| C["AI commentary · checked"]
+    V2 -->|any claim false| K[stored, never shown]
+```
+
+**The rules write the headline; the model only comments.** The pre-registered
+comparison (`training/PREREGISTRATION.md`, decision "ship the rules") fixed the
+roles:
+- `DiagnosisRules` produces the diagnosis on every mistake, and it is verified
+  before it is shown.
+- The trained model states 99.7% true claims, but did not prove non-inferior to
+  the rules on fresh human labels. So it writes the commentary beside the
+  headline, never the headline itself.
+
+**The verifier checks against the full graph, always.** Whatever a model was
+shown (R0–R3, or an ablated R3), its claims are checked against every fact the
+engine computed. Citation mode (do the cited IDs support the claim?) applies
+only where IDs were visible. One checker serves three callers: the cards, the
+research harness and the commentary.
+
+**Diagnoses are versioned, so a rule change is a rebuild, not a migration.**
+Each row records `graph_version` and the analysis settings that produced it.
+`DiagnosisService.coverage()` counts missing and stale rows, and
+`LibraryDiagnosisJob` works through them 25 at a time:
+- first the stale rows, keeping their hand labels;
+- then the missing ones;
+- then the commentary.
+
+It runs on the single-threaded `analysisExecutor`, so it never competes with an
+analysis run for Stockfish. A batch that fixes nothing ends the job rather than
+retrying the same failures forever.
+
+**The commentary model is asked exactly as it was trained.** `TrainedCommentary`
+builds the ChatML prompt by hand and sends it to Ollama's raw `/api/generate`:
+- the dataset's system line, then the R3 render, then an assistant turn whose
+  thinking block is already closed;
+- greedy and seeded;
+- constrained by `AnswerSchema.jsonSchema()`.
+
+Raw mode is deliberate: Ollama's chat endpoint did not apply the JSON schema to
+Qwen3.5 models. The feature is off unless
+`praxis-chess.ollama.commentary-model` is set.
+
+**Endpoints.**
+- `GET/POST /api/diagnosis/library`, `POST /api/diagnosis/library/stop`: the
+  backfill job.
+- `GET /api/diagnosis/why/{gameId}/{ply}`: the "Why?" panel and Prax's
+  `explain_mistake`.
+- `GET /api/diagnosis/next`, `POST /api/diagnosis/label/{id}`: hand labelling.
+- `MoveErrorDto.verified` carries the diagnosis and the checked commentary to
+  every card.
+
+---
+
 ## Practice Streaks
 
 ```
@@ -1667,6 +1754,60 @@ repairs rather than hope — see
 skipping Flyway is accepted knowingly: for a single-user local app the migration
 ceremony costs more than it returns, but the cost is *this*, and it is paid every
 time a column changes shape.
+
+### 17. Model providers behind one port, routed per feature
+
+```
+ai/LlmProvider              the port: chat(ChatRequest), complete(CompletionRequest), health()
+ai/ChatMessage, ToolCall, ToolSpec, ChatRequest, ChatResult, CompletionRequest
+                            provider-neutral types; no vendor wire format above the adapters
+ai/ollama/OllamaProvider    /api/chat with tools, /api/generate in JSON mode (the default)
+ai/openai/OpenAiCompatibleProvider   /chat/completions: OpenAI, OpenRouter, Groq, LM Studio, …
+ai/ModelRouter              Feature → (provider, model); the only reader of the AI config
+```
+
+Callers (`PraxAgent`, `AnalysisLlmClient`, `TodayInsightService`) depend on
+`ModelRouter` and `LlmProvider`, never on a vendor:
+- **Each adapter owns its wire format.** Ollama takes tool arguments as objects
+  and no ids; chat-completions wants ids, JSON-string arguments and results
+  matched by `tool_call_id`. The agent's run-scoped `callId` doubles as the
+  tool-call id, so pairing is exact on every provider.
+- **Routing is per feature.** Ollama by default; the cloud only for features listed
+  in `praxis-chess.ai.use-cloud-for` *and* with a provider configured.
+- **Adding a provider** (Anthropic, say) is one adapter and a configuration value;
+  no caller changes.
+- **The key stays on the server.** It goes in an `Authorization` header and
+  nowhere else, and Settings shows only whether one is set.
+- **`chat` never throws.** A failing provider returns an empty result, which the
+  agent already reports as "couldn't reach the model".
+- **`health()` really checks.** Ollama `/api/tags`; the cloud provider `/models`,
+  cached for a minute.
+- **Callers state what kind of answer they want, not a token count.** The
+  `OutputBudget` values are explanation, insight, report, tool turn and chat
+  answer. Each provider turns that into its own limit:
+  - **Ollama** keeps tight limits (200 / 256 / 768 / 1,600 / 700) to stop a small
+    model rambling on a 4 GB GPU. They sit about three times above the answer
+    lengths measured in this library.
+  - **The cloud provider** gets generous defaults (1,024–2,048), overridable per
+    answer kind, since it bills only for what the model writes.
+  - **A reasoning model** gets four times the room, `max_completion_tokens`, and no
+    sampling parameters.
+- **A cut-off is detected, not guessed.** Ollama reports `done_reason: "length"`;
+  chat-completions reports `finish_reason: "length"`.
+  - `completeWithRetry` and `chatWithRetry` log the cut-off and retry once with
+    twice the room.
+  - A second cut-off fails with the budget's name, so the caller's fallback runs
+    with a reason in the log.
+- **Limits go where Ollama reads them.** Until 2026-10-03 `/api/generate` was sent
+  `num_predict` and `num_ctx` at the top level, which Ollama ignores, so no local
+  completion was capped. A probe confirmed it: 391 tokens with a top-level cap of
+  8, and exactly 8 with the cap inside `options`. Limits now go in `options`.
+  `num_ctx` is left out: the ignored value never ran, and setting one makes
+  Ollama reload the model.
+
+Two model calls deliberately bypass the router. `TrainedCommentary` and the
+evidence lab run this project's own fine-tuned files, which exist only in Ollama,
+and they need Ollama's raw prompt mode.
 
 ---
 

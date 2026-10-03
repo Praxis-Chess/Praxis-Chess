@@ -1,5 +1,9 @@
 package com.praxis.service.ai;
 
+import com.praxis.ai.CompletionRequest;
+import com.praxis.ai.Feature;
+import com.praxis.ai.ModelRouter;
+import com.praxis.ai.OutputBudget;
 import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.MoveError;
@@ -9,14 +13,10 @@ import com.praxis.dto.TodayInsightDto;
 import com.praxis.dto.TodayInsightDto.Evidence;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
-import com.praxis.service.ai.dto.OllamaOptions;
-import com.praxis.service.ai.dto.OllamaRequest;
-import com.praxis.service.ai.dto.OllamaGenerateResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
  *
  * Phase 5 constraints:
  *   - availableFields contract: the model receives only aggregate statistics, never raw PGN or FEN
- *   - Temperature ≤ 0.3 (uses OllamaOptions.structured() = 0.2)
+ *   - Temperature ≤ 0.3 (CompletionRequest.structured() = 0.2)
  *   - Response validated against TodayInsightDto.isValid(); falls back to template on failure
  *   - The model may not reference any field that is not present in the prompt
  */
@@ -39,19 +39,18 @@ public class TodayInsightService {
     private final GameRepository gameRepository;
     private final AppProperties appProperties;
     private final ObjectMapper objectMapper;
-    private final RestClient restClient;
+    private final ModelRouter router;
 
     public TodayInsightService(MoveErrorRepository moveErrorRepository,
                                GameRepository gameRepository,
                                AppProperties appProperties,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper,
+                               ModelRouter router) {
+        this.router = router;
         this.moveErrorRepository = moveErrorRepository;
         this.gameRepository = gameRepository;
         this.appProperties = appProperties;
         this.objectMapper = objectMapper;
-        this.restClient = RestClient.builder()
-                .baseUrl(appProperties.ollama().baseUrl())
-                .build();
     }
 
     public TodayInsightDto generate() {
@@ -60,23 +59,12 @@ public class TodayInsightService {
         String prompt = buildPrompt(fields);
 
         try {
-            String model = appProperties.ollama().reportModel();
-            if (model == null || model.isBlank()) model = appProperties.ollama().model();
+            // Structured: a short answer that must follow the contract closely.
+            ModelRouter.Route route = router.forFeature(Feature.REPORTS);
+            String text = route.provider().completeWithRetry(
+                    CompletionRequest.structured(route.model(), prompt, OutputBudget.INSIGHT));
 
-            OllamaRequest req = new OllamaRequest(
-                    model, prompt, false, "json", 256, "2h", 2048,
-                    OllamaOptions.structured()); // temperature = 0.2
-
-            OllamaGenerateResponse raw = restClient.post()
-                    .uri("/api/generate")
-                    .body(req)
-                    .retrieve()
-                    .body(OllamaGenerateResponse.class);
-
-            if (raw == null || raw.response() == null) throw new RuntimeException("null response");
-
-            String json = raw.response()
-                    .replaceAll("```json", "").replaceAll("```", "").trim();
+            String json = text.replaceAll("```json", "").replaceAll("```", "").trim();
 
             TodayInsightDto result = objectMapper.readValue(json, TodayInsightDto.class);
             if (result.isValid()) {

@@ -42,4 +42,13 @@ public class AppSettings {
 
     @Column(name = "analysis_to")
     private LocalDate analysisTo;
+
+    /**
+     * Chess.com time classes that get analysed, comma-separated (e.g. "rapid,blitz").
+     * Null means the default, rapid only. Sync still fetches every time class:
+     * this only decides which games the engine and the patterns spend time on,
+     * so bullet's time-scramble blunders don't drown out rapid weaknesses.
+     */
+    @Column(name = "analysis_time_classes", length = 64)
+    private String analysisTimeClasses;
 }
