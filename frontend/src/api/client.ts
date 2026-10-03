@@ -1,4 +1,4 @@
-import type {
+import type { AiStatus,
   AnalysisProgress,
   MistakeWhy,
   LabelReview,
@@ -105,7 +105,9 @@ export const api = {
   },
 
   insights: {
-    get: () => request<Insights>('/insights'),
+    /** No time class: the server's default (the analysed one); 'all' for every game. */
+    get: (timeClass?: string) =>
+      request<Insights>(timeClass ? `/insights?time_class=${encodeURIComponent(timeClass)}` : '/insights'),
   },
 
   drills: {
@@ -187,6 +189,8 @@ export const api = {
       return { ok: true, saved: (await res.json()) as SettingsSaved }
     },
     coverage: () => request<Coverage>('/settings/coverage'),
+    /** Where each AI feature runs. Read-only: the provider and key live in application.yml. */
+    ai: () => request<AiStatus>('/settings/ai'),
     /** Measured time estimate for a PROPOSED configuration. Changes nothing. */
     estimate: (body: { library: EngineConfig | null; practice: EngineConfig | null }) =>
       request<SettingsEstimate>('/settings/estimate', { method: 'POST', body: JSON.stringify(body) }),

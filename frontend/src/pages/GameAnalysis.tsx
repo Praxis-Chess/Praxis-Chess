@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useGameAnalysis } from '../hooks/useGameAnalysis'
@@ -31,6 +31,24 @@ export function GameAnalysis() {
   })
 
   const { data: errors, isLoading } = useGameAnalysis(id ?? null)
+
+  // Opened at one move (?ply=47), e.g. from Insights' "Thrown-Away Wins": select
+  // that mistake once its list arrives and bring it into view, so the link lands
+  // on the move it names rather than at the top of a long list.
+  const [params] = useSearchParams()
+  const targetPly = params.get('ply') ? Number(params.get('ply')) : null
+  const fromThrown = params.get('from') === 'thrown'
+  const opened = useRef(false)
+  useEffect(() => {
+    if (opened.current || targetPly == null || !errors?.length) return
+    const hit = errors.find(e => e.move_number === targetPly)
+    if (!hit) return
+    opened.current = true
+    select(hit)
+    requestAnimationFrame(() =>
+      document.getElementById(`mistake-${hit.move_number}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
+  }, [errors, targetPly])
+  const target = targetPly != null ? errors?.find(e => e.move_number === targetPly) : undefined
 
   if (isLoading) return <LoadingSpinner label="Loading analysis…" />
 
@@ -124,10 +142,22 @@ export function GameAnalysis() {
                 </h2>
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>· Click to see position</span>
               </div>
+              {fromThrown && target && (
+                <p role="status" style={{
+                  margin: '0 0 12px', padding: '8px 12px', borderLeft: '2px solid var(--red)',
+                  background: 'var(--surface)', fontSize: '0.8rem', color: 'var(--text-muted)',
+                }}>
+                  You were winning in this game. The win slipped at{' '}
+                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--red)' }}>
+                    {Math.ceil(target.move_number / 2)}{target.move_number % 2 === 1 ? '.' : '...'}{target.move_played}
+                  </span>
+                  , selected below.
+                </p>
+              )}
               {errors
                 .sort((a, b) => a.move_number - b.move_number)
                 .map((error) => (
-                  <div key={error.id}>
+                  <div key={error.id} id={`mistake-${error.move_number}`} style={{ scrollMarginTop: 80 }}>
                     <MoveErrorCard
                       error={error}
                       isSelected={selectedError?.id === error.id}

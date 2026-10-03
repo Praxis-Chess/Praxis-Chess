@@ -45,6 +45,21 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
     @Query("SELECT COUNT(g) FROM Game g WHERE g.username = :username AND g.analysisStatus = :status AND (g.source IS NULL OR g.source = com.praxis.domain.enums.GameSource.CHESS_COM)")
     long countByUsernameAndAnalysisStatus(@Param("username") String username, @Param("status") AnalysisStatus status);
 
+    /**
+     * As above, but only the time classes that are analysed ({@code included}, out of
+     * {@code known}); a game with no Chess.com time class always counts. Pending bullet
+     * games aren't waiting for anything when only rapid is analysed.
+     */
+    @Query("""
+        SELECT COUNT(g) FROM Game g WHERE g.username = :username AND g.analysisStatus = :status
+          AND (g.source IS NULL OR g.source = com.praxis.domain.enums.GameSource.CHESS_COM)
+          AND (g.timeClass IS NULL OR g.timeClass IN :included OR g.timeClass NOT IN :known)
+        """)
+    long countByUsernameAndAnalysisStatusInTimeClasses(@Param("username") String username,
+                                                       @Param("status") AnalysisStatus status,
+                                                       @Param("included") java.util.Collection<String> included,
+                                                       @Param("known") java.util.Collection<String> known);
+
     @Query("SELECT g FROM Game g WHERE g.username = :username AND (g.source IS NULL OR g.source = com.praxis.domain.enums.GameSource.CHESS_COM) ORDER BY g.playedAt DESC")
     List<Game> findRecentByUsername(@Param("username") String username);
 

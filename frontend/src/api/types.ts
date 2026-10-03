@@ -17,6 +17,8 @@ export interface GameSummary {
   player_rating: number
   accuracy: number | null
   mistake_count: number
+  /** Inside the analysis scope (time control, date range). Absent from older servers: treat as true. */
+  in_analysis_scope?: boolean
 }
 
 export type AnalysisState = 'EXPLAINED' | 'SKIPPED' | 'LLM_FAILED'
@@ -210,6 +212,8 @@ export interface AccuracyTrendPoint {
   date: string
   accuracy: number
   moving_avg: number
+  /** Your rating in that game; null when Chess.com did not record one. */
+  rating: number | null
 }
 
 export interface TimeBucket {
@@ -238,6 +242,10 @@ export interface BlownGame {
   max_advantage: number
   result: string
   played_at: string | null
+  /** Ply of the move that let the win go; Game Analysis opens on it. Null if the game has no recorded mistakes. */
+  turning_ply: number | null
+  /** That move as written, e.g. "24.f3". */
+  turning_move: string | null
 }
 
 export interface Conversion {
@@ -278,6 +286,16 @@ export interface Insights {
   missed_tactics: MotifCount[]
   tilt: Tilt
   openings: OpeningInsight[]
+  /** The time class these insights cover; null = every game. */
+  time_class: string | null
+  /** Time classes in the library, in speed order, for the selector. */
+  time_classes: TimeClassCount[]
+}
+
+export interface TimeClassCount {
+  time_class: string
+  games: number
+  analysed: boolean
 }
 
 // --- Drills ---
@@ -588,6 +606,8 @@ export interface AppSettingsView {
   sync_to: string | null
   analysis_from: string | null
   analysis_to: string | null
+  /** Chess.com time classes that get analysed, in speed order. Rapid only by default. */
+  analysis_time_classes: string[]
   library: EngineVersion
   practice: EngineVersion
   bounds: SettingsBounds
@@ -598,8 +618,30 @@ export interface SettingsUpdate {
   sync_to: string | null
   analysis_from: string | null
   analysis_to: string | null
+  /** Omit (or null) to leave the choice unchanged. */
+  analysis_time_classes?: string[] | null
   library: EngineConfig | null
   practice: EngineConfig | null
+}
+
+/** Where one AI feature runs (GET /api/settings/ai). */
+export interface AiFeature {
+  feature: string
+  label: string
+  /** Sent to the cloud provider rather than Ollama on this machine. */
+  cloud: boolean
+  model: string | null
+  /** Listed for the cloud in application.yml (it stays local until a provider is configured). */
+  requested: boolean
+  /** Runs only on Ollama: the trained commentary model. */
+  always_local: boolean
+}
+
+export interface AiStatus {
+  features: AiFeature[]
+  cloud_configured: boolean
+  key_set: boolean
+  cloud_host: string | null
 }
 
 export interface SettingsSaved {

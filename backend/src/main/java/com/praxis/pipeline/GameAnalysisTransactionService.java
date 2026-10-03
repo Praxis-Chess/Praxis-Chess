@@ -11,7 +11,7 @@ import com.praxis.domain.enums.TacticalMotif;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
 import com.praxis.service.EcoTable;
-import com.praxis.service.ai.OllamaAnalysisClient;
+import com.praxis.service.ai.AnalysisLlmClient;
 import com.praxis.service.ai.PromptTemplates;
 import com.praxis.service.ai.dto.MoveAnalysisResult;
 import com.praxis.service.analysis.*;
@@ -53,7 +53,7 @@ public class GameAnalysisTransactionService {
     private final PositionEvaluator positionEvaluator;
     private final MistakeCandidateFilter candidateFilter;
     private final StockfishService stockfishService;
-    private final OllamaAnalysisClient ollamaClient;
+    private final AnalysisLlmClient analysisLlm;
     private final GameRepository gameRepository;
     private final MoveErrorRepository moveErrorRepository;
     private final AppProperties appProperties;
@@ -64,7 +64,7 @@ public class GameAnalysisTransactionService {
                                           PositionEvaluator positionEvaluator,
                                           MistakeCandidateFilter candidateFilter,
                                           StockfishService stockfishService,
-                                          OllamaAnalysisClient ollamaClient,
+                                          AnalysisLlmClient analysisLlm,
                                           GameRepository gameRepository,
                                           MoveErrorRepository moveErrorRepository,
                                           AppProperties appProperties,
@@ -74,7 +74,7 @@ public class GameAnalysisTransactionService {
         this.positionEvaluator = positionEvaluator;
         this.candidateFilter = candidateFilter;
         this.stockfishService = stockfishService;
-        this.ollamaClient = ollamaClient;
+        this.analysisLlm = analysisLlm;
         this.gameRepository = gameRepository;
         this.moveErrorRepository = moveErrorRepository;
         this.appProperties = appProperties;
@@ -348,7 +348,7 @@ public class GameAnalysisTransactionService {
 
         for (int attempt = 1; attempt <= OLLAMA_MAX_RETRIES; attempt++) {
             try {
-                MoveAnalysisResult result = ollamaClient.analyzeMove(prompt, MoveAnalysisResult.class);
+                MoveAnalysisResult result = analysisLlm.analyzeMove(prompt, MoveAnalysisResult.class);
                 return new OllamaResult(result.explanation(), parseMotif(result.tacticalMotif()), AnalysisState.EXPLAINED);
             } catch (Exception e) {
                 if (attempt == OLLAMA_MAX_RETRIES) {

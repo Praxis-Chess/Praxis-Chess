@@ -5,7 +5,24 @@ evidence-grounded mistake explanations. See
 `technical-docs/LORA_IMPLEMENTATION_PLAN.md` for why any of this exists;
 `reports/` holds what each run actually measured.
 
-Phase 1 is a **toolchain spike**, not a model anyone should use. Its job was to
+**Where it stands (2026-10-03).** Version 1 is complete. The pre-registered grid
+(11 LoRA arms, ≈ ₹740 of rented GPU) was judged on the player's 890 mistakes and
+838 held-out public positions:
+
+- 2B-R3-LoRA states **100% true claims** (99.5–99.9%) where the same model,
+  prompted, states 50%, at 4.6 s per answer on the laptop.
+- It still **does not meet** ship rules (b) and (d), so the decision is
+  **ship the rules**: `DiagnosisRules` keeps the verified headline on every
+  mistake, and the trained model writes the checked "AI commentary" beside it.
+
+| Read | For |
+|---|---|
+| [`reports/writeup_v1.md`](reports/writeup_v1.md) | The research write-up: question, method, results, limitations |
+| [`reports/grid_v1.md`](reports/grid_v1.md) | Every pre-registered verdict, with intervals |
+| [`reports/grid_v1_disclosures.md`](reports/grid_v1_disclosures.md) | What changed during the run, and why |
+| [`PREREGISTRATION.md`](PREREGISTRATION.md) | What was promised before training (tag `prereg-v1`) |
+
+Phase 1 was a **toolchain spike**, not a model anyone should use. Its job was to
 find out whether Qwen3.5 can be trained, exported and served on a 4 GB laptop
 GPU before that assumption was built on. It can — `reports/phase1_spike.md` has
 the numbers and the six workarounds it took.
@@ -80,6 +97,14 @@ compared with an earlier one without rerunning it.
 | `build_dataset6.py` | Phase 6: leakage filter, dedupe, split by source, balance, per-R JSONL, manifest. |
 | `teacher.py` | Phase 6: teacher prose and composite chains; scores a pilot in rupees per verified example. |
 | `trained_metrics.py` | Phase 6: a trained model against the Phase 5 baselines, paired, and on held-out A+B. |
+| `ablate.py` | Phase 7: R3 with one evidence line removed (`[CF1]`, `[T1]`, `[Δn]`, `[D1]`), in training and test renders alike. Text only; the graph is never touched. |
+| `tools/make_grid_configs.py` | Phase 7: the 11 arm configs, from one recipe; arms differ only in base model, data folder and rank. |
+| `select_checkpoint.py` | Phase 7: each arm's epoch, chosen by the verifier's claim precision on 200 validation answers, never by loss. |
+| `grid.py` | Phase 8: every arm and the render level it is examined at, read from the configs. |
+| `grid_import.py` | Phase 8: checks each downloaded arm, then `ollama create`. |
+| `quant_delta.py` | Phase 8: bf16 against q4_K_M on the same 300 public items. |
+| `fresh_labels.py` | Phase 8: the labels made after `prereg-v1`, exported from the running backend. |
+| `grid_report.py` | Phase 8: the H1–H5 verdicts and ship rules, exactly as `PREREGISTRATION.md` defines them. |
 
 ## Phase 7: the LoRA grid on a rented GPU
 
@@ -127,6 +152,26 @@ wall time and ₹ per arm).
 
 `grid_report.py` computes only what `PREREGISTRATION.md` defines. A missing
 arm makes its verdicts "not computable" rather than estimated.
+
+Result (2026-10-01): H1, H2, H3 supported (H3 marginally); H4 not supported;
+H5 refuted (removing the threat probe `[T1]`, not the counterfactual, costs the
+most). 2B-R3 meets (a) and (c) and misses (b) and (d) → **ship the rules**. The
+quantisation delta is −0.1 pts (q4_K_M − bf16). Full tables in
+`reports/grid_v1.md`, the narrative in `reports/writeup_v1.md`.
+
+## Phase 9–9b: what the app uses
+
+- **The headline is the rules'.** Every mistake carries `DiagnosisRules`'
+  diagnosis, checked by `DiagnosisVerifier` and shown as "✓ Verified". The
+  analysis pipeline builds it as each game commits; Rule validation → "Library
+  diagnosis" backfills older games.
+- **The commentary is the trained 2B-R3's.** Set
+  `praxis-chess.ollama.commentary-model: praxis-grid-2b-r3` and load the model
+  (`ollama create praxis-grid-2b-r3 -f praxis-grid-2b-r3.Modelfile`, run inside
+  `outputs/grid_v1_results/2b-r3/`). `TrainedCommentary` asks it in its exact
+  training format and shows an answer only if every claim passes the verifier.
+- **Before and after**, on the same stored mistake:
+  `reports/images/phase10/before-*.png` and `after-*.png`.
 
 Before any 2B/4B training: [`PREREGISTRATION.md`](PREREGISTRATION.md) (tag
 `prereg-v1`) fixes the hypotheses, metrics, statistics and ship rules, and

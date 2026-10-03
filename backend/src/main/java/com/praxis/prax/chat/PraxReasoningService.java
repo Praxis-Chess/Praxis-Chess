@@ -1,5 +1,8 @@
 package com.praxis.prax.chat;
 
+import com.praxis.ai.ChatMessage;
+import com.praxis.ai.Feature;
+import com.praxis.ai.ModelRouter;
 import com.praxis.prax.conversation.ConversationService;
 import com.praxis.prax.conversation.domain.Conversation;
 import com.praxis.prax.evidence.Evidence;
@@ -36,14 +39,14 @@ public class PraxReasoningService {
     private static final long MAX_QUESTION_MS = 150_000;
 
     private final PraxAgent agent;
-    private final OllamaChatClient llm;
+    private final ModelRouter router;
     private final WebResearchService web;
     private final ConversationService conversations;
 
-    public PraxReasoningService(PraxAgent agent, OllamaChatClient llm, WebResearchService web,
+    public PraxReasoningService(PraxAgent agent, ModelRouter router, WebResearchService web,
                                 ConversationService conversations) {
         this.agent = agent;
-        this.llm = llm;
+        this.router = router;
         this.web = web;
         this.conversations = conversations;
     }
@@ -61,7 +64,7 @@ public class PraxReasoningService {
                          String conversationId) {}
 
     public boolean isAvailable() {
-        return llm.isHealthy();
+        return router.forFeature(Feature.PRAX).provider().health().ok();
     }
 
     public Answer ask(String question) {
@@ -85,7 +88,7 @@ public class PraxReasoningService {
                 ? conversations.start(question)
                 : conversations.find(conversationId).orElseGet(() -> conversations.start(question));
 
-        List<Map<String, Object>> prior = conversations.contextFor(thread.getId());
+        List<ChatMessage> prior = conversations.contextFor(thread.getId());
 
         PraxAgent.Outcome out = agent.run(question, prior, QuestionRouter.route(question), sink);
 
@@ -125,7 +128,7 @@ public class PraxReasoningService {
         String answer = out.answer();
         if (answer == null || answer.isBlank()) {
             answer = out.steps().isEmpty()
-                    ? "I couldn't reach the model. Check that Ollama is running."
+                    ? "I couldn't reach the model. Check that Ollama (or the cloud provider in Settings) is running."
                     : "I gathered the data but couldn't form an answer from it. "
                       + "This usually means the model is a reasoning variant that ran out "
                       + "of output budget — try an instruct model.";
@@ -154,7 +157,7 @@ public class PraxReasoningService {
                 out.partial() ? " (partial)" : "");
 
         Answer result = new Answer(answer, out.evidence(), out.findings(), out.steps(),
-                out.partial(), llm.model(), out.sources(), out.lane().name(), grounding,
+                out.partial(), router.forFeature(Feature.PRAX).model(), out.sources(), out.lane().name(), grounding,
                 out.artifacts(), thread.getId().toString());
 
         // One exchange per question, written after the FINAL verdict — never one

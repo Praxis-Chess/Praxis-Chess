@@ -1,6 +1,7 @@
 package com.praxis.prax.conversation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.praxis.ai.ChatMessage;
 import com.praxis.config.AppProperties;
 import com.praxis.prax.conversation.domain.Conversation;
 import com.praxis.prax.conversation.domain.ConversationMessage;
@@ -94,24 +95,22 @@ public class ConversationService {
     }
 
     /**
-     * The tail of the thread, in Ollama's message shape.
+     * The tail of the thread, as chat messages.
      *
      * Only `content` is replayed — never the evidence, sources or artifacts. The
      * model must re-derive every figure from tools on each turn; letting it read
      * back a previous answer's numbers is exactly how uncited statistics reached
      * the player before the grounding layer existed.
      */
-    public List<Map<String, Object>> contextFor(UUID conversationId) {
+    public List<ChatMessage> contextFor(UUID conversationId) {
         if (conversationId == null) return List.of();
         List<ConversationMessage> all = messagesOf(conversationId);
         int from = Math.max(0, all.size() - MAX_CONTEXT_MESSAGES);
 
-        List<Map<String, Object>> out = new ArrayList<>();
+        List<ChatMessage> out = new ArrayList<>();
         for (ConversationMessage m : all.subList(from, all.size())) {
             if (m.getContent() == null || m.getContent().isBlank()) continue;
-            out.add(Map.of(
-                    "role", m.getRole() == Role.USER ? "user" : "assistant",
-                    "content", m.getContent()));
+            out.add(m.getRole() == Role.USER ? ChatMessage.user(m.getContent()) : ChatMessage.assistant(m.getContent()));
         }
         return out;
     }

@@ -33,6 +33,15 @@ test.describe('Why? panel', () => {
     expect(api.requestsMatching(WHY)).toHaveLength(0)
   })
 
+  test('opened at a move (?ply=), that mistake is selected and named', async ({ page }) => {
+    await page.goto(`/games/${data.WHY_GAME_ID}?ply=6&from=thrown`)
+
+    await expect(page.getByRole('status').filter({ hasText: 'The win slipped at 3...Nf6' })).toBeVisible()
+    // Selected: its board caption and its own "Why?" button are showing.
+    await expect(page.getByText('Position before move 3.Nf6')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Why?' })).toBeVisible()
+  })
+
   test('shows the verified cause and its steps', async ({ page }) => {
     const why = await openWhy(page)
 

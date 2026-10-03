@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PraxAnchor } from '../prax/PraxHost'
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip,
+  BarChart, Bar, ComposedChart, Area, XAxis, YAxis, Tooltip, Legend,
   ResponsiveContainer, CartesianGrid, Cell,
 } from 'recharts'
 import { api } from '../api/client'
-import type { TimeBucket } from '../api/types'
+import type { TimeBucket, TimeClassCount } from '../api/types'
 
 const wrColor = (pct: number) =>
   pct >= 55 ? 'var(--green)' : pct >= 45 ? 'var(--accent)' : 'var(--red)'
@@ -65,10 +66,47 @@ function MixedSettingsNotice() {
   )
 }
 
+/**
+ * Speeds don't mix: a bullet flag-loss says nothing about rapid, and each speed
+ * has its own rating. The page opens on the analysed time class (rapid by default).
+ */
+function TimeClassPicker({ selected, options, onPick }: {
+  selected: string | null
+  options: TimeClassCount[]
+  onPick: (tc: string) => void
+}) {
+  if (options.length < 2) return null
+  const chip = (value: string, label: string, title?: string) => {
+    const on = (selected ?? 'all') === value
+    return (
+      <button key={value} type="button" onClick={() => onPick(value)} aria-pressed={on} title={title}
+        style={{
+          padding: '4px 10px', borderRadius: 999, fontSize: '0.75rem', cursor: 'pointer',
+          border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+          background: on ? 'var(--accent-dim)' : 'transparent',
+          color: on ? 'var(--text)' : 'var(--text-muted)',
+        }}>
+        {label}
+      </button>
+    )
+  }
+  return (
+    <div role="group" aria-label="Time control" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      {options.map(o => chip(o.time_class,
+        `${o.time_class[0].toUpperCase()}${o.time_class.slice(1)} · ${o.games}`,
+        o.analysed ? undefined : 'Not analysed: results and win rates only (Settings → time controls)'))}
+      {chip('all', 'All')}
+    </div>
+  )
+}
+
 export function Insights() {
+  // Undefined until a chip is clicked: the server picks the analysed time class.
+  const [timeClass, setTimeClass] = useState<string | undefined>()
   const { data, isLoading, error } = useQuery({
-    queryKey: ['insights'],
-    queryFn: api.insights.get,
+    queryKey: ['insights', timeClass ?? 'default'],
+    queryFn: () => api.insights.get(timeClass),
+    placeholderData: prev => prev,
   })
 
   if (isLoading) return <p style={{ color: 'var(--text-muted)' }}>Loading insights…</p>
@@ -83,7 +121,10 @@ export function Insights() {
     date: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     accuracy: p.accuracy,
     moving_avg: p.moving_avg,
+    rating: p.rating,
   }))
+  // Elo is drawn on its own right-hand axis: it lives around 1000–1600, accuracy on 0–100.
+  const hasRating = accSeries.some(p => p.rating != null)
 
   return (
     // Insights is the one page whose analytics span the full column, leaving no
@@ -96,6 +137,8 @@ export function Insights() {
           Practical analytics derived from your analyzed games — where your rating actually leaks.
         </p>
       </div>
+
+      <TimeClassPicker selected={data.time_class ?? null} options={data.time_classes ?? []} onPick={setTimeClass} />
 
       <MixedSettingsNotice />
 
@@ -138,20 +181,47 @@ export function Insights() {
 
       {/* Row 2 — accuracy trend (full width) */}
       <div className="card">
-        <SectionTitle hint="Per-game accuracy with a 10-game rolling average — the least noisy signal of real improvement.">
-          Accuracy Trend
+        <SectionTitle hint={hasRating
+          ? 'Per-game accuracy with a 10-game rolling average (left axis), and your Elo in each game (right axis).'
+          : 'Per-game accuracy with a 10-game rolling average — the least noisy signal of real improvement.'}>
+          {hasRating ? 'Accuracy & Elo Trend' : 'Accuracy Trend'}
         </SectionTitle>
         {accSeries.length > 1 ? (
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={accSeries} margin={{ top: 4, right: 12, left: -20, bottom: 0 }}>
+          <div aria-label="Accuracy and Elo trend">
+          <ResponsiveContainer width="100%" height={220}>
+            <ComposedChart data={accSeries} margin={{ top: 4, right: hasRating ? -8 : 12, left: -20, bottom: 0 }}>
+              {/* Each series fades from its own colour to nothing: overlapping translucent silhouettes. */}
+              <defs>
+                {[['fill-per-game', 'var(--per-game)', 0.22], ['fill-avg', 'var(--accent)', 0.34], ['fill-elo', 'var(--rating)', 0.28]].map(([id, color, top]) => (
+                  <linearGradient key={id as string} id={id as string} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" style={{ stopColor: color as string, stopOpacity: top as number }} />
+                    <stop offset="100%" style={{ stopColor: color as string, stopOpacity: 0 }} />
+                  </linearGradient>
+                ))}
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} interval="preserveStartEnd" />
-              <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} domain={[0, 100]} />
+              <YAxis yAxisId="acc" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} domain={[0, 100]} />
+              {hasRating && (
+                <YAxis yAxisId="elo" orientation="right" tick={{ fill: 'var(--rating)', fontSize: 10 }} tickLine={false}
+                  allowDecimals={false} width={44}
+                  domain={[(min: number) => Math.floor((min - 25) / 50) * 50, (max: number) => Math.ceil((max + 25) / 50) * 50]} />
+              )}
               <Tooltip {...tooltipStyle} />
-              <Line type="monotone" dataKey="accuracy" stroke="var(--border)" strokeWidth={1} dot={false} name="Game" />
-              <Line type="monotone" dataKey="moving_avg" stroke="var(--accent)" strokeWidth={2.5} dot={false} name="10-game avg" />
-            </LineChart>
+              {/* Labels in muted text: the per-game line's own colour is too faint to read as a label. */}
+              <Legend verticalAlign="top" height={22} iconType="plainline" wrapperStyle={{ fontSize: 11 }}
+                formatter={(value: string) => <span style={{ color: 'var(--text-muted)' }}>{value}</span>} />
+              <Area yAxisId="acc" type="monotone" dataKey="accuracy" stroke="var(--per-game)" strokeOpacity={0.7} strokeWidth={1}
+                fill="url(#fill-per-game)" dot={false} activeDot={{ r: 3 }} name="Game accuracy" />
+              <Area yAxisId="acc" type="monotone" dataKey="moving_avg" stroke="var(--accent)" strokeWidth={2.5}
+                fill="url(#fill-avg)" dot={false} activeDot={{ r: 3 }} name="10-game avg" />
+              {hasRating && (
+                <Area yAxisId="elo" type="monotone" dataKey="rating" stroke="var(--rating)" strokeWidth={2}
+                  fill="url(#fill-elo)" dot={false} activeDot={{ r: 3 }} name="Elo" connectNulls />
+              )}
+            </ComposedChart>
           </ResponsiveContainer>
+          </div>
         ) : <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Not enough analyzed games yet.</p>}
       </div>
 
@@ -254,15 +324,25 @@ export function Insights() {
           {cv.blown_games.length > 0 ? (
             <div>
               {cv.blown_games.map(g => (
-                <Link key={g.game_id} to={`/games/${g.game_id}`}
-                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                <Link key={g.game_id}
+                      to={g.turning_ply != null ? `/games/${g.game_id}?ply=${g.turning_ply}&from=thrown` : `/games/${g.game_id}`}
+                      title={g.turning_move ? `Open the game at ${g.turning_move}, where the win slipped` : undefined}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
                                padding: '7px 0', borderBottom: '1px solid var(--border)',
                                textDecoration: 'none', color: 'inherit', fontSize: '0.8rem' }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
-                    {g.opening_name || 'Unknown opening'}
+                  <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
+                      {g.opening_name || 'Unknown opening'}
+                    </span>
+                    {g.turning_move && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        slipped at <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--red)' }}>{g.turning_move}</span>
+                      </span>
+                    )}
                   </span>
                   <span style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-                    <span style={{ color: 'var(--green)', fontWeight: 600 }}>+{g.max_advantage}</span>
+                    {/* Mate is stored as ±100 pawns; "+100" reads as a bug. */}
+                    <span style={{ color: 'var(--green)', fontWeight: 600 }}>{g.max_advantage >= 99 ? 'mate' : `+${g.max_advantage}`}</span>
                     <span style={{ color: g.result === 'loss' ? 'var(--red)' : 'var(--text-muted)', textTransform: 'capitalize' }}>{g.result}</span>
                     <span style={{ color: 'var(--text-muted)' }}>{g.played_at ?? ''}</span>
                   </span>

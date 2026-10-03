@@ -18,6 +18,9 @@ function statusDot(status: string) {
   )
 }
 
+/** Synced on purpose but never analysed: a time control (or date) outside Settings' analysis scope. */
+const outOfScope = (g: GameSummary) => g.analysis_status !== 'ANALYZED' && g.in_analysis_scope === false
+
 function GameRow({ g }: { g: GameSummary }) {
   const date = g.played_at ? new Date(g.played_at).toLocaleDateString() : '—'
   const resultColor = g.result === 'win' ? 'var(--gain)' : g.result === 'loss' ? 'var(--red)' : 'var(--text-muted)'
@@ -27,14 +30,18 @@ function GameRow({ g }: { g: GameSummary }) {
                     borderRadius: 6, cursor: 'pointer', transition: 'background 0.12s' }}
            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-        {statusDot(g.analysis_status)}
+        {outOfScope(g)
+          ? <span title="Not analysed: outside your analysed time controls (Settings)" style={{
+              width: 7, height: 7, borderRadius: '50%', border: '1px solid var(--text-muted)',
+              display: 'inline-block', marginRight: 6, flexShrink: 0, boxSizing: 'border-box' }} />
+          : statusDot(g.analysis_status)}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {g.opening_name ?? g.opening_eco ?? 'Unknown opening'}
           </div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>
-            {date} · {g.time_class} · {g.player_color}
+            {date} · {g.time_class} · {g.player_color}{outOfScope(g) && ' · not analysed'}
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -63,9 +70,11 @@ function GamesList() {
   if (isLoading) return <LoadingSpinner label="Loading games…" />
   if (!games?.length) return <p style={{ color: 'var(--text-muted)' }}>No games yet. Sync to import.</p>
 
-  // Separate unanalyzed games (needs attention) from the rest
-  const unanalyzed = games.filter(g => g.analysis_status !== 'ANALYZED')
-  const analyzed = games.filter(g => g.analysis_status === 'ANALYZED')
+  // Games waiting for analysis float to the top. A game outside the analysis
+  // scope (e.g. bullet, when only rapid is analysed) is not waiting for anything:
+  // it stays in the main list, marked "not analysed".
+  const unanalyzed = games.filter(g => g.analysis_status !== 'ANALYZED' && !outOfScope(g))
+  const analyzed = games.filter(g => g.analysis_status === 'ANALYZED' || outOfScope(g))
 
   const matchSearch = (g: GameSummary) => !search ||
     (g.opening_name ?? '').toLowerCase().includes(search.toLowerCase()) ||

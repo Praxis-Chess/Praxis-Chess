@@ -1,5 +1,6 @@
 package com.praxis.prax.tools;
 
+import com.praxis.ai.ToolSpec;
 import com.praxis.config.AppProperties;
 import com.praxis.prax.intelligence.ChessIntelligence;
 import com.praxis.domain.enums.CardStatus;
@@ -58,7 +59,7 @@ public class ToolRegistry {
     }
 
     /** The web tool's schema. Offered only on lanes that allow it. */
-    private Map<String, Object> webSearchSchema() {
+    private ToolSpec webSearchSchema() {
         return tool("web_search",
                 "Look something up on the web. Use this ONLY for general chess or world "
                 + "knowledge that is not about this player — opening theory, what a term "
@@ -75,7 +76,7 @@ public class ToolRegistry {
      * mistake. Prompt wording asking it to prefer one tool over another does not
      * survive contact with a 4B model — an absent tool does.
      */
-    public List<Map<String, Object>> schemasFor(QuestionRouter.Lane lane) {
+    public List<ToolSpec> schemasFor(QuestionRouter.Lane lane) {
         boolean allowWeb = lane.allowsWeb() && web.isAvailable();
 
         if (lane == QuestionRouter.Lane.GENERAL && allowWeb) {
@@ -84,7 +85,7 @@ public class ToolRegistry {
             return List.of(webSearchSchema());
         }
 
-        List<Map<String, Object>> all = new ArrayList<>(schemas());
+        List<ToolSpec> all = new ArrayList<>(schemas());
         if (allowWeb) all.add(webSearchSchema());
         return List.copyOf(all);
     }
@@ -93,8 +94,8 @@ public class ToolRegistry {
         return props.chessCom().username();
     }
 
-    /** JSON schemas handed to Ollama's /api/chat `tools` array. */
-    public List<Map<String, Object>> schemas() {
+    /** The tools offered to the model; each provider renders them in its own wire format. */
+    public List<ToolSpec> schemas() {
         return List.of(
                 tool("get_player_profile",
                         "Overall profile: game counts, per-colour win rate and accuracy, opening "
@@ -554,16 +555,11 @@ public class ToolRegistry {
 
     // ── schema helpers ───────────────────────────────────────────────────────
 
-    private static Map<String, Object> tool(String name, String desc, Map<String, Object> props) {
-        return Map.of(
-                "type", "function",
-                "function", Map.of(
-                        "name", name,
-                        "description", desc,
-                        "parameters", Map.of(
-                                "type", "object",
-                                "properties", props,
-                                "required", List.of())));
+    private static ToolSpec tool(String name, String desc, Map<String, Object> props) {
+        return new ToolSpec(name, desc, Map.of(
+                "type", "object",
+                "properties", props,
+                "required", List.of()));
     }
 
     private static Map<String, Object> str(String desc) {

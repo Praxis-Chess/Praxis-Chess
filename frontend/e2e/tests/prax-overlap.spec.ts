@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/test'
-import { PlayPage } from '../pages/PlayPage'
+import { AppPage } from '../pages/AppPage'
 import * as data from '../fixtures/data'
 
 /**
@@ -13,6 +13,9 @@ import * as data from '../fixtures/data'
  * These assert the invariant directly — no element that the user can click is
  * covered by the Prax column — rather than asserting a specific position, so
  * they keep holding if the placement rule is tuned again.
+ *
+ * Run on Library: Prax's body, and so its column, appears only on Today,
+ * Progress and Library (PRAX_BODY_ROUTES). Play no longer shows it at all.
  */
 
 /** Every interactive control the card is actually sitting on top of. */
@@ -46,10 +49,7 @@ for (const viewport of [
     api.json('/api/analysis/progress', data.analysisRunning)
 
     await page.setViewportSize(viewport)
-    const play = new PlayPage(page)
-    await play.open()
-    await play.startButton.click()
-    await expect(play.resignButton).toBeVisible()
+    await new AppPage(page).goto('/library')
 
     // Let the follow-Prax rAF loop settle on a final position.
     await page.waitForTimeout(600)
@@ -62,9 +62,7 @@ test('the card docks to the bottom edge in a very narrow window', async ({ page,
   api.json('/api/analysis/progress', data.analysisRunning)
   await page.setViewportSize({ width: 375, height: 812 })
 
-  const play = new PlayPage(page)
-  await play.open()
-  await play.startButton.click()
+  await new AppPage(page).goto('/library')
   await page.waitForTimeout(600)
 
   const box = await page.locator('div[style*="z-index: 60"], div[style*="zIndex: 60"]').first().boundingBox()
@@ -72,4 +70,12 @@ test('the card docks to the bottom edge in a very narrow window', async ({ page,
   // Within the edge clearance of the floor — a predictable strip, not a
   // position that drifts with the organism.
   expect(812 - (box!.y + box!.height)).toBeLessThanOrEqual(20)
+})
+
+test('no Prax column on a page that does not show Prax', async ({ page, api }) => {
+  api.json('/api/analysis/progress', data.analysisRunning)
+  await page.setViewportSize({ width: 375, height: 812 })
+  await new AppPage(page).goto('/play')
+  await page.waitForTimeout(600)
+  await expect(page.locator('div[style*="z-index: 60"]')).toHaveCount(0)
 })

@@ -12,12 +12,40 @@ import * as data from '../fixtures/data'
  * that Prax's semantic state follows it.
  */
 test.describe('Analysis lifecycle', () => {
-  test('reports an idle library', async ({ page }) => {
+  test('an idle, up-to-date library shows no banner; Settings keeps every action', async ({ page }) => {
+    const app = new AppPage(page)
+    await app.goto('/')
+    await expect(page.getByLabel('Library status')).toHaveCount(0)
+
+    await app.goto('/settings')
+    const library = page.getByRole('region', { name: 'Library', exact: true })
+    await expect(library).toContainText('101 analyzed')
+    await expect(library.getByRole('button', { name: /sync now/i })).toBeEnabled()
+    await expect(library.getByRole('button', { name: /re-sync/i })).toBeEnabled()
+    await expect(library.getByRole('button', { name: /re-analyze all/i })).toBeEnabled()
+  })
+
+  test('the banner appears for new or pending games, with only those actions', async ({ page, api }) => {
+    api.json('/api/sync/new-count', { count: 8 })
+    api.json('/api/sync/status', { ...data.syncStatus, games_pending: 3 })
     const app = new AppPage(page)
     await app.goto('/')
 
-    await expect(page.getByText(/101 analyzed/).first()).toBeVisible()
-    await expect(app.syncNowButton).toBeEnabled()
+    const banner = page.getByLabel('Library status')
+    await expect(banner).toContainText('8 new games on Chess.com')
+    await expect(banner).toContainText('3 games waiting for analysis')
+    await expect(banner.getByRole('button', { name: 'Sync Now' })).toBeVisible()
+    await expect(banner.getByRole('button', { name: 'Analyze 3', exact: false })).toBeVisible()
+    await expect(banner.getByRole('button', { name: /re-analyze all/i })).toHaveCount(0)
+  })
+
+  test('re-analyzing everything asks first', async ({ page, api }) => {
+    const app = new AppPage(page)
+    await app.goto('/settings')
+    const library = page.getByRole('region', { name: 'Library', exact: true })
+    await library.getByRole('button', { name: /re-analyze all/i }).click()
+    await library.getByRole('button', { name: 'Cancel' }).click()
+    expect(api.requestsMatching(/\/api\/analysis\/reanalyze/)).toHaveLength(0)
   })
 
   test('shows real counts while a run is in flight', async ({ page, api }) => {
@@ -82,6 +110,30 @@ test.describe('Analysis lifecycle', () => {
     await expect
       .poll(() => praxState(page), { timeout: 20_000 })
       .not.toBe('thinking')
+  })
+})
+
+test.describe('Where Prax appears', () => {
+  test('its body shows on Today, Progress and Library only', async ({ page }) => {
+    const app = new AppPage(page)
+    for (const path of ['/', '/progress', '/library']) {
+      await app.goto(path)
+      await expect(app.praxContainer, `Prax on ${path}`).toBeVisible()
+    }
+    for (const path of ['/insights', '/settings']) {
+      await app.goto(path)
+      await expect(app.praxContainer, `no Prax on ${path}`).toBeHidden()
+    }
+  })
+
+  test('the body survives a page that hides it', async ({ page }) => {
+    const app = new AppPage(page)
+    await app.goto('/library')
+    await app.navigateTo('Insights')
+    await expect(app.praxContainer).toBeHidden()
+    await app.navigateTo('Library')
+    await expect(app.praxContainer).toBeVisible()
+    await expect(page.locator('canvas')).toHaveCount(1)
   })
 })
 

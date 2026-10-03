@@ -18,13 +18,16 @@ public record GameSummaryDto(
     String analysisStatus,
     Integer playerRating,
     Double accuracy,
-    int mistakeCount
+    int mistakeCount,
+    /** Inside the analysis scope (time control and date range)? An unanalysed game
+     *  outside it is synced on purpose, not waiting for analysis. */
+    boolean inAnalysisScope
 ) {
     public static GameSummaryDto from(Game g) {
-        return from(g, 0);
+        return from(g, 0, true);
     }
 
-    public static GameSummaryDto from(Game g, int mistakeCount) {
+    public static GameSummaryDto from(Game g, int mistakeCount, boolean inAnalysisScope) {
         int rating = "white".equals(g.getPlayerColor())
                 ? (g.getWhiteRating() != null ? g.getWhiteRating() : 0)
                 : (g.getBlackRating() != null ? g.getBlackRating() : 0);
@@ -33,6 +36,6 @@ public record GameSummaryDto(
                 g.getTimeClass(), g.getTimeControl(), g.getPlayerColor(),
                 g.getResult(), g.getOpeningEco(), g.getOpeningName(),
                 g.getAnalysisStatus().name(), rating,
-                g.getAccuracy(), mistakeCount);
+                g.getAccuracy(), mistakeCount, inAnalysisScope);
     }
 }

@@ -1,6 +1,7 @@
 package com.praxis.prax.chat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.praxis.ai.*;
 import com.praxis.prax.artifact.PraxArtifact;
 import com.praxis.prax.routing.QuestionRouter;
 import com.praxis.prax.evidence.Evidence;
@@ -31,14 +32,30 @@ public class PraxAgent {
     // turns. Measured, not guessed.
     static final long MAX_WALL_CLOCK_MS = 120_000;
 
-    private final OllamaChatClient llm;
+    private final ModelRouter router;
     private final ToolRegistry tools;
     private final ObjectMapper mapper;
 
-    public PraxAgent(OllamaChatClient llm, ToolRegistry tools, ObjectMapper mapper) {
-        this.llm = llm;
+    public PraxAgent(ModelRouter router, ToolRegistry tools, ObjectMapper mapper) {
+        this.router = router;
         this.tools = tools;
         this.mapper = mapper;
+    }
+
+    /**
+     * One model turn, on whichever provider serves Prax. Withholding the tools
+     * is what forces a final answer, and a final answer is a JSON contract.
+     *
+     * The provider sets the token limit for each kind of turn (a small local model
+     * once repeated "Final answer: 43. Qg5 was a blunder" forty times when given
+     * too much rope, so Ollama keeps it tight), and repeats are penalised. A turn
+     * cut off at the limit is retried once with twice the room.
+     */
+    private ChatResult ask(List<ChatMessage> messages, List<ToolSpec> offered) {
+        ModelRouter.Route route = router.forFeature(Feature.PRAX);
+        boolean finalAnswer = offered.isEmpty();
+        return route.provider().chatWithRetry(new ChatRequest(route.model(), messages, offered, finalAnswer,
+                finalAnswer ? OutputBudget.CHAT_ANSWER : OutputBudget.TOOL_TURN, 1, 0.3, 1.18, 4096));
     }
 
     /** One tool call as it happened — streamed to the UI so investigating is visible. */
@@ -85,11 +102,11 @@ public class PraxAgent {
     /** A web page that informed the answer. Shown to the player, never in the evidence table. */
     public record Source(String title, String domain, String url) {}
 
-    public Outcome run(String question, List<Map<String, Object>> priorMessages) {
+    public Outcome run(String question, List<ChatMessage> priorMessages) {
         return run(question, priorMessages, QuestionRouter.route(question), ProgressSink.NONE);
     }
 
-    public Outcome run(String question, List<Map<String, Object>> priorMessages,
+    public Outcome run(String question, List<ChatMessage> priorMessages,
                        QuestionRouter.Lane lane) {
         return run(question, priorMessages, lane, ProgressSink.NONE);
     }
@@ -100,16 +117,16 @@ public class PraxAgent {
      *             already pre-searches — so the fallback reuses an existing,
      *             tested code path instead of introducing a parallel one.
      */
-    public Outcome run(String question, List<Map<String, Object>> priorMessages,
+    public Outcome run(String question, List<ChatMessage> priorMessages,
                        QuestionRouter.Lane lane, ProgressSink sink) {
         long deadline = System.currentTimeMillis() + MAX_WALL_CLOCK_MS;
 
         log.debug("[prax] lane={} for: {}", lane, question);
 
-        List<Map<String, Object>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "system", "content", PraxPrompt.SYSTEM));
+        List<ChatMessage> messages = new ArrayList<>();
+        messages.add(ChatMessage.system(PraxPrompt.SYSTEM));
         messages.addAll(priorMessages);
-        messages.add(Map.of("role", "user", "content", question));
+        messages.add(ChatMessage.user(question));
 
         /** Results this turn, keyed by call id — what citations must resolve against. */
         Map<String, ToolResult> resultsById = new LinkedHashMap<>();
@@ -168,9 +185,8 @@ public class PraxAgent {
             steps.add(preSearch);
             report(sink, preSearch, r);
 
-            messages.add(Map.of("role", "assistant", "content", "", "tool_calls",
-                    List.of(Map.of("function", Map.of("name", "web_search", "arguments", args)))));
-            messages.add(Map.of("role", "tool", "content", toJson(Map.of(
+            messages.add(ChatMessage.toolCalls(List.of(new ToolCall(callId, "web_search", args))));
+            messages.add(ChatMessage.toolResult(callId, toJson(Map.of(
                     "callId", callId, "tool", r.tool(), "sampleSize", r.sampleSize(), "data", r.data()))));
 
             if (r.provenance() == Evidence.Provenance.WEB) {
@@ -188,7 +204,7 @@ public class PraxAgent {
             boolean withholdTools = outOfBudget || webInContext;
 
             // Withholding the tool list is what forces a final answer.
-            var reply = llm.chat(messages, withholdTools ? List.of() : tools.schemasFor(lane));
+            var reply = ask(messages, withholdTools ? List.of() : tools.schemasFor(lane));
 
             if (webInContext && !outOfBudget) {
                 // The synthesis pass. Untrusted material was in front of the
@@ -208,9 +224,8 @@ public class PraxAgent {
                 if (resultsById.isEmpty() && !nudged && promisesToAct(reply.content())) {
                     nudged = true;
                     log.debug("[prax] model promised to act without acting; forcing a tool pass");
-                    messages.add(Map.of("role", "assistant", "content",
-                            reply.content() == null ? "" : reply.content()));
-                    messages.add(Map.of("role", "user", "content",
+                    messages.add(ChatMessage.assistant(reply.content()));
+                    messages.add(ChatMessage.user(
                             "Do it now. Call the tool you need and answer from what it returns. "
                             + "Never say you will check something — check it."));
                     continue;
@@ -224,12 +239,11 @@ public class PraxAgent {
                 // withheld, where format:json applies.
                 if (!PraxResponse.isContract(reply.content(), mapper) && !resultsById.isEmpty()) {
                     log.debug("[prax] final reply was off-contract; re-asking for JSON");
-                    messages.add(Map.of("role", "assistant", "content",
-                            reply.content() == null ? "" : reply.content()));
-                    messages.add(Map.of("role", "user", "content",
+                    messages.add(ChatMessage.assistant(reply.content()));
+                    messages.add(ChatMessage.user(
                             "Now give that answer in the required JSON object: "
                             + "answer, evidence (each with label, value, callId), followUp."));
-                    var strict = llm.chat(messages, List.of());
+                    var strict = ask(messages, List.of());
                     if (PraxResponse.isContract(strict.content(), mapper)) {
                         return finish(strict.content(), resultsById, steps, false, lane);
                     }
@@ -237,7 +251,7 @@ public class PraxAgent {
                 return finish(reply.content(), resultsById, steps, false, lane);
             }
 
-            List<Map<String, Object>> assistantCalls = new ArrayList<>();
+            List<ToolCall> assistantCalls = new ArrayList<>();
             // Results produced by THIS turn only. Re-sending the whole map each
             // turn duplicated every earlier result and blew past num_ctx, which
             // Ollama answers by truncating — hence an empty final message.
@@ -269,8 +283,9 @@ public class PraxAgent {
                     log.debug("[prax] web material in context — tools withheld for the rest of the run");
                 }
 
-                assistantCalls.add(Map.of("function",
-                        Map.of("name", call.name(), "arguments", call.arguments())));
+                // The run-scoped callId doubles as the provider's tool-call id, so
+                // a provider that pairs results by id gets exactly this pairing.
+                assistantCalls.add(new ToolCall(callId, call.name(), call.arguments()));
 
                 // Some results are inert alone — find_mistakes names the move but
                 // cannot say why it was bad. Run the follow-up here rather than
@@ -287,27 +302,24 @@ public class PraxAgent {
                     Step chainStep = new Step(follow.tool(), follow.args(), cr.sampleSize());
                     steps.add(chainStep);
                     report(sink, chainStep, cr);
-                    assistantCalls.add(Map.of("function",
-                            Map.of("name", follow.tool(), "arguments", follow.args())));
+                    assistantCalls.add(new ToolCall(chainId, follow.tool(), follow.args()));
                     log.debug("[prax] auto-chained {} after {}", follow.tool(), call.name());
                 }
             }
 
-            messages.add(Map.of("role", "assistant", "content", "", "tool_calls", assistantCalls));
+            messages.add(ChatMessage.toolCalls(assistantCalls));
             for (String id : turnIds) {
                 ToolResult r = resultsById.get(id);
-                messages.add(Map.of(
-                        "role", "tool",
-                        "content", toJson(Map.of(
-                                "callId", id,
-                                "tool", r.tool(),
-                                "sampleSize", r.sampleSize(),
-                                "data", r.data()))));
+                messages.add(ChatMessage.toolResult(id, toJson(Map.of(
+                        "callId", id,
+                        "tool", r.tool(),
+                        "sampleSize", r.sampleSize(),
+                        "data", r.data()))));
             }
         }
 
         // Ran out of turns: one final pass with tools withheld.
-        var forced = llm.chat(messages, List.of());
+        var forced = ask(messages, List.of());
         return finish(forced.content(), resultsById, steps, true, lane);
     }
 

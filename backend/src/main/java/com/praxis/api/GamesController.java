@@ -5,6 +5,7 @@ import com.praxis.domain.Game;
 import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.dto.GameReviewDto;
 import com.praxis.dto.GameSummaryDto;
+import com.praxis.service.settings.SettingsService;
 import com.praxis.pipeline.AnalysisPipelineOrchestrator;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
@@ -29,19 +30,22 @@ public class GamesController {
     private final AppProperties appProperties;
     private final PgnParserService pgnParser;
     private final DiagnosisService diagnosis;
+    private final SettingsService settings;
 
     public GamesController(GameRepository gameRepository,
                            MoveErrorRepository moveErrorRepository,
                            AnalysisPipelineOrchestrator orchestrator,
                            AppProperties appProperties,
                            PgnParserService pgnParser,
-                           DiagnosisService diagnosis) {
+                           DiagnosisService diagnosis,
+                           SettingsService settings) {
         this.gameRepository = gameRepository;
         this.moveErrorRepository = moveErrorRepository;
         this.orchestrator = orchestrator;
         this.appProperties = appProperties;
         this.pgnParser = pgnParser;
         this.diagnosis = diagnosis;
+        this.settings = settings;
     }
 
     @GetMapping
@@ -57,7 +61,7 @@ public class GamesController {
                         row -> ((Long) row[1]).intValue()));
 
         List<GameSummaryDto> dtos = games.stream()
-                .map(g -> GameSummaryDto.from(g, mistakeCounts.getOrDefault(g.getId(), 0)))
+                .map(g -> GameSummaryDto.from(g, mistakeCounts.getOrDefault(g.getId(), 0), settings.inAnalysisScope(g)))
                 .toList();
 
         return ResponseEntity.ok(dtos);
@@ -66,7 +70,7 @@ public class GamesController {
     @GetMapping("/{id}")
     public ResponseEntity<GameSummaryDto> getGame(@PathVariable UUID id) {
         return gameRepository.findById(id)
-                .map(GameSummaryDto::from)
+                .map(g -> GameSummaryDto.from(g, 0, settings.inAnalysisScope(g)))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

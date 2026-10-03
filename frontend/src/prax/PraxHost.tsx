@@ -1,4 +1,7 @@
+import { useLayoutEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { PraxCanvas } from './renderer/PraxCanvas'
+import { setPraxBodyShown } from './state/renderPolicy'
 import { PraxStack } from './ui/PraxStack'
 import { PraxHitTarget } from './ui/PraxHitTarget'
 import { PraxDebugPanel } from './ui/PraxDebugPanel'
@@ -14,15 +17,25 @@ export function PraxHost() {
   usePraxRouterBridge()
   usePracticeSignal()
 
+  // Prax's body appears on the home pages only: Today, Progress and Library.
+  // Elsewhere the canvas stays mounted (so the particle body is never rebuilt)
+  // but is hidden and frozen, and its click target and cards are not rendered.
+  const { pathname } = useLocation()
+  const shown = PRAX_BODY_ROUTES.has(pathname)
+  useLayoutEffect(() => { setPraxBodyShown(shown) }, [shown])
+
   return (
     <>
-      <PraxCanvas />
-      <PraxHitTarget />
-      <PraxStack />
+      <PraxCanvas hidden={!shown} />
+      {shown && <PraxHitTarget />}
+      {shown && <PraxStack />}
       <PraxDebugPanel />
     </>
   )
 }
+
+/** The routes that show Prax's body: Today (/), Progress and Library. */
+export const PRAX_BODY_ROUTES = new Set(['/', '/progress', '/library'])
 
 export { PraxAnchor } from './ui/PraxAnchor'
 export { praxThoughts } from './ui/thoughts'

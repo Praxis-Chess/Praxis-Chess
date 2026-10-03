@@ -36,14 +36,36 @@ public final class SettingsDto {
 
     public record View(LocalDate syncFrom, LocalDate syncTo,
                        LocalDate analysisFrom, LocalDate analysisTo,
+                       List<String> analysisTimeClasses,
                        EngineVersion library, EngineVersion practice, Bounds bounds) {}
 
+    /** {@code analysisTimeClasses == null} leaves the current choice unchanged. */
     public record Update(LocalDate syncFrom, LocalDate syncTo,
                          LocalDate analysisFrom, LocalDate analysisTo,
-                         EngineConfig library, EngineConfig practice) {}
+                         List<String> analysisTimeClasses,
+                         EngineConfig library, EngineConfig practice) {
+
+        public Update(LocalDate syncFrom, LocalDate syncTo, LocalDate analysisFrom, LocalDate analysisTo,
+                      EngineConfig library, EngineConfig practice) {
+            this(syncFrom, syncTo, analysisFrom, analysisTo, null, library, practice);
+        }
+    }
 
     /** The result of a save: which kinds got a new version. */
     public record Saved(View settings, boolean libraryVersionCreated, boolean practiceVersionCreated) {}
+
+    // ── AI models ─────────────────────────────────────────────────────────────
+
+    /**
+     * Where one AI feature runs.
+     *
+     * @param requested listed in use-cloud-for; with no provider configured it still runs locally
+     */
+    public record AiFeature(String feature, String label, boolean cloud, String model, boolean requested,
+                            boolean alwaysLocal) {}
+
+    /** The AI page of Settings. Never carries the API key, only whether one is set. */
+    public record AiStatus(List<AiFeature> features, boolean cloudConfigured, boolean keySet, String cloudHost) {}
 
     /** 400 body: field → message. */
     public record Invalid(Map<String, String> errors) {}

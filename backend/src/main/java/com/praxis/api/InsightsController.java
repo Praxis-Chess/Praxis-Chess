@@ -5,6 +5,7 @@ import com.praxis.service.InsightsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -17,8 +18,13 @@ public class InsightsController {
         this.insightsService = insightsService;
     }
 
+    /**
+     * @param timeClass a Chess.com time class ("rapid", "bullet", …), "all" for every
+     *                  game, or absent for the default (the analysed time class).
+     */
     @GetMapping
-    public ResponseEntity<InsightsDto> getInsights() {
-        return ResponseEntity.ok(insightsService.compute());
+    public ResponseEntity<InsightsDto> getInsights(@RequestParam(name = "time_class", required = false) String timeClass) {
+        if (timeClass == null || timeClass.isBlank()) return ResponseEntity.ok(insightsService.computeDefault());
+        return ResponseEntity.ok(insightsService.compute("all".equals(timeClass) ? null : timeClass));
     }
 }

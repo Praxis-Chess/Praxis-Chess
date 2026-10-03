@@ -8,7 +8,7 @@ import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.PlayerPatternRepository;
 import com.praxis.repository.TrainingPlanRepository;
-import com.praxis.service.ai.OllamaAnalysisClient;
+import com.praxis.service.ai.AnalysisLlmClient;
 import com.praxis.service.ai.PromptTemplates;
 import com.praxis.service.ai.dto.TrainingPlanResult;
 import org.slf4j.Logger;
@@ -29,18 +29,18 @@ public class TrainingPlanService {
     private final PlayerPatternRepository playerPatternRepository;
     private final TrainingPlanRepository trainingPlanRepository;
     private final GameRepository gameRepository;
-    private final OllamaAnalysisClient ollamaClient;
+    private final AnalysisLlmClient analysisLlm;
     private final ObjectMapper objectMapper;
 
     public TrainingPlanService(PlayerPatternRepository playerPatternRepository,
                                TrainingPlanRepository trainingPlanRepository,
                                GameRepository gameRepository,
-                               OllamaAnalysisClient ollamaClient,
+                               AnalysisLlmClient analysisLlm,
                                ObjectMapper objectMapper) {
         this.playerPatternRepository = playerPatternRepository;
         this.trainingPlanRepository = trainingPlanRepository;
         this.gameRepository = gameRepository;
-        this.ollamaClient = ollamaClient;
+        this.analysisLlm = analysisLlm;
         this.objectMapper = objectMapper;
     }
 
@@ -60,7 +60,7 @@ public class TrainingPlanService {
         String openingJson = pattern.getOpeningAccuracy() != null ? pattern.getOpeningAccuracy() : "{}";
         String prompt = PromptTemplates.trainingPlan(patternJson, openingJson);
 
-        TrainingPlanResult result = ollamaClient.analyzeReport(prompt, TrainingPlanResult.class);
+        TrainingPlanResult result = analysisLlm.analyzeReport(prompt, TrainingPlanResult.class);
 
         String planJson = toJson(result);
         String openingsToDrill = toJson(result.openingsToDrill());

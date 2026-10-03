@@ -52,6 +52,8 @@
   --red:        var(--loss);
   --yellow:     var(--warn);
   --orange:     #D98A54;
+  --rating:     #7DB9E8;   /* Elo line: cool sky blue, clear of the orchid accent and the win/mistake/blunder colours */
+  --per-game:   #9D8CF0;   /* per-game accuracy: violet, between the orchid average and the sky-blue Elo */
 
   /* --- Type stacks (offline-safe: named faces first, system fallbacks) --- */
   --font-display: 'Inter Tight', 'Archivo', 'Neue Haas Grotesk Display',

@@ -94,6 +94,40 @@ test.describe('Settings', () => {
     expect(sent[0].analysis_to).toBeNull()
   })
 
+  test('time controls: rapid by default, and a ticked one is sent in speed order', async ({ page, api }) => {
+    const sent = mockSettings(api, () => ({ status: 200, body: saved() }))
+    await page.goto('/settings')
+
+    const group = page.getByRole('group', { name: 'Time controls to analyse' })
+    await expect(group.getByLabel('rapid')).toBeChecked()
+    await expect(group.getByLabel('bullet')).not.toBeChecked()
+
+    await group.getByLabel('bullet').check()
+    await page.getByRole('button', { name: 'Save settings' }).click()
+
+    await expect.poll(() => sent.length).toBe(1)
+    expect(sent[0].analysis_time_classes).toEqual(['bullet', 'rapid'])
+  })
+
+  test('AI models: everything on this laptop by default, no privacy notice', async ({ page }) => {
+    await page.goto('/settings')
+    const card = page.getByRole('region', { name: 'AI models' })
+    await expect(card).toContainText('Prax chat')
+    await expect(card).toContainText('qwen3:4b-instruct')
+    await expect(card.getByText('this laptop')).toHaveCount(4)
+    await expect(card.getByRole('note')).toHaveCount(0)
+  })
+
+  test('AI models: a cloud feature names its provider and warns what leaves the laptop', async ({ page, api }) => {
+    api.json('/api/settings/ai', data.aiCloud)
+    await page.goto('/settings')
+    const card = page.getByRole('region', { name: 'AI models' })
+    await expect(card.getByText('api.openai.com', { exact: true })).toHaveCount(2)
+    await expect(card.getByRole('note')).toContainText('send your positions and game data to api.openai.com')
+    // The trained commentary model never leaves the laptop.
+    await expect(card).toContainText('praxis-grid-2b-r3')
+  })
+
   test('"every flagged move" sends null, not a number', async ({ page, api }) => {
     const sent = mockSettings(api, () => ({ status: 200, body: saved({ library_version_created: false }) }))
     await page.goto('/settings')
