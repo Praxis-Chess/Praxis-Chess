@@ -13,3 +13,7 @@ results_private/
 # Local build of the backend for the dataset tools (training/tools/javacli.sh).
 .javabuild/
 pod_bundle/
+
+# Phase 11: the generated Hugging Face upload (tools/hf_release.py stage) and reproduce.py's work folder.
+release/staging/
+reproduce_runs/

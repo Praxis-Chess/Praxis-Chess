@@ -1,0 +1,380 @@
+{
+ "S_rules": {
+  "items": 838,
+  "parsed": 1.0,
+  "claim_precision": 1.0,
+  "claim_precision_ci": [
+   1.0,
+   1.0
+  ],
+  "claims_per_answer": 3.04,
+  "chain_validity": 1.0,
+  "chain_validity_ci": [
+   1.0,
+   1.0
+  ],
+  "consequence_vs_rules": 1.0,
+  "consequence_vs_rules_ci": [
+   1.0,
+   1.0
+  ],
+  "mechanism_vs_rules_single_cause": 1.0,
+  "mechanism_ci": [
+   1.0,
+   1.0
+  ],
+  "single_cause_n": 389,
+  "consequence_vs_human": null,
+  "mechanism_vs_human": null,
+  "human_n": 0,
+  "abstention": 1.0,
+  "abstention_ci": [
+   1.0,
+   1.0
+  ],
+  "invented_cause_rate": 0.0,
+  "not_concrete_n": 337,
+  "composite_coverage": 0.0,
+  "composite_precision": null,
+  "composite_n": 112,
+  "latency_p50_ms": null,
+  "latency_p95_ms": null,
+  "tokens_in_mean": 535,
+  "by_slice": {
+   "A": {
+    "items": 236,
+    "claim_precision": 1.0,
+    "chain_validity": 1.0
+   },
+   "B": {
+    "items": 602,
+    "claim_precision": 1.0,
+    "chain_validity": 1.0
+   }
+  }
+ },
+ "lora-2b-r0": {
+  "items": 838,
+  "parsed": 1.0,
+  "claim_precision": 0.348,
+  "claim_precision_ci": [
+   0.314,
+   0.381
+  ],
+  "claims_per_answer": 1.04,
+  "chain_validity": 0.005,
+  "chain_validity_ci": [
+   0.001,
+   0.011
+  ],
+  "consequence_vs_rules": 0.408,
+  "consequence_vs_rules_ci": [
+   0.374,
+   0.44
+  ],
+  "mechanism_vs_rules_single_cause": 0.008,
+  "mechanism_ci": [
+   0.0,
+   0.018
+  ],
+  "single_cause_n": 389,
+  "consequence_vs_human": null,
+  "mechanism_vs_human": null,
+  "human_n": 0,
+  "abstention": 0.994,
+  "abstention_ci": [
+   0.985,
+   1.0
+  ],
+  "invented_cause_rate": 0.006,
+  "not_concrete_n": 337,
+  "composite_coverage": 0.0,
+  "composite_precision": null,
+  "composite_n": 112,
+  "latency_p50_ms": 4049,
+  "latency_p95_ms": 4186,
+  "tokens_in_mean": 120,
+  "by_slice": {
+   "A": {
+    "items": 236,
+    "claim_precision": 0.298,
+    "chain_validity": 0.004
+   },
+   "B": {
+    "items": 602,
+    "claim_precision": 0.368,
+    "chain_validity": 0.005
+   }
+  }
+ },
+ "lora-2b-r1": {
+  "items": 838,
+  "parsed": 1.0,
+  "claim_precision": 0.569,
+  "claim_precision_ci": [
+   0.547,
+   0.589
+  ],
+  "claims_per_answer": 3.53,
+  "chain_validity": 0.144,
+  "chain_validity_ci": [
+   0.121,
+   0.168
+  ],
+  "consequence_vs_rules": 0.734,
+  "consequence_vs_rules_ci": [
+   0.704,
+   0.763
+  ],
+  "mechanism_vs_rules_single_cause": 0.501,
+  "mechanism_ci": [
+   0.455,
+   0.553
+  ],
+  "single_cause_n": 389,
+  "consequence_vs_human": null,
+  "mechanism_vs_human": null,
+  "human_n": 0,
+  "abstention": 0.736,
+  "abstention_ci": [
+   0.685,
+   0.783
+  ],
+  "invented_cause_rate": 0.261,
+  "not_concrete_n": 337,
+  "composite_coverage": 0.125,
+  "composite_precision": 0.0,
+  "composite_n": 112,
+  "latency_p50_ms": 6612,
+  "latency_p95_ms": 7946,
+  "tokens_in_mean": 186,
+  "by_slice": {
+   "A": {
+    "items": 236,
+    "claim_precision": 0.628,
+    "chain_validity": 0.081
+   },
+   "B": {
+    "items": 602,
+    "claim_precision": 0.529,
+    "chain_validity": 0.169
+   }
+  }
+ },
+ "lora-2b-r2": {
+  "items": 838,
+  "parsed": 1.0,
+  "claim_precision": 0.568,
+  "claim_precision_ci": [
+   0.546,
+   0.588
+  ],
+  "claims_per_answer": 3.35,
+  "chain_validity": 0.126,
+  "chain_validity_ci": [
+   0.106,
+   0.149
+  ],
+  "consequence_vs_rules": 0.73,
+  "consequence_vs_rules_ci": [
+   0.702,
+   0.758
+  ],
+  "mechanism_vs_rules_single_cause": 0.558,
+  "mechanism_ci": [
+   0.509,
+   0.607
+  ],
+  "single_cause_n": 389,
+  "consequence_vs_human": null,
+  "mechanism_vs_human": null,
+  "human_n": 0,
+  "abstention": 0.73,
+  "abstention_ci": [
+   0.682,
+   0.783
+  ],
+  "invented_cause_rate": 0.27,
+  "not_concrete_n": 337,
+  "composite_coverage": 0.223,
+  "composite_precision": 0.04,
+  "composite_n": 112,
+  "latency_p50_ms": 5899,
+  "latency_p95_ms": 7877,
+  "tokens_in_mean": 259,
+  "by_slice": {
+   "A": {
+    "items": 236,
+    "claim_precision": 0.626,
+    "chain_validity": 0.072
+   },
+   "B": {
+    "items": 602,
+    "claim_precision": 0.526,
+    "chain_validity": 0.148
+   }
+  }
+ },
+ "lora-2b-r3": {
+  "items": 838,
+  "parsed": 1.0,
+  "claim_precision": 0.997,
+  "claim_precision_ci": [
+   0.996,
+   0.999
+  ],
+  "claims_per_answer": 3.24,
+  "chain_validity": 0.78,
+  "chain_validity_ci": [
+   0.754,
+   0.808
+  ],
+  "consequence_vs_rules": 0.837,
+  "consequence_vs_rules_ci": [
+   0.813,
+   0.86
+  ],
+  "mechanism_vs_rules_single_cause": 0.794,
+  "mechanism_ci": [
+   0.753,
+   0.833
+  ],
+  "single_cause_n": 389,
+  "consequence_vs_human": null,
+  "mechanism_vs_human": null,
+  "human_n": 0,
+  "abstention": 0.852,
+  "abstention_ci": [
+   0.813,
+   0.89
+  ],
+  "invented_cause_rate": 0.122,
+  "not_concrete_n": 337,
+  "composite_coverage": 0.25,
+  "composite_precision": 0.786,
+  "composite_n": 112,
+  "latency_p50_ms": 5658,
+  "latency_p95_ms": 8247,
+  "tokens_in_mean": 535,
+  "by_slice": {
+   "A": {
+    "items": 236,
+    "claim_precision": 0.997,
+    "chain_validity": 0.788
+   },
+   "B": {
+    "items": 602,
+    "claim_precision": 0.998,
+    "chain_validity": 0.777
+   }
+  }
+ },
+ "lora-4b-r0": {
+  "items": 838,
+  "parsed": 1.0,
+  "claim_precision": 0.326,
+  "claim_precision_ci": [
+   0.295,
+   0.358
+  ],
+  "claims_per_answer": 1.01,
+  "chain_validity": 0.006,
+  "chain_validity_ci": [
+   0.001,
+   0.012
+  ],
+  "consequence_vs_rules": 0.401,
+  "consequence_vs_rules_ci": [
+   0.366,
+   0.433
+  ],
+  "mechanism_vs_rules_single_cause": 0.0,
+  "mechanism_ci": [
+   0.0,
+   0.0
+  ],
+  "single_cause_n": 389,
+  "consequence_vs_human": null,
+  "mechanism_vs_human": null,
+  "human_n": 0,
+  "abstention": 0.997,
+  "abstention_ci": [
+   0.991,
+   1.0
+  ],
+  "invented_cause_rate": 0.003,
+  "not_concrete_n": 337,
+  "composite_coverage": 0.009,
+  "composite_precision": 0.0,
+  "composite_n": 112,
+  "latency_p50_ms": 7925,
+  "latency_p95_ms": 8147,
+  "tokens_in_mean": 120,
+  "by_slice": {
+   "A": {
+    "items": 236,
+    "claim_precision": 0.262,
+    "chain_validity": 0.0
+   },
+   "B": {
+    "items": 602,
+    "claim_precision": 0.352,
+    "chain_validity": 0.008
+   }
+  }
+ },
+ "lora-4b-r3": {
+  "items": 838,
+  "parsed": 1.0,
+  "claim_precision": 0.997,
+  "claim_precision_ci": [
+   0.995,
+   0.999
+  ],
+  "claims_per_answer": 3.53,
+  "chain_validity": 0.868,
+  "chain_validity_ci": [
+   0.844,
+   0.89
+  ],
+  "consequence_vs_rules": 0.897,
+  "consequence_vs_rules_ci": [
+   0.878,
+   0.916
+  ],
+  "mechanism_vs_rules_single_cause": 0.954,
+  "mechanism_ci": [
+   0.931,
+   0.972
+  ],
+  "single_cause_n": 389,
+  "consequence_vs_human": null,
+  "mechanism_vs_human": null,
+  "human_n": 0,
+  "abstention": 0.804,
+  "abstention_ci": [
+   0.763,
+   0.846
+  ],
+  "invented_cause_rate": 0.163,
+  "not_concrete_n": 337,
+  "composite_coverage": 0.25,
+  "composite_precision": 0.929,
+  "composite_n": 112,
+  "latency_p50_ms": 16116,
+  "latency_p95_ms": 22603,
+  "tokens_in_mean": 535,
+  "by_slice": {
+   "A": {
+    "items": 236,
+    "claim_precision": 0.996,
+    "chain_validity": 0.869
+   },
+   "B": {
+    "items": 602,
+    "claim_precision": 0.998,
+    "chain_validity": 0.867
+   }
+  }
+ }
+}

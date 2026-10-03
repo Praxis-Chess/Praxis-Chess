@@ -241,5 +241,23 @@ class DiagnosisVerifierTest {
             assertThat(DiagnosisVerifier.verify(g, invented, CLAIM).violations())
                     .extracting(DiagnosisVerifier.Violation::rule).contains(8);
         }
+
+        /**
+         * A model without a JSON schema can write null into the chain. That is a
+         * rule 1 failure, not a crash: citation mode used to throw on it.
+         */
+        @Test
+        void aNullClaimFailsInsteadOfCrashing() {
+            var chain = new ArrayList<>(scholar().reasoningChain());
+            chain.add(null);
+            var d = withChain(scholar(), chain);
+
+            assertThat(rulesBroken(d, CITATION)).contains(1, 7);
+            var positional = DiagnosisRules.diagnose(TestGraphs.positional());
+            var withNull = new ArrayList<>(positional.reasoningChain());
+            withNull.add(null);
+            assertThat(DiagnosisVerifier.verify(TestGraphs.positional(), withChain(positional, withNull), CLAIM)
+                    .violations()).extracting(DiagnosisVerifier.Violation::rule).contains(1);
+        }
     }
 }

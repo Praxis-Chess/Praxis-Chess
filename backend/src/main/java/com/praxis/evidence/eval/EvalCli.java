@@ -278,7 +278,7 @@ public final class EvalCli {
             r.put("motif", d.motif());
             r.put("visibility", d.visibility());
             r.put("chain_types", d.reasoningChain() == null ? List.of()
-                    : d.reasoningChain().stream().map(Diagnosis.Claim::type).toList());
+                    : d.reasoningChain().stream().map(c -> c == null ? null : c.type()).toList());
             r.put("explanation", d.explanation());
         }
         return r;

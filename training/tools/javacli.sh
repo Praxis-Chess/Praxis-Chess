@@ -2,6 +2,7 @@
 # Run the backend's dataset tools (EvalCli, DatasetCli) from the command line.
 #
 #   bash training/tools/javacli.sh DatasetCli graphs --in ... --out ...
+#   bash training/tools/javacli.sh GraphCli --fen "<fen>" --move Nf6 --level R3
 #
 # Compiles the backend into training/.javabuild/classes the first time, and again
 # whenever a Java source is newer than the last build. It never writes to the
@@ -15,6 +16,8 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BUILD="$ROOT/training/.javabuild"
 STOCKFISH="${STOCKFISH_PATH:-D:/Tanm/stockfish-windows-x86-64-avx2/stockfish/stockfish-windows-x86-64-avx2.exe}"
 LOMBOK="${LOMBOK_JAR:-$HOME/.m2/repository/org/projectlombok/lombok/1.18.38/lombok-1.18.38.jar}"
+# A fresh clone fills .javabuild/lib with Maven (REPRODUCE.md step 4), Lombok included.
+[ -f "$LOMBOK" ] || LOMBOK="$(ls "$ROOT"/training/.javabuild/lib/lombok-*.jar 2>/dev/null | head -1)"
 
 # Two homes: Git Bash on the Windows laptop, and Linux on a rented GPU (Phase 7,
 # where the verifier chooses each checkpoint). cygpath exists only in Git Bash.
@@ -52,12 +55,13 @@ fi
 
 CLI="$1"; shift
 case "$CLI" in
-    EvalCli|DatasetCli) ;;
-    *) echo "usage: javacli.sh EvalCli|DatasetCli <command> [--flag value ...]" >&2; exit 2 ;;
+    EvalCli|DatasetCli) PKG=eval ;;
+    GraphCli) PKG=graph ;;      # one position's graph or rendering: --fen F --move M [--level R3]
+    *) echo "usage: javacli.sh EvalCli|DatasetCli|GraphCli [<command>] [--flag value ...]" >&2; exit 2 ;;
 esac
 # Add --stockfish unless the caller passed one; commands that don't need it ignore it.
 case " $* " in *" --stockfish "*) EXTRA="" ;; *) EXTRA="--stockfish $STOCKFISH" ;; esac
 
 CP="$(winpath "$BUILD/classes")${SEP}$(winpath "$ROOT/backend/src/main/resources")${SEP}$(winpath "$BUILD/lib")/*"
 # shellcheck disable=SC2086
-exec "$JAVA" -Dfile.encoding=UTF-8 -cp "$CP" "com.praxis.evidence.eval.$CLI" "$@" $EXTRA
+exec "$JAVA" -Dfile.encoding=UTF-8 -cp "$CP" "com.praxis.evidence.$PKG.$CLI" "$@" $EXTRA
