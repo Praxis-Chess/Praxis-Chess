@@ -163,7 +163,8 @@ public final class DiagnosisVerifier {
             g.items().forEach(it -> items.put(it.id(), it));
             for (int i = 0; i < chain.size(); i++) {
                 var c = chain.get(i);
-                if (c.cites() == null || c.cites().isEmpty()) {
+                // A null claim already failed rule 1; it cites nothing either.
+                if (c == null || c.cites() == null || c.cites().isEmpty()) {
                     v.add(new Violation(7, i, "no citations"));
                     continue;
                 }
@@ -187,7 +188,7 @@ public final class DiagnosisVerifier {
                 v.add(new Violation(8, null, "mechanism " + d.mechanism() + " asserted for a NOT_CONCRETE mistake"));
             }
             for (int i = 0; i < chain.size(); i++) {
-                if (CAUSE_CLAIMS.contains(chain.get(i).type())) {
+                if (chain.get(i) != null && CAUSE_CLAIMS.contains(chain.get(i).type())) {
                     v.add(new Violation(8, i, chain.get(i).type() + " in a NOT_CONCRETE diagnosis"));
                 }
             }

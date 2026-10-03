@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://huggingface.co/datasets/praxis-chess/praxis-chess-evidence-graphs/resolve/v1.0/schema/graph_schema.json",
+  "title": "Praxis Chess evidence graph, version 2",
+  "description": "Every fact about one chess mistake, computed from the board and a deterministic Stockfish search (1 thread, hash cleared, depth 14). Nothing here is a label: labels come from the rules (praxis_eval.rules) applied on top. Squares are lowercase (\"c3\"), pieces are lowercase names (\"knight\"), sides are \"WHITE\"/\"BLACK\", moves are SAN unless a field says UCI, and evaluations are pawns from White's point of view unless a field says otherwise. Written by EvidenceGraphBuilder (Java, the Praxis repository); the headless GraphCli builds one for any position. Field names are snake_case; a null field is omitted.",
+  "type": "object",
+  "required": ["version", "header", "p0", "best", "played", "reply", "played_line", "best_line", "cf1", "t1",
+               "delta", "geometry", "best_effects", "moved_effects", "d1"],
+  "properties": {
+    "version": {"const": 2},
+    "header": {
+      "description": "What position, whose move, and how it was searched.",
+      "type": "object",
+      "properties": {
+        "fen": {"type": "string", "description": "The position before the mistake (P0)."},
+        "player": {"enum": ["WHITE", "BLACK"], "description": "The side that made the mistake."},
+        "ply": {"type": "integer", "description": "Half-move number of the mistake in its game."},
+        "phase": {"enum": ["OPENING", "MIDDLEGAME", "ENDGAME"]},
+        "severity": {"enum": ["INACCURACY", "MISTAKE", "BLUNDER"]},
+        "depth": {"type": "integer"},
+        "engine": {"type": "string"}
+      }
+    },
+    "p0": {
+      "description": "P0, the position before the move.",
+      "type": "object",
+      "properties": {
+        "eval_white": {"type": "number"},
+        "win_pct_player": {"type": "number", "description": "Win chance for the player, 0-100."},
+        "material_white": {"type": "integer"},
+        "material_black": {"type": "integer"},
+        "side_to_move": {"enum": ["WHITE", "BLACK"]}
+      }
+    },
+    "best": {"$ref": "#/$defs/move", "description": "B, the engine's best move at P0."},
+    "played": {"$ref": "#/$defs/move", "description": "M, the move played."},
+    "reply": {
+      "description": "R1, the opponent's critical reply after M, and the line it starts walked to the consequence (PC). Counted from the position after M, with M's own capture at ply 0.",
+      "type": "object",
+      "properties": {
+        "uci": {"type": "string"}, "san": {"type": "string"}, "from": {"type": "string"}, "to": {"type": "string"},
+        "gives_check": {"type": "boolean"},
+        "line_san": {"type": "array", "items": {"type": "string"}},
+        "losses": {"type": "array", "items": {"$ref": "#/$defs/taken"}, "description": "The player's pieces that changed hands."},
+        "gains": {"type": "array", "items": {"$ref": "#/$defs/taken"}, "description": "The opponent's pieces that changed hands."},
+        "net_loss": {"type": "integer", "description": "Pawns the player is down at the end of the line."},
+        "mate": {"type": "boolean"},
+        "mate_in": {"type": "integer"},
+        "consequence_ply": {"type": "integer"}
+      }
+    },
+    "played_line": {"$ref": "#/$defs/line", "description": "M and the line after it, from P0."},
+    "best_line": {"$ref": "#/$defs/line", "description": "B and the line after it, from P0."},
+    "cf1": {
+      "description": "CF1, the counterfactual: R1 played after the engine's move instead of M.",
+      "type": "object",
+      "properties": {
+        "reply_uci": {"type": "string"}, "reply_san": {"type": "string"},
+        "best_is_played": {"type": "boolean"},
+        "legal_after_best": {"type": "boolean"},
+        "loss_after_best": {"type": "number", "description": "Pawns the player would lose to R1 after B, against P0's value; absent when R1 is illegal there."},
+        "parries": {"type": "boolean", "description": "R1 does not work after B: illegal, or worth under a pawn."}
+      }
+    },
+    "t1": {
+      "description": "T1, the null-move probe at P0: what the opponent threatened before M, and whether R1 was already that threat.",
+      "type": "object",
+      "properties": {
+        "probed": {"type": "boolean", "description": "False when the probe cannot run (the player was in check)."},
+        "skip_reason": {"type": "string"},
+        "move_uci": {"type": "string"}, "move_san": {"type": "string"},
+        "cost": {"type": "number", "description": "Pawns the player loses by passing."},
+        "reply_cost": {"type": "number", "description": "Pawns the player loses if the opponent plays R1 with a free move."},
+        "threatened": {"type": "boolean"},
+        "reply_is_threat": {"type": "boolean"}
+      }
+    },
+    "delta": {
+      "description": "Δ items: what M changed for pieces that did not move, and lines it opened or closed. Δn is the n-th item, whatever a budgeted rendering drops.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {"enum": ["DEFENDER_REMOVED", "DEFENDER_GAINED", "NOW_LOOSE", "LINE_OPENED", "LINE_BLOCKED"]},
+          "square": {"type": "string"}, "piece": {"type": "string"}, "side": {"enum": ["WHITE", "BLACK"]},
+          "see_before": {"type": "integer"}, "see_after": {"type": "integer"},
+          "defenders_before": {"type": "array", "items": {"type": "string"}},
+          "defenders_after": {"type": "array", "items": {"type": "string"}},
+          "slider": {"type": "string"}, "target": {"type": "string"}
+        }
+      }
+    },
+    "geometry": {
+      "description": "G items: tactic geometry created by R1.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {"enum": ["FORK", "PIN", "SKEWER", "DISCOVERED_ATTACK"]},
+          "by": {"type": "string", "description": "Square of the piece making the tactic."},
+          "piece": {"type": "string"},
+          "targets": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "best_effects": {"type": "array", "items": {"$ref": "#/$defs/effect"}, "description": "B.e items: what B does in its own right."},
+    "moved_effects": {"type": "array", "items": {"$ref": "#/$defs/effect"}, "description": "M.e items: what M does in its own right."},
+    "d1": {
+      "description": "D1, visibility: when the engine first saw M was bad, and kept seeing it.",
+      "type": "object",
+      "properties": {
+        "depth": {"type": "integer"},
+        "band": {"enum": ["SHALLOW", "MEDIUM", "DEEP", "NEVER"]},
+        "final_loss": {"type": "number"},
+        "threshold": {"type": "number"}
+      }
+    },
+    "back_rank_mate": {"type": "boolean", "description": "The played line ends in a back-rank mate (motif BACK_RANK comes from this, not from geometry)."}
+  },
+  "$defs": {
+    "move": {
+      "type": "object",
+      "properties": {
+        "uci": {"type": "string"}, "san": {"type": "string"}, "from": {"type": "string"}, "to": {"type": "string"},
+        "piece": {"type": "string"},
+        "eval_white_after": {"type": "number"},
+        "win_pct_player_after": {"type": "number"},
+        "captured": {"type": "string"},
+        "capture_see": {"type": "integer", "description": "For a capture, what the capture sequence gains."},
+        "landing_see": {"type": "integer", "description": "Static exchange value on the destination square after the move, from the mover's side: negative means the piece can be won."},
+        "gives_check": {"type": "boolean"}
+      }
+    },
+    "line": {
+      "type": "object",
+      "properties": {
+        "line_san": {"type": "array", "items": {"type": "string"}},
+        "net_loss": {"type": "integer", "description": "Pawns the player is down at the end; negative means the line wins material."},
+        "mate_for_player": {"type": "boolean"},
+        "mate_against_player": {"type": "boolean"},
+        "mate_in": {"type": "integer"}
+      }
+    },
+    "taken": {
+      "type": "object",
+      "properties": {
+        "piece": {"type": "string"}, "square": {"type": "string"}, "san": {"type": "string"},
+        "ply": {"type": "integer"}, "value": {"type": "integer"}
+      }
+    },
+    "effect": {
+      "type": "object",
+      "properties": {
+        "kind": {"enum": ["ATTACKS", "CAPTURES", "LANDS", "CHECK", "BLOCKS_LINE"]},
+        "squares": {"type": "array", "items": {"type": "string"}},
+        "text": {"type": "string"}
+      }
+    }
+  }
+}

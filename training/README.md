@@ -9,7 +9,7 @@ evidence-grounded mistake explanations. See
 (11 LoRA arms, ≈ ₹740 of rented GPU) was judged on the player's 890 mistakes and
 838 held-out public positions:
 
-- 2B-R3-LoRA states **100% true claims** (99.5–99.9%) where the same model,
+- 2B-R3-LoRA states **99.7% true claims** (99.5–99.9) where the same model,
   prompted, states 50%, at 4.6 s per answer on the laptop.
 - It still **does not meet** ship rules (b) and (d), so the decision is
   **ship the rules**: `DiagnosisRules` keeps the verified headline on every
@@ -21,6 +21,8 @@ evidence-grounded mistake explanations. See
 | [`reports/grid_v1.md`](reports/grid_v1.md) | Every pre-registered verdict, with intervals |
 | [`reports/grid_v1_disclosures.md`](reports/grid_v1_disclosures.md) | What changed during the run, and why |
 | [`PREREGISTRATION.md`](PREREGISTRATION.md) | What was promised before training (tag `prereg-v1`) |
+| [`reports/public_test_v1.md`](reports/public_test_v1.md) | Every released and comparison model on the 838 public positions |
+| [`REPRODUCE.md`](REPRODUCE.md) | Reproducing the table, re-scoring without a GPU, retraining, diagnosing your own games |
 
 Phase 1 was a **toolchain spike**, not a model anyone should use. Its job was to
 find out whether Qwen3.5 can be trained, exported and served on a 4 GB laptop
@@ -105,6 +107,11 @@ compared with an earlier one without rerunning it.
 | `quant_delta.py` | Phase 8: bf16 against q4_K_M on the same 300 public items. |
 | `fresh_labels.py` | Phase 8: the labels made after `prereg-v1`, exported from the running backend. |
 | `grid_report.py` | Phase 8: the H1–H5 verdicts and ship rules, exactly as `PREREGISTRATION.md` defines them. |
+| `public_table.py` | Phase 11: the public-test table. Each system gets its own seeded bootstrap, so reproducing one model gives the same interval as the table. |
+| `src/praxis_eval/` | Phase 11: the checker in Python, a port of `DiagnosisVerifier` and `DiagnosisRules` that needs only python-chess. `tests/test_parity.py` holds it to the Java verdicts. |
+| `reproduce.py` | Phase 11: one model on the public test set, end to end, against the published intervals; or the published answers re-scored. |
+| `tools/make_verifier_vectors.py` | Phase 11: real and deliberately broken answers, judged by the Java checker, for `tests/verifier_test_vectors.jsonl.gz`. |
+| `tools/hf_release.py` | Phase 11: stages the six Hub repos (cards filled from the measured files), checks them for private data, uploads them private, tags, publishes. |
 
 ## Phase 7: the LoRA grid on a rented GPU
 
@@ -177,6 +184,40 @@ Before any 2B/4B training: [`PREREGISTRATION.md`](PREREGISTRATION.md) (tag
 `prereg-v1`) fixes the hypotheses, metrics, statistics and ship rules, and
 `python training/tools/prereg_hashes.py --check` proves a run used the
 registered data.
+
+## Phase 11: the open release
+
+Six repos under [huggingface.co/praxis-chess](https://huggingface.co/praxis-chess), tagged `v1.0`:
+
+| Repo | What |
+|---|---|
+| `praxis-chess-reasoner-qwen3.5-2b-lora` | The released adapter (2B-R3), with its card |
+| `praxis-chess-reasoner-qwen3.5-4b-lora` | The 4B-R3 adapter |
+| `praxis-chess-reasoner-qwen3.5-2b-GGUF`, `-4b-GGUF` | The q4_K_M files every number was measured with, and their Modelfiles |
+| `praxis-chess-grid-v1-arms` | 2B-R0/R1/R2 and 4B-R0, so every row of the table can be reproduced |
+| `praxis-chess-evidence-graphs` (dataset) | Public data only: renders, graphs, targets, the test set, every published answer, the schemas, the verifier test vectors |
+
+The release runs from `training/`, one step at a time:
+
+| Step | Command |
+|---|---|
+| The public table | `set PYTHONPATH=src&& python -m praxis_train.public_table` |
+| Checker parity | `python tests/test_parity.py` (vectors: `python tools/make_verifier_vectors.py`) |
+| Stage and check | `python tools/hf_release.py stage` → `release/staging/` |
+| Upload, private | `python tools/hf_release.py upload`, then `check-remote` |
+| Tag, then publish | `python tools/hf_release.py tag`, `python tools/hf_release.py publish` |
+
+The cards live in `release/cards/` as templates. Every number in them is filled
+from `reports/public_test_v1.json`, `reports/grid_v1.json` and the arms' own
+reports, and staging stops on any unfilled one. Nothing from the player's
+games is uploaded:
+- the dataset's rows are checked to be Lichess-sourced, row by row;
+- every text file is scanned for local paths, tokens and Chess.com references;
+- the card's private-games table is aggregates only.
+
+The release is "reproduced", not just "uploaded", once someone else has
+followed `REPRODUCE.md` step 1 on a clean machine and landed inside the
+intervals.
 
 ## Phase 6: building the training dataset
 
