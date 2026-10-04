@@ -407,6 +407,30 @@ praxis-chess/
 
 ---
 
+## Research: Explaining Mistakes Truthfully
+
+Can a small model say *why* a move was a mistake without inventing anything? Praxis
+trained Qwen3.5 2B and 4B LoRA adapters on **evidence graphs** (Stockfish facts about
+each mistake), checked every claim they make, and judged them against a
+pre-registration fixed before training.
+
+On 838 public Lichess positions, the 2B adapter given the full graph states
+**99.7% true claims**. Trained on the board alone, the same model states 34.8%.
+By its own pre-registered rules it did not replace Praxis's rule-based diagnosis.
+In the app it writes an optional commentary, which is shown only when every
+claim passes the checker.
+
+| | |
+|---|---|
+| Models and dataset | [huggingface.co/praxis-chess](https://huggingface.co/praxis-chess): 2B and 4B adapters, GGUFs for Ollama, the comparison models, and the dataset |
+| Write-up | [`training/reports/writeup_v1.md`](training/reports/writeup_v1.md) |
+| Reproduce the table | [`training/REPRODUCE.md`](training/REPRODUCE.md). Re-scoring needs no GPU; a full run takes about 1.5 hours on a 4 GB card |
+| Pre-registration | [`training/PREREGISTRATION.md`](training/PREREGISTRATION.md), tag `prereg-v1` |
+
+Only public Lichess data is published. Your own games never leave your machine.
+
+---
+
 ## Why Fully Offline?
 
 Most AI chess tools require uploading your games to cloud services. Praxis-Chess takes a different approach.
