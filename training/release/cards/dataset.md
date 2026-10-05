@@ -58,7 +58,7 @@ configs:
 
 # Praxis Chess Evidence Graphs
 
-> **v1.0, waiting for an independent reproduction.** Built for, and used to
+> Built for, and used to
 > train and test,
 > [praxis-chess-reasoner-qwen3.5-2b-lora](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-lora)
 > and its [4B sibling](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-4b-lora).

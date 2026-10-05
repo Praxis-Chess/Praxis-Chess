@@ -39,11 +39,6 @@ model-index:
 
 # Praxis Chess Reasoner: Qwen3.5-{{size}} LoRA (R3)
 
-> **v1.0, waiting for an independent reproduction.** Every number below was
-> measured and can be re-checked with [`reproduce.py`](https://github.com/Praxis-Chess/Praxis-Chess/tree/lora-v1.0/training).
-> This note goes away once someone other than the author has reproduced the
-> table on a clean machine.
-
 A LoRA adapter for [{{base}}](https://huggingface.co/{{base}}) that explains
 **why a chess move was a mistake**, using only facts it is handed. The input
 is a position, the move played and an **evidence graph**: engine-computed
