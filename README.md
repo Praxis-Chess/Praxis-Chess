@@ -422,7 +422,7 @@ claim passes the checker.
 
 | | |
 |---|---|
-| Models and dataset | [huggingface.co/praxis-chess](https://huggingface.co/praxis-chess): 2B and 4B adapters, GGUFs for Ollama, the comparison models, and the dataset |
+| Models and dataset | The [Praxis Chess LoRA v1 collection](https://huggingface.co/collections/praxis-chess/praxis-chess-lora-v1): 2B and 4B adapters, GGUFs for Ollama, the comparison models, and the dataset |
 | Write-up | [`training/reports/writeup_v1.md`](training/reports/writeup_v1.md) |
 | Reproduce the table | [`training/REPRODUCE.md`](training/REPRODUCE.md). Re-scoring needs no GPU; a full run takes about 1.5 hours on a 4 GB card |
 | Pre-registration | [`training/PREREGISTRATION.md`](training/PREREGISTRATION.md), tag `prereg-v1` |

@@ -2,6 +2,7 @@
 
     python tools/hf_release.py stage            # build release/staging/: cards, configs, manifests, plan
     python tools/hf_release.py upload [REPO]    # create PRIVATE repos and upload (default: all six)
+    python tools/hf_release.py cards [REPO]     # after a card edit: re-upload only each README.md
     python tools/hf_release.py check-remote     # every uploaded file's sha256 against the local file
     python tools/hf_release.py tag              # tag v1.0 on every repo
     python tools/hf_release.py publish          # make them public, and group them in a collection
@@ -446,15 +447,21 @@ def hub():
     return HfApi()
 
 
-def upload(plan: dict, only: str | None) -> None:
+def upload(plan: dict, only: str | None, cards_only: bool = False) -> None:
     from huggingface_hub import CommitOperationAdd
     api = hub()
     for name, spec in plan.items():
         if only and name != only:
             continue
         repo_id = f"{ORG}/{name}"
+        files = [f for f in spec["files"] if f[0] == "README.md"] if cards_only else spec["files"]
+        if cards_only:
+            api.create_commit(repo_id, repo_type=spec["type"], commit_message="Update the card",
+                              operations=[CommitOperationAdd(path_in_repo=p, path_or_fileobj=l) for p, l in files])
+            print(f"{repo_id}: card updated")
+            continue
         api.create_repo(repo_id, repo_type=spec["type"], private=True, exist_ok=True)
-        ops = [CommitOperationAdd(path_in_repo=path, path_or_fileobj=local) for path, local in spec["files"]]
+        ops = [CommitOperationAdd(path_in_repo=path, path_or_fileobj=local) for path, local in files]
         print(f"{repo_id}: uploading {len(ops)} files ({spec.get('bytes', 0) / 1e9:.2f} GB) ...", flush=True)
         api.create_commit(repo_id, repo_type=spec["type"], operations=ops,
                           commit_message=f"Praxis Chess LoRA {TAG} (release candidate)")
@@ -512,7 +519,7 @@ def publish(plan: dict) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["stage", "upload", "check-remote", "tag", "publish"])
+    ap.add_argument("cmd", choices=["stage", "upload", "cards", "check-remote", "tag", "publish"])
     ap.add_argument("repo", nargs="?", help="upload: only this repo (its name without the org)")
     args = ap.parse_args()
     if args.cmd == "stage":
@@ -531,6 +538,8 @@ def main() -> None:
     plan = load(STAGE / "plan.json")
     if args.cmd == "upload":
         upload(plan, args.repo)
+    elif args.cmd == "cards":
+        upload(plan, args.repo, cards_only=True)
     elif args.cmd == "check-remote":
         sys.exit(0 if check_remote(plan) else 1)
     elif args.cmd == "tag":

@@ -17,7 +17,7 @@ tags:
 
 # Praxis Chess Reasoner: Qwen3.5-{{size}} (GGUF, q4_K_M)
 
-> **v1.0, waiting for an independent reproduction.** See the
+> See the
 > [adapter's card](https://huggingface.co/praxis-chess/{{lora_repo_name}}) for
 > what this model does, how it was trained and evaluated, and its limits.
 
