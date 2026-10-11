@@ -1,3 +1,37 @@
+# Praxis Chess LoRA v1 — research release (`lora-v1.0`, 5 October 2026)
+
+A small model that explains why a chess move was a mistake, using only
+evidence it is handed, with every claim checked by a program. Released as a
+complete, reproducible study, not only as weights.
+
+**On Hugging Face:** the [Praxis Chess LoRA v1 collection](https://huggingface.co/collections/praxis-chess/praxis-chess-lora-v1)
+
+| Repo | What |
+|---|---|
+| [`praxis-chess-reasoner-qwen3.5-2b-lora`](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-lora) | The released model: Qwen3.5-2B + LoRA, trained on evidence graphs |
+| [`praxis-chess-reasoner-qwen3.5-2b-GGUF`](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF) | The same, q4_K_M, ready for Ollama; this is what Praxis loads |
+| [`praxis-chess-reasoner-qwen3.5-4b-lora`](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-4b-lora), [`-4b-GGUF`](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-4b-GGUF) | The 4B sibling |
+| [`praxis-chess-grid-v1-arms`](https://huggingface.co/praxis-chess/praxis-chess-grid-v1-arms) | The comparison models (board only, engine numbers, flat facts) |
+| [`praxis-chess-evidence-graphs`](https://huggingface.co/datasets/praxis-chess/praxis-chess-evidence-graphs) | Public data, graphs, renders, every published answer, verifier test vectors |
+
+**Results** on 838 held-out public Lichess positions:
+- **99.7%** of the 2B model's claims are true with the evidence graph, **34.8%**
+  with the board alone.
+- **78.0%** of its answers pass every check; the 4B's do 86.8% of the time.
+- By its own pre-registered rules it did not replace Praxis's rule-based
+  diagnosis. In the app it writes an optional commentary, shown only when every
+  claim passes the verifier.
+
+**In this repository:** [the write-up](training/reports/writeup_v1.md), the
+[public table](training/reports/public_test_v1.md), [`REPRODUCE.md`](training/REPRODUCE.md),
+and `praxis_eval`, the verifier in Python. To use the model in Praxis, see
+README step 3b.
+
+Earlier app releases (v1.1.0, v1.2.0) are described on
+[GitHub Releases](https://github.com/Praxis-Chess/Praxis-Chess/releases).
+
+---
+
 # Praxis Chess v1.0.0
 
 A self-hosted chess improvement platform that analyzes your Chess.com games

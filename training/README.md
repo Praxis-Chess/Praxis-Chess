@@ -5,7 +5,7 @@ evidence-grounded mistake explanations. See
 `technical-docs/LORA_IMPLEMENTATION_PLAN.md` for why any of this exists;
 `reports/` holds what each run actually measured.
 
-**Where it stands (2026-10-03).** Version 1 is complete. The pre-registered grid
+**Where it stands (2026-10-11).** Version 1 is complete and public. The pre-registered grid
 (11 LoRA arms, ≈ ₹740 of rented GPU) was judged on the player's 890 mistakes and
 838 held-out public positions:
 
@@ -14,6 +14,9 @@ evidence-grounded mistake explanations. See
 - It still **does not meet** ship rules (b) and (d), so the decision is
   **ship the rules**: `DiagnosisRules` keeps the verified headline on every
   mistake, and the trained model writes the checked "AI commentary" beside it.
+- **Released (2026-10-05):** models, dataset and every published answer are in the
+  [Praxis Chess LoRA v1 collection](https://huggingface.co/collections/praxis-chess/praxis-chess-lora-v1)
+  on Hugging Face, tagged `v1.0` and pinned to the git tag `lora-v1.0`.
 
 | Read | For |
 |---|---|

@@ -14,6 +14,9 @@ export function AiModelsCard() {
 
   const cloudFeatures = ai.features.filter(f => f.cloud)
   const waiting = ai.features.filter(f => f.requested && !f.cloud)
+  // The trained model is the one feature a user cannot pull by name from Ollama:
+  // without this line, Settings is a dead end that just says "off".
+  const commentaryOff = ai.features.some(f => f.feature === 'commentary' && !f.model)
 
   return (
     <section className="card" aria-labelledby="ai-title">
@@ -41,6 +44,14 @@ export function AiModelsCard() {
         ))}
       </div>
 
+      {commentaryOff && (
+        <p style={{ ...muted, marginTop: 12 }}>
+          Checked commentary is off. The trained model is on{' '}
+          <a href="https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF"
+             target="_blank" rel="noopener noreferrer" style={{ color: 'var(--orchid)' }}>Hugging Face</a>
+          ; set it up with step 3b of the README, then <span className="mono">commentary-model</span> in application.yml.
+        </p>
+      )}
       {cloudFeatures.length > 0 && (
         <p role="note" style={{
           ...muted, marginTop: 12, padding: '8px 12px',
