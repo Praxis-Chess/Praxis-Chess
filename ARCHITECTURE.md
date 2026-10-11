@@ -2,7 +2,8 @@
 
 > A personal chess improvement platform that syncs games from Chess.com, analyzes mistakes
 > using Stockfish + a local LLM, identifies patterns across your portfolio, and generates
-> a personalized training plan. Everything runs locally — no cloud AI calls.
+> a personalized training plan. Everything runs locally by default; a cloud model
+> provider can be configured per feature, and is off unless you do.
 
 ---
 
@@ -55,9 +56,12 @@ calls tools, or drives any control flow. Stockfish determines *which* positions 
 analyze; the LLM only explains *why* a move was a mistake.
 
 ### 3. Offline by design
-No cloud AI, no external analysis APIs. Ollama runs locally, Stockfish is a local
-binary. The only external call is the Chess.com public REST API to fetch PGN data.
-The system works with no internet connection after initial game sync.
+No cloud AI and no external analysis APIs by default. Ollama runs locally, Stockfish
+is a local binary. The only default external call is the Chess.com public REST API
+to fetch PGN data, and the system works with no internet connection after the
+initial game sync. Two features can reach out, both off until configured: web
+research for general chess questions ([Web Research](#web-research)) and a cloud
+model provider per feature (Key Design Decision 17).
 
 ### 4. Aggregate, don't just report
 The system doesn't stop at identifying individual mistakes. It aggregates all errors
@@ -96,7 +100,7 @@ to the React frontend via a Spring Boot REST API.
 | Chess rendering | react-chessboard | latest |
 | Chess logic (FE) | chess.js | latest |
 | Backend | Spring Boot | 3.5.3 |
-| Language | Java | 26 |
+| Language | Java | 21+ (build target 21; developed on 26) |
 | ORM | Hibernate / Spring Data JPA | 6.6 |
 | Database | PostgreSQL (Docker) | 17 |
 | Chess engine | Stockfish | AVX2 binary |
@@ -104,12 +108,14 @@ to the React frontend via a Spring Boot REST API.
 | Local LLM runtime | Ollama | latest |
 | Analysis model | `qwen2.5:7b` (move + report) | 7B params |
 | Reasoning model | `qwen3:4b-instruct` (Prax agent, tool calling) | 4B params |
+| Commentary model | `praxis-grid-2b-r3`: our Qwen3.5-2B LoRA, optional ([Hugging Face](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF)) | 2B params |
+| Cloud models | Any OpenAI-compatible provider, per feature, off by default | — |
 | Text-to-speech | Kokoro-82M ONNX, CPU-only, FastAPI sidecar | 82M params |
 | Web search | SearXNG (self-hosted, Docker) or Brave API | latest |
 | Prax rendering | Three.js `Points` + custom GLSL | r160+ |
 | Async executor | Spring `@Async` + `ThreadPoolTaskExecutor` | — |
-| Backend tests | JUnit 5 + AssertJ + Mockito | 176 tests |
-| E2E tests | Playwright (chromium + narrow-window projects) | see `frontend/e2e` |
+| Backend tests | JUnit 5 + AssertJ + Mockito | 531 tests (last full run, Oct 2026) |
+| E2E tests | Playwright (chromium + narrow-window projects) | 422 tests (last full run, Oct 2026) |
 
 The two LLM roles are deliberately separate models. The analysis models run in
 batch and the reasoning model runs interactively; sharing one would make a
@@ -394,8 +400,8 @@ flowchart TD
     EMPTY -- yes --> FAILED[status = FAILED\nsave to DB]
     FAILED --> NEXT
 
-    EMPTY -- no --> STOCK[PositionEvaluator\nSend each FEN to Stockfish\nmovetime 100 fast pass]
-    STOCK --> FILTER[MistakeCandidateFilter\nSkip book moves ply ≤ 12\nIdentify score drops ≥ 1.0p\nMax 8 candidates]
+    EMPTY -- no --> STOCK[PositionEvaluator\nSend each FEN to Stockfish\nmovetime 100 fast pass by default]
+    STOCK --> FILTER[MistakeCandidateFilter\nFlag drops in winning chances\n5 / 10 / 20 win% points\nNo cap, no opening skip]
     FILTER --> SORT[Sort by swing severity\nworst first]
     SORT --> OLLAMA_LOOP{for each candidate}
 
@@ -412,29 +418,48 @@ flowchart TD
     MORE_CANDIDATES -- yes --> OLLAMA_LOOP
     MORE_CANDIDATES -- no --> MARK[game.status = ANALYZED\ngame.analyzedAt = now\nsave to DB]
 
-    MARK --> INC[progressTracker.increment]
+    MARK --> DIAG[DiagnosisService, after commit\nevidence graph per mistake\nrules + verifier\noptional trained commentary]
+    DIAG --> INC[progressTracker.increment]
     INC --> NEXT{more games?}
     NEXT -- yes --> LOOP
     NEXT -- no --> PATTERN[PatternAggregator.recompute\nset patternGenerating = true]
     PATTERN --> DONE([progressTracker.finish])
 ```
 
-### Key thresholds (MistakeCandidateFilter)
+### Key thresholds
+
+Severity is a drop in the player's winning chances, on the same win-percentage
+curve as the accuracy figure, so a two-pawn drop at +8 counts for far less than
+one at level. Mate scores (±99.xx pawns) are handled by the same curve.
 
 | Parameter | Value | Meaning |
 |---|---|---|
-| `MISTAKE_THRESHOLD` | 1.0 pawns | Minimum score drop to be flagged |
-| `BLUNDER_THRESHOLD` | 2.0 pawns | Score drop that classifies as a blunder |
+| `INACCURACY_WIN_PCT_DROP` | 5 points | Smallest drop that is flagged |
+| `MISTAKE_WIN_PCT_DROP` | 10 points | Mistake |
+| `BLUNDER_WIN_PCT_DROP` | 20 points | Blunder |
 | `TIME_PRESSURE_CUTOFF` | 30 seconds | Clock remaining below this → time pressure flag |
-| `MAX_CANDIDATES` | 8 per game | Upper bound on mistakes identified |
-| `BOOK_MOVES_PLY` | 12 ply (6 full moves) | Opening moves skipped — engine evals are near-equal and noisy |
-| `MAX_OLLAMA_CALLS_PER_GAME` | 3 per game | Ollama only called for the 3 worst mistakes |
+| `OPENING_PLY_MAX` / `ENDGAME_PIECE_THRESHOLD` | 24 ply / 10 pieces | Phase boundaries |
+
+No per-game cap and no opening skip: every flagged move is stored. The engine and
+explanation budgets come from the active settings version (`AnalysisProfile`):
+
+| Setting | Library default | Practice game | Allowed range |
+|---|---|---|---|
+| Sweep movetime per position | 100 ms | 200 ms | 50–1,000 ms |
+| MultiPV depth per flagged move | 18 | 20 | 12–30 |
+| MultiPV lines | 3 | 4 | 1–10 |
+| Written explanations per game | 3 | 10 | up to 50 |
+
+A settings change is a new `AnalysisSettings` row, and every game records the row
+it was analysed under, so games analysed with different settings are never
+compared silently.
 
 ### Why only 3 Ollama calls per game?
 
 Each Ollama call takes 7–16 seconds. With 74 games × 3 calls = 222 Ollama calls ≈ 35–50 minutes total.
-Remaining mistakes (up to 5 more) are saved without natural language explanation to preserve
-pattern count accuracy without multiplying inference time.
+The remaining mistakes are saved engine-only (`SKIPPED`), so counts stay complete
+without multiplying inference time. Every mistake, explained or not, still gets the
+verified diagnosis.
 
 ---
 
@@ -1225,7 +1250,7 @@ app measures the wrong thing.
 
 Two suites, testing genuinely different things.
 
-### Backend — 176 JUnit tests
+### Backend — 531 JUnit tests (last full run, October 2026)
 
 Concentrated where a mistake is invisible rather than where code is easy to
 reach: `GroundingPolicyTest`, `QuestionRouterTest`, `SafeFetcherTest`,
@@ -1236,7 +1261,7 @@ reach: `GroundingPolicyTest`, `QuestionRouterTest`, `SafeFetcherTest`,
 red; deleting the SSRF guard turns 8 red; deleting the FEN check turns 3 red. A
 guard nobody has watched fail is a guard nobody knows is wired up.
 
-### Frontend — 200 Playwright tests
+### Frontend — 422 Playwright tests (last full run, October 2026)
 
 ```
 e2e/
@@ -1318,7 +1343,10 @@ fallback in one consumer can mask a data defect from everyone who lacks it.
 ## Prax — Presence & Voice
 
 Prax is also a visual presence: a single persistent WebGL canvas rendering
-~2,500 particles as one `THREE.Points` draw call, present on every page.
+2,562 particles (642 on small screens) as one `THREE.Points` draw call, shown on
+Today, Progress and Library (`PRAX_BODY_ROUTES`). On every other page the canvas
+stays mounted, hidden and frozen, so the organism's identity survives navigation
+without covering the page being worked on.
 
 ```
 prax/
@@ -1537,7 +1565,7 @@ sequenceDiagram
     loop 74 games
         AE->>SF: "go movetime 100" × N positions (fast pass)
         SF-->>AE: centipawn score per position
-        Note over AE: filter candidates (skip ply ≤ 12, max 8)
+        Note over AE: flag drops of 5 / 10 / 20 win% points (no cap)
 
         Note over AE,OL: top 3: Stockfish MultiPV + Ollama overlap via LinkedBlockingQueue
         par Stockfish MultiPV on analysisExecutor thread
@@ -1939,7 +1967,7 @@ Frontend proxies `/api/*` to `http://localhost:8086` via Vite's `server.proxy` c
 | **True HYBRID synthesis** | `HYBRID` currently offers both toolsets and lets the model choose. Genuinely *merging* player data and web material — *"you lose to the London, and here is the standard plan against it"* — is the hardest thing here to keep honest, because the join is where a claim quietly acquires authority it has not earned. Deferred until lane logging shows people actually ask such questions. |
 | **Knowledge RAG (V3)** | **Declined**, pending evidence. Every question logs its lane; if `GENERAL` questions are a small single-digit percentage of real usage, the honest conclusion is that Prax declining them was a feature. |
 | **Closing the SSRF TOCTOU window** | A custom socket factory pinned to the vetted IP. Negligible exposure on a single-user localhost app; listed so the decision stays a decision. |
-| **Backend CI** | 176 JUnit tests currently run on no machine but the developer's — the workflow is Playwright-only. |
+| **Backend CI** | 531 JUnit tests currently run on no machine but the developer's — the workflow is Playwright-only. |
 
 ---
 
@@ -2017,7 +2045,7 @@ sequenceDiagram
     loop 74 games
         BE->>SF: evaluate all positions (centipawns)
         SF-->>BE: score per position
-        BE->>BE: filter mistakes by threshold\n(≥1.0 pawn drop)
+        BE->>BE: flag mistakes by win% drop\n(5 / 10 / 20 points)
         loop top 3 mistakes (overlapped with MultiPV)
             BE->>OL: FEN + move + engine lines → JSON
             OL-->>BE: explanation, motif

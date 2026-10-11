@@ -2,9 +2,9 @@
 
 <img src="frontend/public/praxis_logo.png" width="10%">
 
-A personal, fully offline chess analytics and improvement system. Connect your Chess.com account, let the AI analyze your games, identify your recurring weaknesses, and generate a training plan tailored to your actual play — not generic advice.
+A personal, local-first chess analytics and improvement system. Connect your Chess.com account, let the AI analyze your games, identify your recurring weaknesses, and generate a training plan tailored to your actual play — not generic advice.
 
-Built with **Java 26 + Spring Boot 3.5**, **PostgreSQL**, **Stockfish**, **Ollama (local LLM)**, and **React**. No cloud AI. No deployment. Runs entirely on your machine.
+Built with **Java 21+ and Spring Boot 3.5**, **PostgreSQL**, **Stockfish**, **Ollama (local LLMs)**, and **React**. No cloud AI by default, no deployment: it runs on your machine.
 
 ---
 
@@ -16,11 +16,11 @@ Your chess at a glance — rating trend over time, win/loss/draw breakdown, open
 
 ### Game Analysis
 
-Select any fetched game and get move-by-move coaching. Every mistake is flagged with its severity (blunder, mistake, inaccuracy), the better move, and a plain-English explanation of _why_ — powered by Stockfish evaluation + local LLM.
+Select any analysed game and get move-by-move coaching. Every mistake is flagged with its severity (blunder, mistake, inaccuracy) and the better move, both computed from Stockfish. Each one also carries a **verified diagnosis**: an evidence graph of engine facts, hand-written rules that name what happened and why, and a checker that passes every claim before it is marked "✓ Verified" (the "Why?" panel shows the evidence). The worst mistakes get a plain-English explanation from the local LLM, and, if you install it, a commentary from the model we trained, shown only when every claim in it passes the checker.
 
 ### Insights
 
-Practical analytics that show where your rating actually leaks: winning-position **conversion rate**, **time-trouble blunder rate**, an **accuracy trend** with a 10-game rolling average, win rate **vs. opponent strength**, **time-of-day / day-of-week** performance, **missed-tactic** frequency, **tilt** (how you play after a loss), and per-opening win rate + accuracy. Everything is derived from data already captured during analysis.
+Practical analytics that show where your rating actually leaks: winning-position **conversion rate**, **time-trouble blunder rate**, an **accuracy trend** with a 10-game rolling average, win rate **vs. opponent strength**, **time-of-day / day-of-week** performance, **missed-tactic** frequency, **tilt** (how you play after a loss), and per-opening win rate + accuracy. Everything is derived from data already captured during analysis. Filter by speed (rapid, blitz, bullet, daily); with one speed selected it shows your rating there. A thrown-away win opens the game at the move that let it go.
 
 ### Drills
 
@@ -30,9 +30,11 @@ Turns analysis into practice. Every blunder with a known engine best move become
 
 Cross-game aggregation. Instead of per-game feedback, this tells you what _keeps_ happening: which move range you blunder in most, which tactical motifs catch you repeatedly, and where your opening preparation breaks down.
 
+> **Status:** reachable at `/patterns` but not in the navigation. Its motif labels come from the local LLM's explanations, which are not verified and exist only for the explained mistakes. Phase 12 rebuilds it, and the Training Plan, on the verified diagnoses.
+
 ### Training Plan
 
-The AI reads your Pattern Report and generates a prioritized, concrete improvement list — specific openings to drill, tactical patterns to study, positional habits to fix. Regenerates on demand.
+The AI reads your Pattern Report and generates a prioritized, concrete improvement list — specific openings to drill, tactical patterns to study, positional habits to fix. Regenerates on demand. Reachable at `/training`; out of the navigation until Phase 12, for the same reason as the Pattern Report.
 
 ### Ask Prax
 
@@ -74,7 +76,7 @@ or left open past midnight cannot silently break or inflate the count.
 
 ### Prax — the presence
 
-Prax is also visible: ~2,500 points rendered in WebGL as a single draw call, present on every page. The surface is an icosphere displaced along its own normals by noise sampled **every frame on the GPU**, so it genuinely reorganises rather than sitting still with jitter on top. It thickens and churns while analysis runs, contracts sharply on an insight, sweeps during evaluation, and narrates progress from real event counts — never from the model.
+Prax is also visible: 2,562 points (642 on small screens) rendered in WebGL as a single draw call, on the Today, Progress and Library pages. Elsewhere the canvas stays mounted but hidden and frozen, so it never covers the page you are working on. The surface is an icosphere displaced along its own normals by noise sampled **every frame on the GPU**, so it genuinely reorganises rather than sitting still with jitter on top. It thickens and churns while analysis runs, contracts sharply on an insight, sweeps during evaluation, and narrates progress from real event counts — never from the model.
 
 Local text-to-speech (Kokoro-82M, CPU-only) is built end-to-end but **not currently reachable from the UI** — the button that triggers it was never mounted. See [SPEECH_IMPLEMENTATION_PLAN.md](SPEECH_IMPLEMENTATION_PLAN.md).
 
@@ -84,7 +86,7 @@ Local text-to-speech (Kokoro-82M, CPU-only) is built end-to-end but **not curren
 
 | Layer           | Technology                             | Version           |
 | --------------- | -------------------------------------- | ----------------- |
-| Backend         | Java + Spring Boot                     | Java 26, SB 3.5.3 |
+| Backend         | Java + Spring Boot                     | Java 21+ (developed on 26), SB 3.5.3 |
 | Chess engine    | Stockfish (AVX2 binary)                | —                 |
 | Analysis LLM    | Ollama + `qwen2.5:7b`                  | —                 |
 | Reasoning LLM   | Ollama + `qwen3:4b-instruct`           | tool calling      |
@@ -112,9 +114,13 @@ flowchart TD
     YOU([You]) -->|"① Sync Now"| CC[Chess.com API\nfetch PGN games]
     CC -->|store raw games| DB[(PostgreSQL)]
 
-    DB -->|"② Re-Analyze All"| SF[Stockfish\nevaluate every position\nfind score drops]
+    DB -->|"② Re-Analyze All"| SF[Stockfish\nevaluate every position\nflag drops in winning chances]
     SF -->|top mistake candidates| OL[Ollama — qwen2.5:7b\nexplain why it was a mistake\nwhat to play instead]
     OL -->|save MoveErrors| DB
+    DB -->|"after each game"| EG[Evidence graph + rules\nchecked by the verifier\n✓ Verified diagnosis]
+    EG -->|optional| TC[Trained 2B model\nchecked commentary]
+    EG --> DB
+    TC --> DB
 
     DB -->|"after all games done"| PA[Pattern Aggregator\ngroup by phase · motif · move range\nask LLM for systemic weaknesses]
     PA -->|save PlayerPattern| DB
@@ -135,16 +141,16 @@ flowchart TD
 
 ## How Analysis Works
 
-Analysis runs in four stages, entirely offline:
+Analysis runs in five stages, entirely on your machine. The numbers below are the defaults; Settings can change them within fixed bounds, and every change is recorded as a new settings version that each game points at, so games analysed under different settings are never compared silently.
 
 **Stage 1 — Stockfish bulk evaluation**
-Every position is evaluated at `movetime 100` with Stockfish, skipping the first 6 full moves of opening book. Centipawn score drops ≥ 1.0 pawn are flagged as mistake candidates (max 8 per game). Severity is computed in Java — never by the LLM.
+Every position is evaluated at `movetime 100` with Stockfish. A move is flagged when it drops the player's winning chances (the same win-percentage curve as the accuracy figure): **5 points** is an inaccuracy, **10** a mistake, **20** a blunder. There is no per-game cap and no opening skip: every flagged move is stored. Severity is computed in Java — never by the LLM.
 
 **Stage 2 — Deep MultiPV enrichment per candidate**
 Each candidate gets a depth-18 Stockfish search with `MultiPV 3`, capturing the engine's top 3 continuation lines. This determines the `better_move` (UCI format) and engine lines fed into the LLM prompt.
 
 **Stage 3 — Ollama explains (overlapped with Stage 2)**
-The top 3 candidates are explained by `qwen2.5:7b`. The prompt includes the FEN, the move played, Stockfish's best reply, the eval delta in pawns, and the engine's top lines. The LLM's job is limited to explaining *why* — severity and the better move are already determined by Stockfish.
+The top 3 mistakes per game are explained by `qwen2.5:7b`; the rest are stored engine-only. The prompt includes the FEN, the move played, Stockfish's best reply, the eval delta in pawns, and the engine's top lines. The LLM's job is limited to explaining *why* — severity and the better move are already determined by Stockfish.
 
 Stages 2 and 3 run in parallel via a `LinkedBlockingQueue`: the main thread runs Stockfish MultiPV on candidate N+1 while a consumer thread calls Ollama for candidate N.
 
@@ -155,7 +161,10 @@ Stages 2 and 3 run in parallel via a `LinkedBlockingQueue`: the main thread runs
 }
 ```
 
-**Stage 4 — Pattern aggregation**
+**Stage 4 — Verified diagnosis (after each game commits)**
+Every stored mistake gets an evidence graph from a deterministic Stockfish search (one thread, hash cleared, depth 14): the critical reply, what it wins, the threat that existed before the move, whether the reply still works after the best move, and how deep the engine had to look. Hand-written rules name the consequence and the cause, and a verifier checks every claim against the graph and the board. If the trained commentary model is installed (step 3b), it writes a commentary from the same graph, and it is shown only when every claim passes. See [ARCHITECTURE.md](ARCHITECTURE.md#evidence-graph-and-verified-diagnosis).
+
+**Stage 5 — Pattern aggregation**
 After all games are analyzed, error statistics (by phase, move range, motif, opening, time pressure) are compiled and sent to the LLM once to identify systemic weaknesses across your full game library.
 
 Ollama is called with `"format": "json"` (grammar-constrained mode) — output is always parseable, never a wall of text.
@@ -166,7 +175,7 @@ Ollama is called with `"format": "json"` (grammar-constrained mode) — output i
 
 A separate path from the analysis pipeline. The pipeline writes rows; Prax reads them and reasons over them, in a loop bounded to **6 turns, 10 tool calls, 120 seconds**.
 
-**1 — Tools, not memory.** Eleven read-only tools expose your data (a twelfth, `web_search`, is offered only on questions your own games cannot answer): player profile, opening and phase performance, mistake patterns, game lookup, drill progress, and `find_mistakes`, which returns your worst individual moves ordered by how much win probability each one cost. Prax may not answer from its own knowledge; it must call something.
+**1 — Tools, not memory.** Twelve read-only tools expose your data and the engine (a thirteenth, `web_search`, is offered only on questions your own games cannot answer): player profile, recent games, game lookup and search, opening and phase performance, mistake patterns, opening recommendations, drill progress, position analysis, the verified explanation of a mistake, and `find_mistakes`, which returns your worst individual moves ordered by how much win probability each one cost. Prax may not answer from its own knowledge; it must call something.
 
 **2 — The engine is chained automatically.** `find_mistakes` names the move but cannot say why it was bad, so the backend runs `analyze_position` on the worst row without waiting to be asked. That call appears as its own step with its own citation id — visible, not hidden.
 
@@ -191,7 +200,7 @@ A separate path from the analysis pipeline. The pipeline writes rows; Prax reads
 
 ## Prerequisites
 
-- **Java 26+** (JDK 26)
+- **Java 21+** (the build targets 21; developed on JDK 26)
 - **Docker** (for PostgreSQL)
 - **[Ollama](https://ollama.com)** installed and running
 - **Stockfish** binary (AVX2 build recommended)
@@ -422,14 +431,20 @@ praxis-chess/
 - [x] Play & Improve — practice games against an opponent built from your own history
 - [x] Practice streaks with a server-owned "today"
 - [x] Prax visual rework — icosphere point cloud, displacement sampled per frame on the GPU
-- [x] Test suites: 176 backend (mutation-tested) + 200 Playwright, mocked and live
+- [x] Test suites: 531 backend (mutation-tested where it matters) + 422 Playwright, mocked and live (last full runs, October 2026)
+- [x] Verified diagnosis on every mistake: evidence graph, rules, and a checker on every claim
+- [x] Per-speed analysis scope; Insights by speed, with rating per speed
+- [x] Model providers behind one port: Ollama by default, any OpenAI-compatible provider per feature
+- [x] Our own trained model for checked commentary (Qwen3.5-2B LoRA), [released on Hugging Face](https://huggingface.co/collections/praxis-chess/praxis-chess-lora-v1)
 - [ ] **Speech** — mount the trigger surface; the stack behind it already works
 - [ ] Voice input — mic capture for Ask Prax
 - [ ] Generate drill cards when analysis finishes, not only when a session starts
 - [ ] Backend tests in CI (the workflow is currently Playwright-only)
 - [ ] True HYBRID answers that merge player data and web material honestly
 - [ ] Knowledge retrieval for general chess principles — *declined pending usage evidence*
-- [ ] Fine-tuned smaller model for faster inference
+- [ ] **Phase 12** — patterns, drills, Insights and Today built on the verified diagnoses; the per-move LLM switched off
+- [ ] Nightly database backups
+- [ ] A rating tool for Prax
 
 ---
 
@@ -457,13 +472,15 @@ Only public Lichess data is published. Your own games never leave your machine.
 
 ---
 
-## Why Fully Offline?
+## Why Local by Default?
 
 Most AI chess tools require uploading your games to cloud services. Praxis-Chess takes a different approach.
 
-Every analysis runs locally on your machine. Stockfish evaluates your positions, Ollama generates explanations and training plans, and PostgreSQL stores your data. Nothing is sent to external AI providers, and no account, subscription, or internet connection is required after your games have been synced.
+Every analysis runs locally on your machine. Stockfish evaluates your positions, Ollama generates explanations and training plans, and PostgreSQL stores your data. By default nothing is sent to external AI providers, and no account, subscription, or internet connection is required after your games have been synced.
 
-The only outbound request is to the Chess.com Public API to download games from your own public profile. After that, every evaluation, pattern report, and training recommendation happens entirely offline.
+By default, the only outbound request is to the Chess.com Public API to download games from your own public profile. After that, every evaluation, pattern report, and training recommendation happens offline.
+
+Two features can reach out, and both are off until you configure them: **web research** for general chess questions (your own SearXNG, or Brave, which sees the queries), and a **cloud model provider** for the features you list (it receives the positions and game data those features use).
 
 This approach provides:
 
