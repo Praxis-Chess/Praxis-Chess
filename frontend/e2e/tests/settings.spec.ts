@@ -118,6 +118,20 @@ test.describe('Settings', () => {
     await expect(card.getByRole('note')).toHaveCount(0)
   })
 
+  test('AI models: with no commentary model, the card points to the trained model on Hugging Face', async ({ page, api }) => {
+    api.json('/api/settings/ai', {
+      ...data.aiLocal,
+      features: data.aiLocal.features.map(f => f.feature === 'commentary' ? { ...f, model: null } : f),
+    })
+    await page.goto('/settings')
+    const card = page.getByRole('region', { name: 'AI models' })
+    const link = card.getByRole('link', { name: 'Hugging Face' })
+    await expect(link).toHaveAttribute('href', 'https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF')
+    await expect(card).toContainText('Checked commentary is off')
+    // Not a privacy notice: nothing here leaves the laptop.
+    await expect(card.getByRole('note')).toHaveCount(0)
+  })
+
   test('AI models: a cloud feature names its provider and warns what leaves the laptop', async ({ page, api }) => {
     api.json('/api/settings/ai', data.aiCloud)
     await page.goto('/settings')

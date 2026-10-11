@@ -306,7 +306,23 @@ These are reproduced from `grid_v1_disclosures.md`; none changed a definition.
   run used the registered data.
 - **Outputs:**
   - `outputs/grid_v1_results/`: the 11 adapters and GGUFs, with `SHA256SUMS`.
-    The public release is Phase 11.
+
+### Release
+
+Everything needed to check the public numbers is on Hugging Face, in the
+[Praxis Chess LoRA v1 collection](https://huggingface.co/collections/praxis-chess/praxis-chess-lora-v1),
+tagged `v1.0` and pinned to the git tag `lora-v1.0`:
+- the 2B and 4B R3 adapters and their q4_K_M GGUFs;
+- the comparison arms (2B-R0, R1, R2 and 4B-R0), so every row of the public
+  table can be rerun, not only the winning one;
+- the dataset: public splits, evidence graphs, renders, the schemas, every
+  answer behind the table, and the verifier's test vectors.
+
+The public table, all seven systems on the 838 held-out positions, is
+[`reports/public_test_v1.md`](public_test_v1.md).
+[`REPRODUCE.md`](../REPRODUCE.md) reruns it, or re-scores the published answers
+without a GPU through `praxis_eval`, the verifier ported to Python. Nothing from
+the author's games is published.
 
 ```bibtex
 @misc{praxis_lora_v1_2026,
@@ -314,6 +330,6 @@ These are reproduced from `grid_v1_disclosures.md`; none changed a definition.
   author = {Anand, Tanmay},
   year   = {2026},
   note   = {Praxis Chess, LoRA v1 research write-up},
-  url    = {https://github.com/praxis-chess/Praxis-Chess}
+  url    = {https://github.com/Praxis-Chess/Praxis-Chess}
 }
 ```

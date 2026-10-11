@@ -1184,6 +1184,22 @@ Qwen3.5 models. The feature is off unless
 - `MoveErrorDto.verified` carries the diagnosis and the checked commentary to
   every card.
 
+**Released.** The trained models, the dataset and every answer behind the
+published table are public under the
+[Praxis Chess LoRA v1 collection](https://huggingface.co/collections/praxis-chess/praxis-chess-lora-v1),
+tagged `v1.0` and pinned to the git tag `lora-v1.0`:
+- [`praxis-chess-reasoner-qwen3.5-2b-lora`](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-lora):
+  the adapter the commentary uses, with its card (results, method, limits);
+- [`praxis-chess-reasoner-qwen3.5-2b-GGUF`](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF):
+  the q4_K_M file `commentary-model` loads (README, step 3b);
+- the 4B adapter and GGUF, the comparison arms, and the
+  [`praxis-chess-evidence-graphs`](https://huggingface.co/datasets/praxis-chess/praxis-chess-evidence-graphs)
+  dataset.
+
+`training/REPRODUCE.md` reproduces the public table; `praxis_eval` is the
+verifier ported to Python, held to the Java verdicts by
+`training/tests/test_parity.py`.
+
 ---
 
 ## Practice Streaks
@@ -1913,11 +1929,11 @@ Frontend proxies `/api/*` to `http://localhost:8086` via Vite's `server.proxy` c
 
 | Feature | Description |
 |---|---|
-| **Fine-tuned model** | Fine-tune a smaller model (e.g. `qwen2.5:1.5b`) on chess coaching data using Unsloth. Would reduce inference time from 7–16s to ~2s, cutting total analysis time from 50 min to ~10 min. |
+| **Fine-tuned model** | **Done, differently from planned.** The goal became verifiability, not speed: a Qwen3.5-2B LoRA trained on evidence graphs writes the checked commentary (Phase 9b), released on [Hugging Face](https://huggingface.co/collections/praxis-chess/praxis-chess-lora-v1). Replacing `qwen2.5:7b`'s per-move work is Phase 12. |
 | **Opening Trainer** | Integrate a spaced-repetition opening drill module. Pattern report already identifies weak openings by ECO code — this would close the loop by generating drill positions from those lines. |
 | **Opponent analysis** | Extend sync to fetch opponent's recent games for detected weaknesses; useful for pre-game preparation. |
 | **Time pressure deep-dive** | Currently tracked as a boolean flag per move (clock < 30s). Future: correlate time pressure with mistake rate per opening/phase to identify specific situations where time management breaks down. |
-| **Analysis versioning** | Tag each MoveError with an analysis version (model + depth + prompt hash). When the model or prompt changes, stale explanations can be detected and selectively re-run without a full re-analysis. |
+| **Analysis versioning** | **Engine settings: done.** Each settings change is a new `AnalysisSettings` row and every game points at the row it was analysed under. Still open: versioning the explanation model and prompt, so stale prose can be re-run selectively. |
 | **Speech (V5)** | Built end-to-end and unreachable — the trigger surface was never mounted. See [SPEECH_IMPLEMENTATION_PLAN.md](SPEECH_IMPLEMENTATION_PLAN.md). |
 | **Card generation on analysis completion** | `generateForUser` has one call site: starting a session. So 824 drillable mistakes can exist beside an empty deck, and Today shows `0 / 0 / 0 / 0` — the exact signal that discourages pressing the button that would fill it. |
 | **True HYBRID synthesis** | `HYBRID` currently offers both toolsets and lets the model choose. Genuinely *merging* player data and web material — *"you lose to the London, and here is the standard plan against it"* — is the hardest thing here to keep honest, because the join is where a claim quietly acquires authority it has not earned. Deferred until lane logging shows people actually ask such questions. |

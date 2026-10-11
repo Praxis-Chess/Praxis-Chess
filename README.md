@@ -88,6 +88,7 @@ Local text-to-speech (Kokoro-82M, CPU-only) is built end-to-end but **not curren
 | Chess engine    | Stockfish (AVX2 binary)                | —                 |
 | Analysis LLM    | Ollama + `qwen2.5:7b`                  | —                 |
 | Reasoning LLM   | Ollama + `qwen3:4b-instruct`           | tool calling      |
+| Commentary LLM  | Ollama + `praxis-grid-2b-r3`: Qwen3.5-2B + LoRA, trained for Praxis ([Hugging Face](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF)) | optional |
 | Text-to-speech  | Kokoro-82M ONNX (CPU, FastAPI sidecar) | optional          |
 | Database        | PostgreSQL (Docker)                    | 17                |
 | PGN parsing     | chesslib (`bhlangonijr`)               | 1.3.3             |
@@ -99,6 +100,8 @@ Local text-to-speech (Kokoro-82M, CPU-only) is built end-to-end but **not curren
 | Prax rendering  | Three.js (`Points` + custom GLSL)      | —                 |
 
 Two LLM roles, two models. The analysis models run in batch; the reasoning model runs interactively. Sharing one would make a long re-analysis block every question you ask — and on a 4 GB card they cannot both be resident.
+
+The third model is our own, and optional: a 2B model fine-tuned to explain a mistake from its evidence graph. It writes the "AI commentary" on each mistake, and Praxis shows an answer only if every claim in it passes the verifier. Setup is step 3b below; the research behind it is under [Research](#research-explaining-mistakes-truthfully).
 
 ---
 
@@ -257,6 +260,27 @@ The second is the Prax reasoning agent and must support tool calling. Use the
 variant, which spends its whole output budget inside `<think>` and returns an
 empty answer.
 
+### 3b. Optional: the trained commentary model
+
+The checked "AI commentary" on each mistake comes from a model we trained,
+published on Hugging Face as a ready-to-run q4_K_M file (1.3 GB, runs on a
+4 GB GPU). Without it everything else works; mistakes just have no commentary.
+
+```bash
+pip install -U "huggingface_hub[cli]"
+```
+
+```bash
+hf download praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF --revision v1.0 --local-dir praxis-2b
+```
+
+```bash
+cd praxis-2b && ollama create praxis-grid-2b-r3 -f Modelfile
+```
+
+Then turn it on with `commentary-model` in step 4. Model card, results and
+limits: [praxis-chess-reasoner-qwen3.5-2b-lora](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-lora).
+
 ### 4. Configure the application
 
 ```bash
@@ -280,6 +304,8 @@ praxis-chess:
     # Prax chat agent — kept separate so a batch run and a live
     # conversation never compete for VRAM. Must support tool calling.
     reasoning-model: qwen3:4b-instruct
+    # Optional: the trained commentary model from step 3b.
+    # commentary-model: praxis-grid-2b-r3
   chess-com:
     username: your_chess_com_username
   stockfish:

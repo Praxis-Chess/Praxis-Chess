@@ -56,9 +56,12 @@ praxis-chess:
     model: qwen2.5:7b          # fallback if move-model / report-model not set
     move-model: qwen2.5:7b    # per-move explanations (×N per game) — try qwen3:4b for 3× speedup
     report-model: qwen2.5:7b  # pattern report + training plan (×2 total, quality matters)
-    # Phase 9b: the trained model that writes the checked "AI commentary" on each
-    # mistake (training/outputs/grid_v1_results/2b-r3). Only answers whose every
-    # claim passes the verifier are shown. Unset: no commentary is written.
+    # The trained model that writes the checked "AI commentary" on each mistake.
+    # Get it from Hugging Face (README, step 3b):
+    #   hf download praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF --revision v1.0 --local-dir praxis-2b
+    #   cd praxis-2b && ollama create praxis-grid-2b-r3 -f Modelfile
+    # Only answers whose every claim passes the verifier are shown. Unset: no
+    # commentary is written, and everything else works as before.
     # commentary-model: praxis-grid-2b-r3
     # Prax chat agent. Separate from the analysis models so a batch run and a
     # live conversation don't compete for VRAM. Must support tool calling.
