@@ -20,6 +20,8 @@ public class StockfishService {
     private volatile Process process;
     private BufferedWriter writer;
     private BufferedReader reader;
+    /** The engine's own "id name" line, e.g. "Stockfish 19"; null until it has started. */
+    private volatile String engineName;
 
     public StockfishService(AppProperties props) {
         this.props = props;
@@ -40,12 +42,18 @@ public class StockfishService {
             reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
 
             send("uci");
-            waitFor("uciok");
+            // The handshake names the engine before "uciok". Kept, because
+            // severities shift slightly between Stockfish versions and the
+            // player should be able to see which one measured their games.
+            String line;
+            while ((line = reader.readLine()) != null && !line.contains("uciok")) {
+                if (line.startsWith("id name ")) engineName = line.substring("id name ".length()).trim();
+            }
             send("setoption name Threads value 6");
             send("setoption name Hash value 256");
             send("isready");
             waitFor("readyok");
-            log.info("Stockfish ready: {}", path);
+            log.info("Stockfish ready: {} ({})", path, engineName == null ? "version unknown" : engineName);
         } catch (Exception e) {
             log.warn("Stockfish failed to start ({}): {} — using material fallback", path, e.getMessage());
             process = null;
@@ -58,6 +66,11 @@ public class StockfishService {
             try { send("quit"); } catch (Exception ignored) {}
             process.destroyForcibly();
         }
+    }
+
+    /** "Stockfish 19" or similar, or null if the engine is not running or did not say. */
+    public String engineName() {
+        return isAvailable() ? engineName : null;
     }
 
     public boolean isAvailable() {

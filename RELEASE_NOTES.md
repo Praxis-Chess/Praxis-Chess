@@ -1,3 +1,38 @@
+# Praxis Chess v1.3.0 — install with Docker
+
+Praxis now installs with Docker alone: no Java, Node, Stockfish or Ollama to
+set up by hand.
+
+```bash
+git clone https://github.com/Praxis-Chess/Praxis-Chess.git && cd Praxis-Chess
+docker compose -f docker/compose.yaml up -d --build
+```
+
+Then open http://localhost:8086 and enter your Chess.com username in Settings.
+
+- **One image** serves the app and its UI, with **Stockfish 19** built in from
+  its source tag (x86-64 and ARM64; the CPU's fastest variant is picked at run
+  time). Published images for both architectures on `ghcr.io/praxis-chess`.
+- **Models download themselves** on first start (~8.5 GB, or ~3.8 GB with the
+  light set). The trained commentary model is built from its Hugging Face
+  release and checked against its published SHA-256.
+- **Setup checklist** on Today and in Settings: database, Stockfish (with its
+  version), username, each model with live download progress, voice and web
+  research, each with the exact fix. The startup log shows the same checks.
+- **Chess.com username in Settings → Player**, checked against Chess.com.
+  `application.yml` still works as the fallback, so existing installs change
+  nothing. Sync is refused, with a reason, until a username exists.
+- **Add-ons:** NVIDIA GPU (`compose.gpu.yaml`), Ollama on the host
+  (`compose.host-ollama.yaml`, the Mac route), Prax's voice and web research
+  as Compose profiles.
+- **Backups:** `docker compose -f docker/compose.yaml run --rm backup`.
+- Only port 8086 is published, on 127.0.0.1. No secrets in the image: the
+  build fails if a local `application.yml` reaches it, and CI checks the JAR.
+
+Details: [docker/INSTALL.md](docker/INSTALL.md).
+
+---
+
 # Praxis Chess LoRA v1 — research release (`lora-v1.0`, 5 October 2026)
 
 A small model that explains why a chess move was a mistake, using only

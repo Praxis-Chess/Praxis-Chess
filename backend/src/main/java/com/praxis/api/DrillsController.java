@@ -1,9 +1,9 @@
 package com.praxis.api;
 
-import com.praxis.config.AppProperties;
 import com.praxis.domain.MoveError;
 import com.praxis.dto.DrillDto;
 import com.praxis.repository.MoveErrorRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,11 +23,11 @@ public class DrillsController {
     private static final int MAX_LIMIT     = 50;
 
     private final MoveErrorRepository moveErrorRepository;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
 
-    public DrillsController(MoveErrorRepository moveErrorRepository, AppProperties appProperties) {
+    public DrillsController(MoveErrorRepository moveErrorRepository, PlayerIdentity player) {
         this.moveErrorRepository = moveErrorRepository;
-        this.appProperties = appProperties;
+        this.player = player;
     }
 
     // Returns a randomized set of drills built from the player's own mistakes.
@@ -35,7 +35,7 @@ public class DrillsController {
     @Transactional(readOnly = true)
     public ResponseEntity<List<DrillDto>> getDrills(
             @RequestParam(defaultValue = "" + DEFAULT_LIMIT) int limit) {
-        String username = appProperties.chessCom().username();
+        String username = player.username();
         List<MoveError> candidates = new ArrayList<>(
                 moveErrorRepository.findDrillCandidatesByUsername(username));
         Collections.shuffle(candidates);

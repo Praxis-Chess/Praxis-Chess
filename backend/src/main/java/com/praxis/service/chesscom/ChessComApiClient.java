@@ -26,6 +26,28 @@ public class ChessComApiClient {
                 .build();
     }
 
+    public enum Lookup { FOUND, NOT_FOUND, UNREACHABLE }
+
+    /**
+     * Whether a Chess.com account exists, for the Settings check. Only a 404 is
+     * "not found": a network failure or rate limit must not stop someone saving
+     * a username that is in fact correct.
+     */
+    public Lookup lookupPlayer(String username) {
+        try {
+            restClient.get().uri("/player/{u}", username.toLowerCase(java.util.Locale.ROOT))
+                    .retrieve().toBodilessEntity();
+            return Lookup.FOUND;
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 404 || e.getStatusCode().value() == 410) return Lookup.NOT_FOUND;
+            log.warn("Chess.com player lookup for {}: {}", username, e.getStatusCode());
+            return Lookup.UNREACHABLE;
+        } catch (Exception e) {
+            log.warn("Chess.com player lookup for {} failed: {}", username, e.getMessage());
+            return Lookup.UNREACHABLE;
+        }
+    }
+
     public List<ChessComGame> fetchGames(String username, int year, int month) {
         String path = "/player/%s/games/%d/%02d".formatted(username, year, month);
         log.debug("Fetching Chess.com games: {}", path);

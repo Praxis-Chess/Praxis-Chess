@@ -1,8 +1,8 @@
 package com.praxis.api;
 
-import com.praxis.config.AppProperties;
 import com.praxis.dto.TrainingPlanDto;
 import com.praxis.service.TrainingPlanService;
+import com.praxis.service.settings.PlayerIdentity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,16 +11,16 @@ import org.springframework.web.bind.annotation.*;
 public class TrainingPlanController {
 
     private final TrainingPlanService trainingPlanService;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
 
-    public TrainingPlanController(TrainingPlanService trainingPlanService, AppProperties appProperties) {
+    public TrainingPlanController(TrainingPlanService trainingPlanService, PlayerIdentity player) {
         this.trainingPlanService = trainingPlanService;
-        this.appProperties = appProperties;
+        this.player = player;
     }
 
     @GetMapping
     public ResponseEntity<TrainingPlanDto> getLatest() {
-        return trainingPlanService.getLatest(appProperties.chessCom().username())
+        return trainingPlanService.getLatest(player.username())
                 .map(TrainingPlanDto::from)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.noContent().build());
@@ -29,7 +29,7 @@ public class TrainingPlanController {
     @PostMapping("/generate")
     public ResponseEntity<TrainingPlanDto> generate() {
         TrainingPlanDto dto = TrainingPlanDto.from(
-                trainingPlanService.generate(appProperties.chessCom().username()));
+                trainingPlanService.generate(player.username()));
         return ResponseEntity.ok(dto);
     }
 }

@@ -1,0 +1,25 @@
+# Use the Ollama installed on this computer instead of the container.
+#
+#   docker compose -f docker/compose.yaml -f docker/compose.host-ollama.yaml up -d
+#
+# The right choice on a Mac (Docker there has no GPU access, while native
+# Ollama uses Metal) and for anyone who already has the models downloaded.
+# The models service still runs and pulls whatever is missing into your
+# Ollama. Ollama must be running on the host (it listens on port 11434).
+
+services:
+  ollama:
+    profiles: ["disabled"]
+
+  models:
+    depends_on: !reset {}
+    environment:
+      OLLAMA_HOST: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  app:
+    environment:
+      PRAXIS_OLLAMA_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

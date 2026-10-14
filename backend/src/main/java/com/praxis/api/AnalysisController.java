@@ -1,8 +1,8 @@
 package com.praxis.api;
 
+import com.praxis.service.settings.PlayerIdentity;
 import com.praxis.service.settings.SettingsService;
 import com.praxis.domain.AnalysisSettings;
-import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.dto.AnalysisProgressDto;
@@ -32,7 +32,7 @@ public class AnalysisController {
     private final CardRepository cardRepository;
     private final AttemptRepository attemptRepository;
     private final AnalysisPipelineOrchestrator pipelineOrchestrator;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
     private final AnalysisProgressTracker progressTracker;
     private final SettingsService settings;
     private final DiagnosisService diagnosis;
@@ -42,7 +42,7 @@ public class AnalysisController {
                               CardRepository cardRepository,
                               AttemptRepository attemptRepository,
                               AnalysisPipelineOrchestrator pipelineOrchestrator,
-                              AppProperties appProperties,
+                              PlayerIdentity player,
                               AnalysisProgressTracker progressTracker,
                               SettingsService settings,
                               DiagnosisService diagnosis) {
@@ -51,7 +51,7 @@ public class AnalysisController {
         this.cardRepository = cardRepository;
         this.attemptRepository = attemptRepository;
         this.pipelineOrchestrator = pipelineOrchestrator;
-        this.appProperties = appProperties;
+        this.player = player;
         this.progressTracker = progressTracker;
         this.settings = settings;
         this.diagnosis = diagnosis;
@@ -78,7 +78,7 @@ public class AnalysisController {
         // DB fallback: show queued if in-memory state says idle but unprocessed games exist
         // (covers restarts and cases where the flag was lost)
         if (!running && !queued && !patternGen) {
-            String username = appProperties.chessCom().username();
+            String username = player.username();
             long pending   = gameRepository.countByUsernameAndAnalysisStatusInTimeClasses(username, AnalysisStatus.PENDING,
                     settings.analysisTimeClasses(), SettingsService.TIME_CLASSES);
             long analyzing = gameRepository.countByUsernameAndAnalysisStatus(username, AnalysisStatus.ANALYZING);
@@ -108,7 +108,7 @@ public class AnalysisController {
     @Transactional
     @PostMapping("/analyze-pending")
     public ResponseEntity<Map<String, Object>> analyzePending() {
-        String username = appProperties.chessCom().username();
+        String username = player.username();
         List<Game> pending = gameRepository.findByUsernameAndAnalysisStatus(username, AnalysisStatus.PENDING)
                 .stream().filter(settings::inAnalysisScope).toList();
         if (!pending.isEmpty()) {
@@ -124,7 +124,7 @@ public class AnalysisController {
     @PostMapping("/reanalyze")
     public ResponseEntity<Map<String, Object>> reanalyzeAll(
             @RequestParam(name = "outdated_only", defaultValue = "false") boolean outdatedOnly) {
-        String username = appProperties.chessCom().username();
+        String username = player.username();
         // Every version that measures the same way as the active one, not just its
         // id — the same set the coverage counts as current, so the button cannot
         // queue games the page did not offer.

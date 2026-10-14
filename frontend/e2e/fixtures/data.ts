@@ -12,6 +12,8 @@
  * committed.
  */
 import type { AiStatus,
+  PlayerView,
+  SetupStatus,
   AnalysisProgress,
   MistakeWhy,
   LabelCard,
@@ -907,3 +909,44 @@ export const aiCloud: AiStatus = {
   key_set: true,
   cloud_host: 'api.openai.com',
 }
+
+// ── Setup checklist ─────────────────────────────────────────────────────────
+
+/** A working install: nothing to do, so Today shows no checklist. */
+export const setupReady: SetupStatus = {
+  ready: true,
+  docker: false,
+  stockfish: 'Stockfish 19',
+  checks: [
+    { key: 'database', label: 'Database', state: 'OK', detail: 'PostgreSQL reachable', fix: null },
+    { key: 'stockfish', label: 'Stockfish', state: 'OK', detail: 'Stockfish 19', fix: null },
+    { key: 'username', label: 'Chess.com username', state: 'OK', detail: 'player', fix: null },
+    { key: 'ollama', label: 'AI models', state: 'OK', detail: '3 model(s) ready', fix: null },
+    { key: 'voice', label: "Prax's voice", state: 'SKIP', detail: 'Off', fix: null },
+    { key: 'web', label: 'Web research', state: 'SKIP', detail: 'Off', fix: null },
+  ],
+  models: [
+    { name: 'qwen2.5:7b', role: 'Move explanations, pattern report, training plan', state: 'present', completed: 0, total: 0, message: null },
+    { name: 'qwen3:4b-instruct', role: 'Ask Prax', state: 'present', completed: 0, total: 0, message: null },
+    { name: 'praxis-grid-2b-r3', role: 'Checked commentary (trained for Praxis)', state: 'present', completed: 0, total: 0, message: null },
+  ],
+}
+
+/** The first minute of a Docker install: no username, models still downloading. */
+export const setupFresh: SetupStatus = {
+  ...setupReady,
+  ready: false,
+  docker: true,
+  checks: setupReady.checks.map(c =>
+    c.key === 'username' ? { ...c, state: 'FAIL', detail: 'Not set yet', fix: 'Enter it in Settings → Player' }
+    : c.key === 'ollama' ? { ...c, state: 'WARN', detail: 'Downloading 3 model(s)', fix: null }
+    : c),
+  models: [
+    { ...setupReady.models[0], state: 'downloading', completed: 2_400_000_000, total: 4_683_000_000 },
+    { ...setupReady.models[1], state: 'waiting' },
+    { ...setupReady.models[2], state: 'waiting' },
+  ],
+}
+
+export const playerSet: PlayerView = { username: 'player', source: 'settings' }
+export const playerNone: PlayerView = { username: '', source: 'none' }

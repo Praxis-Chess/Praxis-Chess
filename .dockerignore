@@ -1,0 +1,42 @@
+# The build context for docker/Dockerfile is the repository root. Anything not
+# needed to build the app image stays out — above all, local secrets.
+
+# Secrets. backend/src/main/resources/application.yml holds real credentials on
+# a developer machine; it must never reach an image. The Dockerfile also fails
+# the build if it slips through (see the guard in the "jar" stage).
+**/application.yml
+!docker/app/application.yml
+.env
+**/.env
+
+# Build output and dependencies, rebuilt inside the image.
+backend/target
+frontend/node_modules
+frontend/node
+frontend/dist
+frontend/test-results
+frontend/playwright-report
+frontend/blob-report
+frontend/playwright
+
+# Not part of the app.
+.git
+.github
+.claude
+.idea
+.vscode
+.infra
+technical-docs
+training
+eval
+searxng
+backend/infra
+tts-service/models
+tts-service/.venv
+**/*.jsonl
+**/*.jsonl.gz
+**/*.gguf
+**/*.safetensors
+*.jpeg
+*.jpg
+backups

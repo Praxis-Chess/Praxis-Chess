@@ -1,9 +1,9 @@
 package com.praxis.service.chesscom;
 
+import com.praxis.service.settings.PlayerIdentity;
 import com.praxis.service.settings.SyncWindow;
 import com.praxis.service.settings.SettingsService;
 import com.praxis.config.PraxisClock;
-import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.SyncHistory;
 import com.praxis.domain.enums.AnalysisStatus;
@@ -39,7 +39,7 @@ public class SyncService {
     private final SyncHistoryRepository syncHistoryRepository;
     private final AnalysisPipelineOrchestrator pipelineOrchestrator;
     private final AnalysisProgressTracker progressTracker;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
     private final SettingsService settings;
     private final PraxisClock clock;
 
@@ -52,6 +52,8 @@ public class SyncService {
     // on every call, so a game stops counting the moment it is synced.
     private volatile Set<String> cachedRemoteIds = Set.of();
     private volatile long newGamesCacheTimestamp = 0L;
+    /** Whose games the cache above holds: a username changed in Settings must not reuse it. */
+    private volatile String cachedRemoteUser = "";
     private static final long NEW_GAMES_CACHE_TTL_MS = 10 * 60 * 60 * 1000L; // 10 hours
     private final AtomicInteger gamesFetched  = new AtomicInteger(0);
     private final AtomicInteger gamesQueued   = new AtomicInteger(0);
@@ -62,7 +64,7 @@ public class SyncService {
                        SyncHistoryRepository syncHistoryRepository,
                        AnalysisPipelineOrchestrator pipelineOrchestrator,
                        AnalysisProgressTracker progressTracker,
-                       AppProperties appProperties,
+                       PlayerIdentity player,
                        SettingsService settings,
                        PraxisClock clock) {
         this.apiClient = apiClient;
@@ -70,7 +72,7 @@ public class SyncService {
         this.syncHistoryRepository = syncHistoryRepository;
         this.pipelineOrchestrator = pipelineOrchestrator;
         this.progressTracker = progressTracker;
-        this.appProperties = appProperties;
+        this.player = player;
         this.settings = settings;
         this.clock = clock;
     }
@@ -82,7 +84,7 @@ public class SyncService {
             return 0;
         }
 
-        String effectiveUsername = username != null ? username : appProperties.chessCom().username();
+        String effectiveUsername = username != null ? username : player.username();
         syncQueued = false;
         syncing = true;
         gamesFetched.set(0);
@@ -193,7 +195,7 @@ public class SyncService {
     }
 
     public SyncStatus getStatus() {
-        String username = appProperties.chessCom().username();
+        String username = player.username();
         long pending  = gameRepository.countByUsernameAndAnalysisStatusInTimeClasses(username, AnalysisStatus.PENDING,
                 settings.analysisTimeClasses(), SettingsService.TIME_CLASSES);
         long analyzed = gameRepository.countByUsernameAndAnalysisStatus(username, AnalysisStatus.ANALYZED);
@@ -218,8 +220,9 @@ public class SyncService {
      */
     public int countNewGamesAvailable() {
         long now = System.currentTimeMillis();
-        String username = appProperties.chessCom().username();
-        if (now - newGamesCacheTimestamp >= NEW_GAMES_CACHE_TTL_MS) {
+        String username = player.username();
+        if (username.isEmpty()) return 0;
+        if (now - newGamesCacheTimestamp >= NEW_GAMES_CACHE_TTL_MS || !username.equals(cachedRemoteUser)) {
             LocalDate today = LocalDate.now();
             try {
                 Set<String> remote = new HashSet<>();
@@ -227,6 +230,7 @@ public class SyncService {
                     if (g.uuid() != null) remote.add(g.uuid());
                 }
                 cachedRemoteIds = remote;
+                cachedRemoteUser = username;
                 newGamesCacheTimestamp = now;
             } catch (Exception e) {
                 log.warn("Failed to check for new Chess.com games: {}", e.getMessage());
@@ -244,7 +248,7 @@ public class SyncService {
     }
 
     public int forceResync(String username, int months) {
-        String effectiveUsername = username != null ? username : appProperties.chessCom().username();
+        String effectiveUsername = username != null ? username : player.username();
         clearSyncHistory(effectiveUsername, months);
         return sync(username, months);
     }

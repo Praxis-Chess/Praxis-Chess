@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { TodayInsight } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { SetupChecklist } from '../components/SetupChecklist'
 import { weekOf, WEEKDAY_LABELS, type DayCell } from '../components/practiceDates'
 import { PraxAnchor, praxThoughts, praxBus, useFocusIntent, praxInteract } from '../prax/PraxHost'
 
@@ -203,6 +204,8 @@ export function Today() {
           One clear focus. No overwhelm.
         </p>
       </div>
+
+      <SetupChecklist mode="attention" />
 
       <DueCount />
       <WeeklyStreak />

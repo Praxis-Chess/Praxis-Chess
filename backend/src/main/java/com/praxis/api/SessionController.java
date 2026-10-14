@@ -1,6 +1,5 @@
 package com.praxis.api;
 
-import com.praxis.config.AppProperties;
 import com.praxis.domain.Card;
 import com.praxis.domain.DrillSession;
 import com.praxis.dto.AttemptRequest;
@@ -10,6 +9,7 @@ import com.praxis.repository.CardRepository;
 import com.praxis.repository.DrillSessionRepository;
 import com.praxis.service.CardGeneratorService;
 import com.praxis.service.drills.SessionEngineService;
+import com.praxis.service.settings.PlayerIdentity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,24 +32,24 @@ public class SessionController {
     private final CardGeneratorService cardGenerator;
     private final CardRepository cardRepository;
     private final DrillSessionRepository sessionRepository;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
 
     public SessionController(SessionEngineService sessionEngine,
                              CardGeneratorService cardGenerator,
                              CardRepository cardRepository,
                              DrillSessionRepository sessionRepository,
-                             AppProperties appProperties) {
+                             PlayerIdentity player) {
         this.sessionEngine = sessionEngine;
         this.cardGenerator = cardGenerator;
         this.cardRepository = cardRepository;
         this.sessionRepository = sessionRepository;
-        this.appProperties = appProperties;
+        this.player = player;
     }
 
     /** Start or resume a session. Generates new cards first if the deck is thin. */
     @PostMapping
     public ResponseEntity<SessionDto> startSession() {
-        String username = appProperties.chessCom().username();
+        String username = player.username();
         cardGenerator.generateForUser(username);
         DrillSession session = sessionEngine.findOrCreateSession(username);
         return ResponseEntity.ok(SessionDto.from(session));

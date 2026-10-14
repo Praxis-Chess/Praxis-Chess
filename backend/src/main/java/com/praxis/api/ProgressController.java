@@ -1,11 +1,11 @@
 package com.praxis.api;
 
-import com.praxis.config.AppProperties;
 import com.praxis.domain.enums.CardStatus;
 import com.praxis.dto.ProgressDto;
 import com.praxis.dto.ProgressDto.*;
 import com.praxis.repository.CardRepository;
 import com.praxis.repository.MetricSnapshotRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,19 +23,19 @@ public class ProgressController {
 
     private final CardRepository cardRepository;
     private final MetricSnapshotRepository snapshotRepository;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
 
     public ProgressController(CardRepository cardRepository,
                               MetricSnapshotRepository snapshotRepository,
-                              AppProperties appProperties) {
+                              PlayerIdentity player) {
         this.cardRepository = cardRepository;
         this.snapshotRepository = snapshotRepository;
-        this.appProperties = appProperties;
+        this.player = player;
     }
 
     @GetMapping
     public ResponseEntity<ProgressDto> getProgress() {
-        String username = appProperties.chessCom().username();
+        String username = player.username();
 
         DeckSummary deck = new DeckSummary(
                 cardRepository.countActiveByUsername(username),

@@ -36,7 +36,8 @@
 25. [Non-Functional Considerations](#non-functional-considerations)
 26. [Future Considerations](#future-considerations)
 27. [Hardware Reality](#hardware-reality)
-28. [How It All Connects (High Level)](#how-it-all-connects-high-level)
+28. [Docker Install](#docker-install)
+29. [How It All Connects (High Level)](#how-it-all-connects-high-level)
 
 ---
 
@@ -376,6 +377,15 @@ to be re-fetched from Chess.com regardless of prior sync history. Only games wit
 |---|---|
 | `GET https://api.chess.com/pub/player/{username}/games/{year}/{month}` | Fetch all games for a calendar month |
 | `GET https://api.chess.com/pub/player/{username}/stats` | Player rating history (used by Dashboard) |
+| `GET https://api.chess.com/pub/player/{username}` | Settings → Player: does the account exist (404 = no) |
+
+**Whose games.** `PlayerIdentity` is the one place that answers it: the
+username saved in Settings → Player (`app_settings.chess_com_username`), else
+`praxis-chess.chess-com.username` from config, so an install configured the old
+way needs no migration. Games are stored under the exact spelling they were
+synced with and every query matches it exactly, so a saved name that matches
+stored games without regard to case takes their spelling. Sync answers 409
+until some username exists.
 
 **Important constraints:**
 - A `User-Agent` header is required on every request; Chess.com returns 403 without it.
@@ -1261,7 +1271,7 @@ reach: `GroundingPolicyTest`, `QuestionRouterTest`, `SafeFetcherTest`,
 red; deleting the SSRF guard turns 8 red; deleting the FEN check turns 3 red. A
 guard nobody has watched fail is a guard nobody knows is wired up.
 
-### Frontend — 422 Playwright tests (last full run, October 2026)
+### Frontend — 436 Playwright tests (last full run, 12 October 2026)
 
 ```
 e2e/
@@ -1882,6 +1892,9 @@ and they need Ollama's raw prompt mode.
 | `GET` | `/api/sessions/{id}` | Drill session state |
 | `GET` | `/api/sessions/{id}/next` | Next card in the session |
 | `POST` | `/api/sessions/{id}/attempt` | Submit an attempt + FSRS rating. Body: `{card_id, rating, ...}` |
+| `GET` | `/api/setup/status` | The setup checklist: each dependency `OK/WARN/FAIL/SKIP` with its fix, each configured model with download progress, the Stockfish version |
+| `GET` | `/api/settings/player` | `{username, source}` — source is `settings`, `config` or `none` |
+| `PUT` | `/api/settings/player` | Body `{username}`. Checked against Chess.com; 400 `{errors:{username}}` for an invalid or unknown name |
 | `GET` | `/api/prax/status` | `{available}` — probed at startup; false hides the chat entry point |
 | `POST` | `/api/prax/ask` | Ask Prax. Body: `{question}`. Returns `{answer, findings, evidence, steps, partial, model}` |
 | `POST` | `/api/prax/reset` | Clear conversation history. Returns 204. |
@@ -1967,7 +1980,7 @@ Frontend proxies `/api/*` to `http://localhost:8086` via Vite's `server.proxy` c
 | **True HYBRID synthesis** | `HYBRID` currently offers both toolsets and lets the model choose. Genuinely *merging* player data and web material — *"you lose to the London, and here is the standard plan against it"* — is the hardest thing here to keep honest, because the join is where a claim quietly acquires authority it has not earned. Deferred until lane logging shows people actually ask such questions. |
 | **Knowledge RAG (V3)** | **Declined**, pending evidence. Every question logs its lane; if `GENERAL` questions are a small single-digit percentage of real usage, the honest conclusion is that Prax declining them was a feature. |
 | **Closing the SSRF TOCTOU window** | A custom socket factory pinned to the vetted IP. Negligible exposure on a single-user localhost app; listed so the decision stays a decision. |
-| **Backend CI** | 531 JUnit tests currently run on no machine but the developer's — the workflow is Playwright-only. |
+| **Backend CI** | The JUnit tests run on no machine but the developer's. `docker.yml` compiles the backend and smoke-tests the image (setup checklist, served UI, sync refused without a username), but does not run the unit tests. |
 
 ---
 
@@ -2065,6 +2078,35 @@ sequenceDiagram
     BE-->>FE: dashboard data
     FE->>User: updated Dashboard
 ```
+
+---
+
+## Docker Install
+
+`docker/compose.yaml` runs the whole app for someone who has only Docker
+(user guide: `docker/INSTALL.md`). It is a separate Compose project from the
+developer stack in `docker-compose.yml`, so the two never share containers or
+volumes.
+
+- **`app`** — one image (`docker/Dockerfile`): the Vite build, the Spring Boot
+  JAR that serves it, and Stockfish built from tag `sf_19` with the
+  `x86-64-universal` / `arm64-universal` targets, which choose the CPU's
+  fastest code path at run time. Configuration is `docker/app/application.yml`
+  (committed, no secrets; `docker/check-config.py` keeps its keys in step with
+  the example) plus environment variables. The build fails if a developer's
+  `application.yml` reaches the context.
+- **`models`** — a one-shot job (`docker/models/pull_models.py`, standard
+  library only): pulls the configured Ollama models through `/api/pull`, and
+  builds the commentary model from its Hugging Face release (`v1.0`, SHA-256
+  checked) with `/api/blobs` and `/api/create`, since its Modelfile carries the
+  training template a plain pull would drop. HTTP only, so the image is
+  `python:3.12-slim`, not the 3.6 GB Ollama image. It writes byte progress to
+  a shared volume, which `SetupStatusService` reads.
+- **First run is in the UI, not the log.** `SetupStatusService` runs the same
+  checks as the startup preflight and serves them at `/api/setup/status`; the
+  checklist on Today appears only when something needs doing.
+- Only 8086 is published, on 127.0.0.1. GPU, host Ollama, voice, web research
+  and backups are add-on files or profiles.
 
 ---
 

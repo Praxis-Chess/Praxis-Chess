@@ -1,0 +1,112 @@
+# Praxis Chess — configuration inside the Docker image.
+#
+# Committed on purpose: it holds no secrets. Every value a user might change
+# comes from an environment variable set by docker/compose.yaml, which reads
+# them from .env. The image copies this file to /app/config/application.yml,
+# which Spring Boot loads automatically.
+#
+# Kept in step with backend/src/main/resources/application.example.yml —
+# docker/check-config.py fails if a key here is missing there.
+
+spring:
+  application:
+    name: praxis-chess
+
+  datasource:
+    url: jdbc:postgresql://${PRAXIS_DB_HOST:postgres}:5432/praxis_chess?ApplicationName=praxis-chess
+    username: praxis_chess_user
+    password: ${POSTGRES_PASSWORD:praxis_chess_pass}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: praxis-chess-hikari
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 30000
+      validation-timeout: 5000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      keepalive-time: 300000
+      auto-commit: true
+      connection-test-query: SELECT 1
+      initialization-fail-timeout: -1
+      data-source-properties:
+        reWriteBatchedInserts: true
+        tcpKeepAlive: true
+        prepareThreshold: 0
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          time-zone: UTC
+          batch_size: 500
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
+
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    time-zone: UTC
+
+server:
+  port: 8086
+  forward-headers-strategy: NATIVE
+
+praxis-chess:
+  ollama:
+    base-url: ${PRAXIS_OLLAMA_URL:http://ollama:11434}
+    model: ${PRAXIS_MOVE_MODEL:qwen2.5:7b}
+    move-model: ${PRAXIS_MOVE_MODEL:qwen2.5:7b}
+    report-model: ${PRAXIS_REPORT_MODEL:qwen2.5:7b}
+    reasoning-model: ${PRAXIS_REASONING_MODEL:qwen3:4b-instruct}
+    # The trained model; the "models" service builds it from Hugging Face.
+    # Empty turns checked commentary off.
+    commentary-model: ${PRAXIS_COMMENTARY_MODEL:praxis-grid-2b-r3}
+  chess-com:
+    # Normally entered in Settings. This is only the fallback.
+    username: ${CHESS_COM_USERNAME:}
+  tts:
+    enabled: ${PRAXIS_VOICE:false}
+    base-url: http://voice:8087
+  stockfish:
+    # Built into the image from the pinned source tag (docker/Dockerfile).
+    path: /usr/local/bin/stockfish
+  practice:
+    # Containers run in UTC; "today" for streaks should be the player's day.
+    timezone: ${TZ:}
+  web:
+    enabled: ${PRAXIS_WEB:false}
+    provider: searxng
+    searxng-url: http://searxng:8080
+    max-pages: 2
+    max-results: 5
+    cache-search-hours: 24
+    cache-page-days: 7
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: never
+  tracing:
+    enabled: false
+
+logging:
+  level:
+    com.praxis: INFO

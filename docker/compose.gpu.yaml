@@ -1,0 +1,18 @@
+# NVIDIA GPU for Ollama. Linux, or Windows with Docker Desktop's WSL 2 engine.
+#
+#   docker compose -f docker/compose.yaml -f docker/compose.gpu.yaml up -d
+#
+# Kept out of the main file because the reservation below makes Compose fail
+# outright on a machine without an NVIDIA driver. Check the GPU is used with:
+#   docker compose -f docker/compose.yaml exec ollama ollama ps
+# ("PROCESSOR" should say GPU once a model is loaded).
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

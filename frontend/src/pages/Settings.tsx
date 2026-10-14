@@ -6,6 +6,8 @@ import type {
 } from '../api/types'
 import { LibraryCard } from '../components/LibraryCard'
 import { AiModelsCard } from '../components/AiModelsCard'
+import { PlayerCard } from '../components/PlayerCard'
+import { SetupChecklist } from '../components/SetupChecklist'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { PraxAnchor, praxInteract } from '../prax/PraxHost'
 
@@ -355,6 +357,10 @@ export function Settings() {
       <div>
         <h1 style={{ fontSize: '1.3rem' }}>Settings</h1>
       </div>
+
+      <PlayerCard />
+
+      <SetupChecklist mode="full" />
 
       <LibraryCard />
 

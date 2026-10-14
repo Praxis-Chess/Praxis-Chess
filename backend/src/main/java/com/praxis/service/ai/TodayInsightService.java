@@ -4,7 +4,6 @@ import com.praxis.ai.CompletionRequest;
 import com.praxis.ai.Feature;
 import com.praxis.ai.ModelRouter;
 import com.praxis.ai.OutputBudget;
-import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.MoveError;
 import com.praxis.domain.enums.GamePhase;
@@ -13,6 +12,7 @@ import com.praxis.dto.TodayInsightDto;
 import com.praxis.dto.TodayInsightDto.Evidence;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,24 +37,24 @@ public class TodayInsightService {
 
     private final MoveErrorRepository moveErrorRepository;
     private final GameRepository gameRepository;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
     private final ObjectMapper objectMapper;
     private final ModelRouter router;
 
     public TodayInsightService(MoveErrorRepository moveErrorRepository,
                                GameRepository gameRepository,
-                               AppProperties appProperties,
+                               PlayerIdentity player,
                                ObjectMapper objectMapper,
                                ModelRouter router) {
         this.router = router;
         this.moveErrorRepository = moveErrorRepository;
         this.gameRepository = gameRepository;
-        this.appProperties = appProperties;
+        this.player = player;
         this.objectMapper = objectMapper;
     }
 
     public TodayInsightDto generate() {
-        String username = appProperties.chessCom().username();
+        String username = player.username();
         AvailableFields fields = buildFields(username);
         String prompt = buildPrompt(fields);
 

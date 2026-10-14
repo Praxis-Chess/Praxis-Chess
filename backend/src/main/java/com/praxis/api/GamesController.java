@@ -1,10 +1,10 @@
 package com.praxis.api;
 
-import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.dto.GameReviewDto;
 import com.praxis.dto.GameSummaryDto;
+import com.praxis.service.settings.PlayerIdentity;
 import com.praxis.service.settings.SettingsService;
 import com.praxis.pipeline.AnalysisPipelineOrchestrator;
 import com.praxis.repository.GameRepository;
@@ -27,7 +27,7 @@ public class GamesController {
     private final GameRepository gameRepository;
     private final MoveErrorRepository moveErrorRepository;
     private final AnalysisPipelineOrchestrator orchestrator;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
     private final PgnParserService pgnParser;
     private final DiagnosisService diagnosis;
     private final SettingsService settings;
@@ -35,14 +35,14 @@ public class GamesController {
     public GamesController(GameRepository gameRepository,
                            MoveErrorRepository moveErrorRepository,
                            AnalysisPipelineOrchestrator orchestrator,
-                           AppProperties appProperties,
+                           PlayerIdentity player,
                            PgnParserService pgnParser,
                            DiagnosisService diagnosis,
                            SettingsService settings) {
         this.gameRepository = gameRepository;
         this.moveErrorRepository = moveErrorRepository;
         this.orchestrator = orchestrator;
-        this.appProperties = appProperties;
+        this.player = player;
         this.pgnParser = pgnParser;
         this.diagnosis = diagnosis;
         this.settings = settings;
@@ -50,7 +50,7 @@ public class GamesController {
 
     @GetMapping
     public ResponseEntity<List<GameSummaryDto>> listGames() {
-        String username = appProperties.chessCom().username();
+        String username = player.username();
         List<Game> games = gameRepository.findByUsernameOrderByPlayedAtDesc(username);
 
         Map<UUID, Integer> mistakeCounts = moveErrorRepository
@@ -91,7 +91,7 @@ public class GamesController {
                     // one colour while the stored MoveError rows describe the other.
                     ParsedGame parsed = pgnParser.parse(
                             game.getId().toString(), game.getRawPgn(),
-                            appProperties.chessCom().username());
+                            player.username());
                     return GameReviewDto.from(
                             game, parsed, moveErrorRepository.findByGameId(game.getId()),
                             diagnosis.currentForGame(game.getId()));
@@ -105,7 +105,7 @@ public class GamesController {
         return gameRepository.findById(id).map(game -> {
             game.setAnalysisStatus(AnalysisStatus.PENDING);
             gameRepository.save(game);
-            orchestrator.analyzeGames(List.of(game), appProperties.chessCom().username());
+            orchestrator.analyzeGames(List.of(game), player.username());
             return ResponseEntity.ok(Map.of("message", "Analysis queued for game " + id));
         }).orElse(ResponseEntity.notFound().build());
     }
