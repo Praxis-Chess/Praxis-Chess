@@ -1,6 +1,5 @@
 package com.praxis.play.patterns;
 
-import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.play.domain.PracticeGame;
@@ -9,6 +8,7 @@ import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
 import com.praxis.service.analysis.ParsedGame;
 import com.praxis.service.analysis.PgnParserService;
+import com.praxis.service.settings.PlayerIdentity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -49,23 +49,23 @@ public class PracticePatternService {
     private final GameRepository games;
     private final MoveErrorRepository moveErrors;
     private final PgnParserService pgnParser;
-    private final AppProperties props;
+    private final PlayerIdentity player;
     private final List<PatternDetector> detectors;
 
     public PracticePatternService(PracticeGameRepository practiceGames, GameRepository games,
                                   MoveErrorRepository moveErrors, PgnParserService pgnParser,
-                                  AppProperties props, List<PatternDetector> detectors) {
+                                  PlayerIdentity player, List<PatternDetector> detectors) {
         this.practiceGames = practiceGames;
         this.games = games;
         this.moveErrors = moveErrors;
         this.pgnParser = pgnParser;
-        this.props = props;
+        this.player = player;
         this.detectors = detectors;
     }
 
     @Transactional(readOnly = true)
     public PracticePatternReport report() {
-        String username = props.chessCom().username();
+        String username = player.username();
         List<AnalysedGame> window = window(username);
 
         List<String> notMeasured = List.of(UNTIMED_NOTE);
@@ -127,7 +127,7 @@ public class PracticePatternService {
         // which side is the player, so parsing with anything else would label
         // moves for one colour while the stored MoveError rows describe the other.
         ParsedGame parsed = pgnParser.parse(
-                game.getId().toString(), game.getRawPgn(), props.chessCom().username());
+                game.getId().toString(), game.getRawPgn(), player.username());
         if (parsed.moves().isEmpty()) return Optional.empty();
 
         return Optional.of(new AnalysedGame(

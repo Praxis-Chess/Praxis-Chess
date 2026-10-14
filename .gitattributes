@@ -1,0 +1,24 @@
+# Line endings. The index is already LF everywhere; this keeps it that way and
+# stops Windows checkouts (core.autocrlf=true) from writing CRLF into files a
+# Linux container executes. A CRLF shell script fails there as "/bin/sh^M".
+* text=auto
+
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.Dockerfile text eol=lf
+mvnw        text eol=lf
+
+# Windows-only launchers keep CRLF.
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+
+# Binary, never touched.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.ico  binary
+*.gz   binary
+*.onnx binary
+*.bin  binary
+*.gguf binary
+*.jar  binary

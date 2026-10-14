@@ -48,3 +48,6 @@ technical-docs/
 # Holds this SearXNG instance's secret_key. infra-up.sh generates it from
 # searxng/settings.example.yml with a fresh random key.
 searxng/settings.yml
+
+# Database backups from: docker compose -f docker/compose.yaml run --rm backup
+/backups/

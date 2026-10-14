@@ -1,6 +1,5 @@
 package com.praxis.api;
 
-import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.play.ImprovementService;
@@ -14,6 +13,7 @@ import com.praxis.play.patterns.PracticePatternReport;
 import com.praxis.play.patterns.PracticePatternService;
 import com.praxis.play.repository.PracticeGameRepository;
 import com.praxis.repository.GameRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,14 +36,14 @@ public class PlayController {
     private final ImprovementService improvement;
     private final PracticeGameRepository practiceGames;
     private final StockfishPlayService engine;
-    private final AppProperties props;
+    private final PlayerIdentity player;
     private final GameRepository games;
     private final PracticePatternService patternService;
 
     public PlayController(PlaySessionService sessions, OpponentProfileService profiles,
                           PracticeGameArchiver archiver, ImprovementService improvement,
                           PracticeGameRepository practiceGames, StockfishPlayService engine,
-                          AppProperties props, GameRepository games,
+                          PlayerIdentity player, GameRepository games,
                           PracticePatternService patternService) {
         this.sessions = sessions;
         this.profiles = profiles;
@@ -51,7 +51,7 @@ public class PlayController {
         this.improvement = improvement;
         this.practiceGames = practiceGames;
         this.engine = engine;
-        this.props = props;
+        this.player = player;
         this.games = games;
         this.patternService = patternService;
     }
@@ -113,7 +113,7 @@ public class PlayController {
     @GetMapping("/preview")
     public ResponseEntity<OpponentProfileService.OpponentProfile> preview(
             @RequestParam(required = false) Integer skill) {
-        return ResponseEntity.ok(profiles.build(props.chessCom().username(), skill));
+        return ResponseEntity.ok(profiles.build(player.username(), skill));
     }
 
     @PostMapping("/session")
@@ -199,7 +199,7 @@ public class PlayController {
     @GetMapping("/history")
     public ResponseEntity<List<GameSummary>> history() {
         List<PracticeGame> all = practiceGames
-                .findByUsernameOrderByStartedAtDesc(props.chessCom().username());
+                .findByUsernameOrderByStartedAtDesc(player.username());
 
         // Which archived games actually finished analysis. Fetched in one query
         // rather than per row — the alternative is an N+1 over the whole history.

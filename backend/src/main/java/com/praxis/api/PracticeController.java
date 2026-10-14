@@ -1,8 +1,8 @@
 package com.praxis.api;
 
-import com.praxis.config.AppProperties;
 import com.praxis.dto.PracticeStreakDto;
 import com.praxis.service.practice.PracticeStreakService;
+import com.praxis.service.settings.PlayerIdentity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,15 +13,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class PracticeController {
 
     private final PracticeStreakService streakService;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
 
-    public PracticeController(PracticeStreakService streakService, AppProperties appProperties) {
+    public PracticeController(PracticeStreakService streakService, PlayerIdentity player) {
         this.streakService = streakService;
-        this.appProperties = appProperties;
+        this.player = player;
     }
 
     @GetMapping("/streak")
     public ResponseEntity<PracticeStreakDto> streak() {
-        return ResponseEntity.ok(streakService.compute(appProperties.chessCom().username()));
+        return ResponseEntity.ok(streakService.compute(player.username()));
     }
 }

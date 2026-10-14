@@ -1,0 +1,150 @@
+# Praxis Chess — the whole app in Docker.
+#
+#   docker compose -f docker/compose.yaml up -d            prebuilt images
+#   docker compose -f docker/compose.yaml up -d --build    build from this clone
+#
+# Then open http://localhost:8086 and enter your Chess.com username in Settings.
+# The first start downloads the AI models (~8–9 GB); the app shows progress.
+#
+# Optional settings live in docker/.env (copy docker/.env.example). Add-ons:
+#   NVIDIA GPU         -f docker/compose.gpu.yaml
+#   Ollama on the host -f docker/compose.host-ollama.yaml   (Mac: always)
+#   Back up the DB     docker compose -f docker/compose.yaml run --rm backup
+#
+# Separate from the developer stack in ../docker-compose.yml: its own project
+# name, containers and volumes, so both can exist on one machine. Only the app
+# is published, and only on 127.0.0.1; everything else stays on the internal
+# network.
+
+name: praxis
+
+x-models: &models
+  PRAXIS_MOVE_MODEL: ${PRAXIS_MOVE_MODEL:-qwen2.5:7b}
+  PRAXIS_REPORT_MODEL: ${PRAXIS_REPORT_MODEL:-qwen2.5:7b}
+  PRAXIS_REASONING_MODEL: ${PRAXIS_REASONING_MODEL:-qwen3:4b-instruct}
+  # No colon on purpose: unset means the default, empty means "off".
+  PRAXIS_COMMENTARY_MODEL: ${PRAXIS_COMMENTARY_MODEL-praxis-grid-2b-r3}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: praxis_chess_user
+      # Not published to the host, so the default only matters inside this
+      # stack. Set POSTGRES_PASSWORD in docker/.env before the first start to
+      # choose your own.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-praxis_chess_pass}
+      POSTGRES_DB: praxis_chess
+    volumes:
+      - praxis_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U praxis_chess_user -d praxis_chess"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ollama:
+    image: ollama/ollama:${OLLAMA_VERSION:-latest}
+    restart: unless-stopped
+    volumes:
+      - praxis_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # One-shot: pulls the configured models and builds the trained commentary
+  # model from Hugging Face, then exits. Re-runs skip what is already there.
+  models:
+    image: ghcr.io/praxis-chess/praxis-chess-models:${PRAXIS_VERSION:-latest}
+    build:
+      context: ..
+      dockerfile: docker/models/Dockerfile
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      <<: *models
+      OLLAMA_HOST: ${PRAXIS_OLLAMA_URL:-http://ollama:11434}
+      PRAXIS_SETUP_DIR: /setup
+    volumes:
+      - praxis_setup:/setup
+
+  app:
+    image: ghcr.io/praxis-chess/praxis-chess:${PRAXIS_VERSION:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    # Starts without waiting for the models: the UI shows download progress
+    # and works for everything that needs no model (sync, engine analysis).
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PRAXIS_PORT:-8086}:8086"
+    environment:
+      <<: *models
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-praxis_chess_pass}
+      PRAXIS_OLLAMA_URL: ${PRAXIS_OLLAMA_URL:-http://ollama:11434}
+      PRAXIS_SETUP_DIR: /setup
+      CHESS_COM_USERNAME: ${CHESS_COM_USERNAME:-}
+      PRAXIS_VOICE: ${PRAXIS_VOICE:-false}
+      PRAXIS_WEB: ${PRAXIS_WEB:-false}
+      TZ: ${TZ:-}
+    volumes:
+      - praxis_setup:/setup:ro
+
+  # ── optional ───────────────────────────────────────────────────────────────
+
+  # Prax's voice (Kokoro-82M on CPU). Enable with COMPOSE_PROFILES=voice and
+  # PRAXIS_VOICE=true in docker/.env.
+  voice:
+    image: ghcr.io/praxis-chess/praxis-chess-voice:${PRAXIS_VERSION:-latest}
+    build:
+      context: ../tts-service
+    profiles: ["voice"]
+    restart: unless-stopped
+
+  # Web research for Ask Prax (general chess questions only). Enable with
+  # COMPOSE_PROFILES=web and PRAXIS_WEB=true in docker/.env.
+  searxng:
+    image: searxng/searxng:latest
+    profiles: ["web"]
+    restart: unless-stopped
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+      # Overrides secret_key in the mounted settings. The instance is not
+      # published, but set your own in docker/.env anyway.
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-praxis-change-me}
+    volumes:
+      - ../searxng/settings.example.yml:/etc/searxng/settings.yml:ro
+
+  # pg_dump of the whole database into ./backups (repository root).
+  #   docker compose -f docker/compose.yaml run --rm backup
+  backup:
+    image: postgres:17-alpine
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-praxis_chess_pass}
+    volumes:
+      - ../backups:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -eo pipefail
+        f=/backups/praxis-$$(date +%Y%m%d-%H%M%S).sql.gz
+        pg_dump -h postgres -U praxis_chess_user -d praxis_chess --no-owner | gzip > "$$f" \
+          && echo "saved $${f#/}" && ls -lh "$$f" | awk '{print $$5}'
+
+volumes:
+  praxis_db:
+  praxis_models:
+  praxis_setup:

@@ -1,6 +1,5 @@
 package com.praxis.service.diagnosis;
 
-import com.praxis.config.AppProperties;
 import com.praxis.domain.MistakeEvidence;
 import com.praxis.evidence.EvidenceEngine;
 import com.praxis.evidence.diagnosis.TestGraphs;
@@ -8,6 +7,7 @@ import com.praxis.evidence.graph.EvidenceGraphBuilder;
 import com.praxis.evidence.graph.GraphJson;
 import com.praxis.repository.MistakeEvidenceRepository;
 import com.praxis.repository.MoveErrorRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,10 +45,10 @@ class DiagnosisServiceTest {
         evidence = mock(MistakeEvidenceRepository.class);
         moveErrors = mock(MoveErrorRepository.class);
         engine = mock(EvidenceEngine.class);
-        AppProperties props = mock(AppProperties.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
-        when(props.chessCom().username()).thenReturn("player");
+        PlayerIdentity player = mock(PlayerIdentity.class);
+        when(player.username()).thenReturn("player");
         commentary = mock(TrainedCommentary.class);
-        service = new DiagnosisService(moveErrors, evidence, engine, props, commentary);
+        service = new DiagnosisService(moveErrors, evidence, engine, player, commentary);
     }
 
     private static MistakeEvidence row(int version) {

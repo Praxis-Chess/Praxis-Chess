@@ -1,11 +1,11 @@
 package com.praxis.service.practice;
 
-import com.praxis.config.AppProperties;
 import com.praxis.config.PraxisClock;
 import com.praxis.domain.MetricSnapshot;
 import com.praxis.domain.enums.MeaningfulActivity;
 import com.praxis.repository.AttemptRepository;
 import com.praxis.repository.MetricSnapshotRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -40,14 +40,14 @@ public class PracticeLedgerBackfill implements ApplicationRunner {
 
     private final MetricSnapshotRepository snapshots;
     private final AttemptRepository attempts;
-    private final AppProperties props;
+    private final PlayerIdentity player;
     private final PraxisClock clock;
 
     public PracticeLedgerBackfill(MetricSnapshotRepository snapshots, AttemptRepository attempts,
-                                  AppProperties props, PraxisClock clock) {
+                                  PlayerIdentity player, PraxisClock clock) {
         this.snapshots = snapshots;
         this.attempts = attempts;
-        this.props = props;
+        this.player = player;
         this.clock = clock;
     }
 
@@ -63,7 +63,7 @@ public class PracticeLedgerBackfill implements ApplicationRunner {
      */
     @Override
     public void run(ApplicationArguments args) {
-        String username = props.chessCom() == null ? null : props.chessCom().username();
+        String username = player.username();
         if (username == null || username.isBlank()) return;
 
         try {

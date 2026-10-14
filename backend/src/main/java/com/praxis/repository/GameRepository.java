@@ -34,6 +34,10 @@ import java.util.UUID;
  */
 public interface GameRepository extends JpaRepository<Game, UUID> {
 
+    /** Spellings of a username already stored, matched without case — Chess.com names are case-insensitive. */
+    @Query("SELECT DISTINCT g.username FROM Game g WHERE LOWER(g.username) = LOWER(:username)")
+    List<String> findStoredSpellings(@Param("username") String username);
+
     boolean existsByChessComId(String chessComId);
 
     @Query("SELECT g FROM Game g WHERE g.username = :username AND (g.source IS NULL OR g.source = com.praxis.domain.enums.GameSource.CHESS_COM) ORDER BY g.playedAt DESC")

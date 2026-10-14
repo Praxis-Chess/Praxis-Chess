@@ -2,7 +2,6 @@ package com.praxis.pipeline;
 
 import java.util.concurrent.atomic.AtomicLong;
 import com.praxis.domain.AnalysisTiming;
-import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.MoveError;
 import com.praxis.domain.enums.AnalysisState;
@@ -15,6 +14,7 @@ import com.praxis.service.ai.AnalysisLlmClient;
 import com.praxis.service.ai.PromptTemplates;
 import com.praxis.service.ai.dto.MoveAnalysisResult;
 import com.praxis.service.analysis.*;
+import com.praxis.service.settings.PlayerIdentity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -56,7 +56,7 @@ public class GameAnalysisTransactionService {
     private final AnalysisLlmClient analysisLlm;
     private final GameRepository gameRepository;
     private final MoveErrorRepository moveErrorRepository;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
     private final EcoTable ecoTable;
     private final AnalysisTimingRecorder timingRecorder;
 
@@ -67,7 +67,7 @@ public class GameAnalysisTransactionService {
                                           AnalysisLlmClient analysisLlm,
                                           GameRepository gameRepository,
                                           MoveErrorRepository moveErrorRepository,
-                                          AppProperties appProperties,
+                                          PlayerIdentity player,
                                           EcoTable ecoTable,
                                           AnalysisTimingRecorder timingRecorder) {
         this.pgnParserService = pgnParserService;
@@ -77,7 +77,7 @@ public class GameAnalysisTransactionService {
         this.analysisLlm = analysisLlm;
         this.gameRepository = gameRepository;
         this.moveErrorRepository = moveErrorRepository;
-        this.appProperties = appProperties;
+        this.player = player;
         this.ecoTable = ecoTable;
         this.timingRecorder = timingRecorder;
     }
@@ -117,7 +117,7 @@ public class GameAnalysisTransactionService {
         game.setAnalysisStatus(AnalysisStatus.ANALYZING);
         gameRepository.save(game);
 
-        String username = appProperties.chessCom().username();
+        String username = player.username();
         ParsedGame parsedGame = pgnParserService.parse(
                 game.getId().toString(), game.getRawPgn(), username);
 

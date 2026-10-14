@@ -1,6 +1,5 @@
 package com.praxis.api;
 
-import com.praxis.config.AppProperties;
 import com.praxis.domain.MistakeEvidence;
 import com.praxis.evidence.EvidenceEngine;
 import com.praxis.evidence.diagnosis.Diagnosis;
@@ -11,6 +10,7 @@ import com.praxis.evidence.graph.EvidenceGraphBuilder;
 import com.praxis.evidence.graph.GraphJson;
 import com.praxis.evidence.graph.Representations;
 import com.praxis.repository.MistakeEvidenceRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -39,12 +39,12 @@ public class TrainingController {
 
     private final EvidenceEngine engine;
     private final MistakeEvidenceRepository evidence;
-    private final AppProperties props;
+    private final PlayerIdentity player;
 
-    public TrainingController(EvidenceEngine engine, MistakeEvidenceRepository evidence, AppProperties props) {
+    public TrainingController(EvidenceEngine engine, MistakeEvidenceRepository evidence, PlayerIdentity player) {
         this.engine = engine;
         this.evidence = evidence;
-        this.props = props;
+        this.player = player;
     }
 
     public record RenderRequest(String fen, String move, String level, Integer ply, String phase) {}
@@ -87,7 +87,7 @@ public class TrainingController {
     @GetMapping(value = "/export", produces = "application/x-ndjson")
     public ResponseEntity<String> export() {
         StringBuilder out = new StringBuilder();
-        for (MistakeEvidence e : evidence.findByUsername(props.chessCom().username())) {
+        for (MistakeEvidence e : evidence.findByUsername(player.username())) {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", e.getId());
             row.put("graph", GraphJson.readGraph(e.getGraphJson()));

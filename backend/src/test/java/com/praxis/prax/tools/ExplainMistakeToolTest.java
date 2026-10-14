@@ -12,6 +12,7 @@ import com.praxis.prax.web.WebResearchService;
 import com.praxis.repository.CardRepository;
 import com.praxis.service.analysis.StockfishService;
 import com.praxis.service.diagnosis.DiagnosisService;
+import com.praxis.service.settings.PlayerIdentity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,7 +46,7 @@ class ExplainMistakeToolTest {
         diagnosis = mock(DiagnosisService.class);
         stockfish = mock(StockfishService.class);
         when(stockfish.isAvailable()).thenReturn(true);
-        tools = new ToolRegistry(mock(ChessIntelligence.class), mock(AppProperties.class),
+        tools = new ToolRegistry(mock(ChessIntelligence.class), mock(AppProperties.class), mock(PlayerIdentity.class),
                 mock(CardRepository.class), stockfish, mock(PositionEvidenceBuilder.class),
                 mock(WebResearchService.class), diagnosis);
     }

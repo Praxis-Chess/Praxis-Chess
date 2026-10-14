@@ -14,6 +14,7 @@ import com.praxis.prax.evidence.PositionEvidenceBuilder;
 import com.praxis.prax.routing.QuestionRouter;
 import com.praxis.prax.web.WebResearchService;
 import com.praxis.service.diagnosis.DiagnosisService;
+import com.praxis.service.settings.PlayerIdentity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class ToolRegistry {
 
     private final ChessIntelligence intel;
     private final AppProperties props;
+    private final PlayerIdentity player;
     private final CardRepository cardRepository;
     private final StockfishService stockfish;
     private final PositionEvidenceBuilder evidenceBuilder;
@@ -41,11 +43,12 @@ public class ToolRegistry {
     private final DiagnosisService diagnosis;
     private final StatArtifactBuilder stats = new StatArtifactBuilder();
 
-    public ToolRegistry(ChessIntelligence intel, AppProperties props, CardRepository cardRepository,
+    public ToolRegistry(ChessIntelligence intel, AppProperties props, PlayerIdentity player, CardRepository cardRepository,
                         StockfishService stockfish, PositionEvidenceBuilder evidenceBuilder,
                         WebResearchService web, DiagnosisService diagnosis) {
         this.intel = intel;
         this.props = props;
+        this.player = player;
         this.cardRepository = cardRepository;
         this.stockfish = stockfish;
         this.evidenceBuilder = evidenceBuilder;
@@ -91,7 +94,7 @@ public class ToolRegistry {
     }
 
     private String user() {
-        return props.chessCom().username();
+        return player.username();
     }
 
     /** The tools offered to the model; each provider renders them in its own wire format. */

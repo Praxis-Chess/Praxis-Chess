@@ -131,5 +131,8 @@ if __name__ == "__main__":
     import uvicorn
 
     port = int(os.environ.get("PRAX_TTS_PORT", "8087"))
-    log.info("Prax TTS on http://127.0.0.1:%d  (model dir: %s)", port, MODEL_DIR)
-    uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
+    # Loopback unless told otherwise. The Docker image sets 0.0.0.0, which is
+    # still private: the voice service is never published outside its network.
+    host = os.environ.get("PRAX_TTS_HOST", "127.0.0.1")
+    log.info("Prax TTS on http://%s:%d  (model dir: %s)", host, port, MODEL_DIR)
+    uvicorn.run(app, host=host, port=port, log_level="warning")

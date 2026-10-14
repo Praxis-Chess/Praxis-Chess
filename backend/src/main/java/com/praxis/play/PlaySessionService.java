@@ -4,12 +4,12 @@ import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Side;
 import com.github.bhlangonijr.chesslib.move.Move;
 import com.github.bhlangonijr.chesslib.move.MoveList;
-import com.praxis.config.AppProperties;
 import com.praxis.config.PraxisClock;
 import com.praxis.play.OpponentProfileService.OpponentProfile;
 import com.praxis.play.domain.PracticeGame;
 import com.praxis.play.domain.enums.PracticeStatus;
 import com.praxis.play.repository.PracticeGameRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,15 +38,15 @@ public class PlaySessionService {
     private final PracticeGameRepository games;
     private final OpponentProfileService profiles;
     private final OpponentService opponent;
-    private final AppProperties props;
+    private final PlayerIdentity player;
     private final PraxisClock clock;
 
     public PlaySessionService(PracticeGameRepository games, OpponentProfileService profiles,
-                              OpponentService opponent, AppProperties props, PraxisClock clock) {
+                              OpponentService opponent, PlayerIdentity player, PraxisClock clock) {
         this.games = games;
         this.profiles = profiles;
         this.opponent = opponent;
-        this.props = props;
+        this.player = player;
         this.clock = clock;
     }
 
@@ -63,7 +63,7 @@ public class PlaySessionService {
 
     @Transactional
     public PracticeGame start(String colorPreference, Integer requestedSkill) {
-        String username = props.chessCom().username();
+        String username = player.username();
         OpponentProfile profile = profiles.build(username, requestedSkill);
 
         String colour = resolveColour(colorPreference);
@@ -323,6 +323,6 @@ public class PlaySessionService {
     }
 
     private String weakerColour() {
-        return profiles.weakerColour(props.chessCom().username());
+        return profiles.weakerColour(player.username());
     }
 }

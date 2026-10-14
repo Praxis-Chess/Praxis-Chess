@@ -1,11 +1,11 @@
 package com.praxis.api;
 
-import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.dto.*;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,19 +20,19 @@ public class DashboardController {
 
     private final GameRepository gameRepository;
     private final MoveErrorRepository moveErrorRepository;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
 
     public DashboardController(GameRepository gameRepository,
                                MoveErrorRepository moveErrorRepository,
-                               AppProperties appProperties) {
+                               PlayerIdentity player) {
         this.gameRepository = gameRepository;
         this.moveErrorRepository = moveErrorRepository;
-        this.appProperties = appProperties;
+        this.player = player;
     }
 
     @GetMapping("/stats")
     public ResponseEntity<DashboardStatsDto> getStats() {
-        String username = appProperties.chessCom().username();
+        String username = player.username();
         List<Game> games = gameRepository.findByUsernameOrderByPlayedAtDesc(username);
 
         int wins     = (int) games.stream().filter(g -> "win".equals(g.getResult())).count();

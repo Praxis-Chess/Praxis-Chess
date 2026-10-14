@@ -1,6 +1,5 @@
 package com.praxis.service;
 
-import com.praxis.config.AppProperties;
 import com.praxis.domain.Game;
 import com.praxis.domain.MoveError;
 import com.praxis.domain.enums.GamePhase;
@@ -9,6 +8,7 @@ import com.praxis.dto.InsightsDto;
 import com.praxis.dto.InsightsDto.*;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import com.praxis.service.settings.SettingsService;
 import org.springframework.stereotype.Service;
 
@@ -31,16 +31,16 @@ public class InsightsService {
 
     private final GameRepository gameRepository;
     private final MoveErrorRepository moveErrorRepository;
-    private final AppProperties appProperties;
+    private final PlayerIdentity player;
     private final SettingsService settings;
 
     public InsightsService(GameRepository gameRepository,
                            MoveErrorRepository moveErrorRepository,
-                           AppProperties appProperties,
+                           PlayerIdentity player,
                            SettingsService settings) {
         this.gameRepository = gameRepository;
         this.moveErrorRepository = moveErrorRepository;
-        this.appProperties = appProperties;
+        this.player = player;
         this.settings = settings;
     }
 
@@ -56,7 +56,7 @@ public class InsightsService {
         List<String> analysed = settings.analysisTimeClasses();
         if (analysed.size() == 1) {
             String only = analysed.get(0);
-            boolean present = gameRepository.findByUsernameOrderByPlayedAtDesc(appProperties.chessCom().username())
+            boolean present = gameRepository.findByUsernameOrderByPlayedAtDesc(player.username())
                     .stream().anyMatch(g -> only.equals(g.getTimeClass()));
             if (present) return compute(only);
         }
@@ -70,7 +70,7 @@ public class InsightsService {
      *                  so the Elo line is drawn only for a single time class.
      */
     public InsightsDto compute(String timeClass) {
-        String username = appProperties.chessCom().username();
+        String username = player.username();
         List<Game> library = gameRepository.findByUsernameOrderByPlayedAtDesc(username);
         List<Game> gamesDesc = timeClass == null ? library
                 : library.stream().filter(g -> timeClass.equals(g.getTimeClass())).toList();

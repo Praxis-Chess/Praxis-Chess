@@ -92,6 +92,8 @@ praxis-chess:
   #     # reasoning: true                             # o-series, DeepSeek-R1 and similar: more room,
   #     #                                             # max_completion_tokens, no temperature
   chess-com:
+    # Optional: Settings → Player stores it in the database, and that wins.
+    # This is only the fallback for an install that never opens Settings.
     username: YOUR_CHESS_COM_USERNAME_HERE
   tts:
     # Local Prax voice (Kokoro-82M on CPU). Optional — without it Prax stays

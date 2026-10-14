@@ -198,6 +198,44 @@ A separate path from the analysis pipeline. The pipeline writes rows; Prax reads
 
 ---
 
+## Quick Start (Docker)
+
+Needs only [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+(or Docker Engine on Linux). Java, Node, Stockfish and Ollama all come inside
+the containers.
+
+```bash
+git clone https://github.com/Praxis-Chess/Praxis-Chess.git
+cd Praxis-Chess
+docker compose -f docker/compose.yaml up -d --build
+```
+
+Open **http://localhost:8086**, go to **Settings → Player** and enter your
+Chess.com username. That's the whole setup.
+
+- **First start** downloads the AI models: about **8.5 GB** (qwen2.5:7b,
+  qwen3:4b-instruct and the trained commentary model, built from its Hugging
+  Face release and checked against its SHA-256). The setup checklist on the
+  Today page shows the progress. Syncing and engine analysis work while it
+  runs.
+- **NVIDIA GPU** (Linux, or Windows with the WSL 2 engine): add
+  `-f docker/compose.gpu.yaml`. Without it, models run on the CPU — it works,
+  but explanations are much slower.
+- **Mac:** Docker on macOS can't use the GPU. Install [Ollama](https://ollama.com)
+  natively and add `-f docker/compose.host-ollama.yaml`; the same file reuses
+  models you already have on any OS.
+- **Smaller download:** a light set (~3.8 GB) and other options are in
+  [`docker/.env.example`](docker/.env.example) — copy it to `docker/.env`.
+- **Back up your games:** `docker compose -f docker/compose.yaml run --rm backup`
+  writes a dump to `backups/`.
+
+Only port 8086 is published, and only on `127.0.0.1`. Stockfish 19 is built
+into the image from its source tag (GPL-3.0; licence and source link in
+`/usr/share/doc/stockfish`). Upgrading, uninstalling, restoring a backup and
+troubleshooting: [docker/INSTALL.md](docker/INSTALL.md).
+
+The rest of this section is for running from source, for development.
+
 ## Prerequisites
 
 - **Java 21+** (the build targets 21; developed on JDK 26)
@@ -316,7 +354,7 @@ praxis-chess:
     # Optional: the trained commentary model from step 3b.
     # commentary-model: praxis-grid-2b-r3
   chess-com:
-    username: your_chess_com_username
+    username: your_chess_com_username   # optional: or enter it in Settings → Player
   stockfish:
     path: /path/to/stockfish
   tts:

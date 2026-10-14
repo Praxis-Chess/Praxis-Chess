@@ -1,4 +1,7 @@
 import type { AiStatus,
+  PlayerSaved,
+  PlayerView,
+  SetupStatus,
   AnalysisProgress,
   MistakeWhy,
   LabelReview,
@@ -189,11 +192,33 @@ export const api = {
       return { ok: true, saved: (await res.json()) as SettingsSaved }
     },
     coverage: () => request<Coverage>('/settings/coverage'),
+    player: () => request<PlayerView>('/settings/player'),
+    /** Like save(): a 400 (bad name, or no such Chess.com player) is returned, not thrown. */
+    savePlayer: async (
+      username: string,
+    ): Promise<{ ok: true; saved: PlayerSaved } | { ok: false; error: string }> => {
+      const res = await fetch(`${BASE}/settings/player`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username }),
+      })
+      if (res.status === 400) {
+        const j = await res.json().catch(() => ({}))
+        return { ok: false, error: j.errors?.username ?? 'That username was rejected.' }
+      }
+      if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`)
+      return { ok: true, saved: (await res.json()) as PlayerSaved }
+    },
     /** Where each AI feature runs. Read-only: the provider and key live in application.yml. */
     ai: () => request<AiStatus>('/settings/ai'),
     /** Measured time estimate for a PROPOSED configuration. Changes nothing. */
     estimate: (body: { library: EngineConfig | null; practice: EngineConfig | null }) =>
       request<SettingsEstimate>('/settings/estimate', { method: 'POST', body: JSON.stringify(body) }),
+  },
+
+  setup: {
+    /** What this install needs and what is missing; polled while models download. */
+    status: () => request<SetupStatus>('/setup/status'),
   },
 
   diagnosis: {

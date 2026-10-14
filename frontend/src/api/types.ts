@@ -644,6 +644,48 @@ export interface AiStatus {
   cloud_host: string | null
 }
 
+/** GET /api/setup/status — what this install needs, and what is missing. */
+export type SetupState = 'OK' | 'WARN' | 'FAIL' | 'SKIP'
+
+export interface SetupCheck {
+  key: string
+  label: string
+  state: SetupState
+  detail: string | null
+  /** The exact thing to do when it is not OK. */
+  fix: string | null
+}
+
+export interface SetupModel {
+  name: string
+  role: string
+  state: 'present' | 'missing' | 'waiting' | 'downloading' | 'creating' | 'failed'
+  /** Bytes, from the Docker models service; 0 when unknown. */
+  completed: number
+  total: number
+  message: string | null
+}
+
+export interface SetupStatus {
+  /** Nothing failed: syncing and engine analysis work. */
+  ready: boolean
+  docker: boolean
+  stockfish: string | null
+  checks: SetupCheck[]
+  models: SetupModel[]
+}
+
+/** The player whose games this install reads. */
+export interface PlayerView {
+  username: string
+  source: 'settings' | 'config' | 'none'
+}
+
+export interface PlayerSaved {
+  player: PlayerView
+  warning: string | null
+}
+
 export interface SettingsSaved {
   settings: AppSettingsView
   library_version_created: boolean

@@ -2,12 +2,12 @@ package com.praxis.prax.conversation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.praxis.ai.ChatMessage;
-import com.praxis.config.AppProperties;
 import com.praxis.prax.conversation.domain.Conversation;
 import com.praxis.prax.conversation.domain.ConversationMessage;
 import com.praxis.prax.conversation.domain.ConversationMessage.Role;
 import com.praxis.prax.conversation.repository.ConversationMessageRepository;
 import com.praxis.prax.conversation.repository.ConversationRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -55,20 +55,20 @@ public class ConversationService {
 
     private final ConversationRepository conversations;
     private final ConversationMessageRepository messages;
-    private final AppProperties props;
+    private final PlayerIdentity player;
     private final ObjectMapper mapper;
 
     public ConversationService(ConversationRepository conversations,
                                ConversationMessageRepository messages,
-                               AppProperties props, ObjectMapper mapper) {
+                               PlayerIdentity player, ObjectMapper mapper) {
         this.conversations = conversations;
         this.messages = messages;
-        this.props = props;
+        this.player = player;
         this.mapper = mapper;
     }
 
     private String user() {
-        return props.chessCom().username();
+        return player.username();
     }
 
     @Transactional

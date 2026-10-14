@@ -51,4 +51,13 @@ public class AppSettings {
      */
     @Column(name = "analysis_time_classes", length = 64)
     private String analysisTimeClasses;
+
+    /**
+     * The Chess.com account this install reads, entered in Settings. Null means
+     * "not set here": {@code praxis-chess.chess-com.username} from config is the
+     * fallback, so an install configured the old way keeps working unchanged.
+     * See {@link com.praxis.service.settings.PlayerIdentity}.
+     */
+    @Column(name = "chess_com_username", length = 64)
+    private String chessComUsername;
 }

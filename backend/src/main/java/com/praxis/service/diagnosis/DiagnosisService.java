@@ -1,6 +1,5 @@
 package com.praxis.service.diagnosis;
 
-import com.praxis.config.AppProperties;
 import com.praxis.domain.MistakeEvidence;
 import com.praxis.domain.MoveError;
 import com.praxis.evidence.EvidenceEngine;
@@ -15,6 +14,7 @@ import com.praxis.evidence.graph.GraphJson;
 import com.praxis.evidence.graph.Representations;
 import com.praxis.repository.MistakeEvidenceRepository;
 import com.praxis.repository.MoveErrorRepository;
+import com.praxis.service.settings.PlayerIdentity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -51,15 +51,15 @@ public class DiagnosisService {
     private final MoveErrorRepository moveErrors;
     private final MistakeEvidenceRepository evidence;
     private final EvidenceEngine engine;
-    private final AppProperties props;
+    private final PlayerIdentity player;
     private final TrainedCommentary commentary;
 
     public DiagnosisService(MoveErrorRepository moveErrors, MistakeEvidenceRepository evidence,
-                            EvidenceEngine engine, AppProperties props, TrainedCommentary commentary) {
+                            EvidenceEngine engine, PlayerIdentity player, TrainedCommentary commentary) {
         this.moveErrors = moveErrors;
         this.evidence = evidence;
         this.engine = engine;
-        this.props = props;
+        this.player = player;
         this.commentary = commentary;
     }
 
@@ -630,6 +630,6 @@ public class DiagnosisService {
     }
 
     private String user() {
-        return props.chessCom().username();
+        return player.username();
     }
 }

@@ -11,12 +11,18 @@ import org.springframework.web.bind.annotation.GetMapping;
  * so static files and REST endpoints are never intercepted.
  * Spring MVC matches @RestController routes before this catch-all anyway,
  * but the regex is a second line of defence for nested routes.
+ *
+ * A first segment with a dot is a FILE (index.html, favicon.ico) and is left
+ * to the static resource handler. Without that, "/" forwarded to /index.html,
+ * this same pattern matched "index.html" and forwarded it again, forever: a
+ * StackOverflowError on every page of the bundled JAR. Development never
+ * showed it, because there Vite serves the UI; the Docker image did.
  */
 @Controller
 public class SpaController {
 
-    private static final String SPA_EXCLUSIONS =
-            "^(?!api|assets|actuator|v3|swagger-ui).*$";
+    static final String SPA_EXCLUSIONS =
+            "^(?!api|assets|actuator|v3|swagger-ui)[^.]*$";
 
     @GetMapping("/")
     public String root() {

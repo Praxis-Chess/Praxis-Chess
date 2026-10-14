@@ -1,6 +1,5 @@
 package com.praxis.service.settings;
 
-import com.praxis.config.AppProperties;
 import com.praxis.config.PraxisClock;
 import com.praxis.domain.AnalysisSettings;
 import com.praxis.domain.AnalysisTiming;
@@ -46,17 +45,17 @@ public class SettingsService {
     private final AppSettingsRepository app;
     private final AnalysisTimingRepository timings;
     private final JdbcTemplate jdbc;
-    private final AppProperties props;
+    private final PlayerIdentity player;
     private final PraxisClock clock;
 
     public SettingsService(AnalysisSettingsRepository versions, AppSettingsRepository app,
                            AnalysisTimingRepository timings, JdbcTemplate jdbc,
-                           AppProperties props, PraxisClock clock) {
+                           PlayerIdentity player, PraxisClock clock) {
         this.versions = versions;
         this.app = app;
         this.timings = timings;
         this.jdbc = jdbc;
-        this.props = props;
+        this.player = player;
         this.clock = clock;
     }
 
@@ -325,7 +324,7 @@ public class SettingsService {
     // ── coverage ─────────────────────────────────────────────────────────────
 
     public Coverage coverage() {
-        String user = props.chessCom().username();
+        String user = player.username();
         String zone = clock.zone().getId();
         Long activeLib = active(AnalysisSettings.LIBRARY).id();
         // Versions that measure the same way as the active one. A game under any
@@ -484,7 +483,7 @@ public class SettingsService {
     }
 
     private int gamesInAnalysisRange() {
-        String user = props.chessCom().username();
+        String user = player.username();
         AppSettings a = appSettings();
         String zone = clock.zone().getId();
         Integer n = jdbc.queryForObject("""
