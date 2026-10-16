@@ -210,6 +210,8 @@ export interface OpponentBucket {
 
 export interface AccuracyTrendPoint {
   date: string
+  /** The exact moment the game was played (ISO-8601). Older servers send only `date`. */
+  played_at?: string
   accuracy: number
   moving_avg: number
   /** Your rating in that game; null when Chess.com did not record one. */
@@ -673,6 +675,46 @@ export interface SetupStatus {
   stockfish: string | null
   checks: SetupCheck[]
   models: SetupModel[]
+}
+
+/** GET /api/backups — read from the files the backup service writes. */
+export interface BackupSnapshot {
+  file: string
+  taken_at: string | null
+  /** daily, manual, before-reanalysis, before-restore, imported */
+  reason: string
+  bytes: number
+  rows: number
+  games: number | null
+  /** A test restore of this file passed. */
+  verified: boolean
+}
+
+export interface BackupOverview {
+  configured: boolean
+  service_running: boolean
+  docker: boolean
+  dir: string | null
+  /** Last time the data was captured: a new snapshot, or "unchanged". */
+  last_check_at: string | null
+  last_check_result: 'created' | 'unchanged' | 'error' | null
+  last_error: string | null
+  count: number
+  total_bytes: number
+  latest: BackupSnapshot | null
+  last_verification: { file: string; verified_at: string | null; ok: boolean; error: string | null } | null
+  /** Newest first. */
+  snapshots: BackupSnapshot[]
+  /** `{file}` marks where a snapshot name goes. */
+  commands: { list: string; snapshot: string; restore: string; restore_side: string; restore_direct: string }
+}
+
+export interface BackupResult {
+  ok: boolean
+  /** The new snapshot, or the newest one when nothing changed. */
+  file: string | null
+  unchanged: boolean
+  error: string | null
 }
 
 /** The player whose games this install reads. */

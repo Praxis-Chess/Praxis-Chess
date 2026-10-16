@@ -7,9 +7,10 @@ import type {
 import { LibraryCard } from '../components/LibraryCard'
 import { AiModelsCard } from '../components/AiModelsCard'
 import { PlayerCard } from '../components/PlayerCard'
-import { SetupChecklist } from '../components/SetupChecklist'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { PraxAnchor, praxInteract } from '../prax/PraxHost'
+import { BackupFailedNotice } from '../components/BackupFailedNotice'
+import { BackupsCard } from '../components/BackupsCard'
 
 /**
  * Settings: which games are synced and analysed, and how deeply the engine
@@ -92,8 +93,9 @@ function Field({ id, label, help, error, children }: {
 
 // ── Coverage ──────────────────────────────────────────────────────────────────
 
-function CoverageCard({ coverage, onReanalyseOutdated, reanalysing }: {
-  coverage: Coverage; onReanalyseOutdated: () => void; reanalysing: boolean
+function CoverageCard({ coverage, onReanalyseOutdated, reanalysing, reanalyseError, onDismissError }: {
+  coverage: Coverage; onReanalyseOutdated: (skipBackup: boolean) => void; reanalysing: boolean
+  reanalyseError: unknown; onDismissError: () => void
 }) {
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const [confirming, setConfirming] = useState(false)
@@ -126,7 +128,8 @@ function CoverageCard({ coverage, onReanalyseOutdated, reanalysing }: {
         <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {!confirming ? (
             <button className="secondary" onClick={() => setConfirming(true)} disabled={reanalysing}>
-              Re-analyse {coverage.outdated_in_range} game{coverage.outdated_in_range === 1 ? '' : 's'} with current settings
+              {reanalysing ? 'Backing up, then queuing…'
+                : `Re-analyse ${coverage.outdated_in_range} game${coverage.outdated_in_range === 1 ? '' : 's'} with current settings`}
             </button>
           ) : (
             <>
@@ -134,12 +137,15 @@ function CoverageCard({ coverage, onReanalyseOutdated, reanalysing }: {
                 This re-analyses {coverage.outdated_in_range} game{coverage.outdated_in_range === 1 ? '' : 's'} and
                 removes their drill cards, which are regenerated afterwards.
               </span>
-              <button onClick={() => { setConfirming(false); onReanalyseOutdated() }}>Yes, re-analyse</button>
+              <button onClick={() => { setConfirming(false); onReanalyseOutdated(false) }}>Yes, re-analyse</button>
               <button className="secondary" onClick={() => setConfirming(false)}>Cancel</button>
             </>
           )}
         </div>
       )}
+
+      <BackupFailedNotice error={reanalyseError} busy={reanalysing}
+                          onProceed={() => onReanalyseOutdated(true)} onCancel={onDismissError} />
 
       {coverage.months.length > 0 && (
         <div style={{ overflowX: 'auto', marginTop: 14 }}>
@@ -340,7 +346,7 @@ export function Settings() {
   })
 
   const reanalyse = useMutation({
-    mutationFn: () => api.analysis.reanalyzeAll(true),
+    mutationFn: (skipBackup: boolean) => api.analysis.reanalyzeAll(true, skipBackup),
     onSuccess: r => {
       setNotice(`Queued ${r.games_queued} game${r.games_queued === 1 ? '' : 's'} for re-analysis with the current settings.`)
       qc.invalidateQueries({ queryKey: ['settings-coverage'] })
@@ -360,12 +366,11 @@ export function Settings() {
 
       <PlayerCard />
 
-      <SetupChecklist mode="full" />
-
       <LibraryCard />
 
       <CoverageCard coverage={coverage} reanalysing={reanalyse.isPending}
-                    onReanalyseOutdated={() => { praxInteract('PRIMARY_ACTION'); reanalyse.mutate() }} />
+                    reanalyseError={reanalyse.error} onDismissError={() => reanalyse.reset()}
+                    onReanalyseOutdated={skip => { praxInteract('PRIMARY_ACTION'); reanalyse.mutate(skip) }} />
 
       <section className="card" aria-labelledby="ranges-title">
         <h2 id="ranges-title" style={{ fontSize: '1rem', marginBottom: 12 }}>
@@ -433,6 +438,8 @@ export function Settings() {
       </div>
 
       <AiModelsCard />
+
+      <BackupsCard />
 
       <section className="card" aria-labelledby="estimate-title">
         <h2 id="estimate-title" style={{ fontSize: '1rem', marginBottom: 6 }}>Estimated time</h2>

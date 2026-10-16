@@ -10,6 +10,7 @@ import com.praxis.dto.SetupDto.Model;
 import com.praxis.dto.SetupDto.State;
 import com.praxis.dto.SetupDto.Status;
 import com.praxis.service.analysis.StockfishService;
+import com.praxis.service.backup.BackupService;
 import com.praxis.service.settings.PlayerIdentity;
 import com.praxis.service.voice.TtsClient;
 import org.slf4j.Logger;
@@ -61,6 +62,7 @@ public class SetupStatusService {
     private final PlayerIdentity player;
     private final ModelRouter router;
     private final TtsClient tts;
+    private final BackupService backups;
     private final ObjectMapper json = new ObjectMapper();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
     private final Path setupDir;
@@ -69,13 +71,14 @@ public class SetupStatusService {
     private volatile long optionalAt;
 
     public SetupStatusService(DataSource dataSource, AppProperties props, StockfishService stockfish,
-                              PlayerIdentity player, ModelRouter router, TtsClient tts) {
+                              PlayerIdentity player, ModelRouter router, TtsClient tts, BackupService backups) {
         this.dataSource = dataSource;
         this.props = props;
         this.stockfish = stockfish;
         this.player = player;
         this.router = router;
         this.tts = tts;
+        this.backups = backups;
         String dir = System.getenv("PRAXIS_SETUP_DIR");
         this.setupDir = dir == null || dir.isBlank() ? null : Path.of(dir);
     }
@@ -92,6 +95,7 @@ public class SetupStatusService {
         List<Model> models = new ArrayList<>();
         checks.add(ollama(models));
         checks.addAll(optionalChecks());
+        checks.add(backups.check());
         boolean ready = checks.stream().noneMatch(c -> c.state() == State.FAIL);
         return new Status(ready, docker(), stockfish.engineName(), checks, models);
     }

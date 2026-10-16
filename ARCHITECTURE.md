@@ -25,19 +25,20 @@
 14. [Play & Improve](#play--improve)
 15. [Evidence Graph and Verified Diagnosis](#evidence-graph-and-verified-diagnosis)
 16. [Practice Streaks](#practice-streaks)
-17. [Testing Strategy](#testing-strategy)
-18. [Schema Repair and Backfills](#schema-repair-and-backfills)
-19. [Prax — Presence & Voice](#prax--presence--voice)
-20. [Frontend Architecture](#frontend-architecture)
-21. [Backend Architecture](#backend-architecture)
-22. [Progress Tracking](#progress-tracking)
-23. [Key Design Decisions](#key-design-decisions)
-24. [REST API Reference](#rest-api-reference)
-25. [Non-Functional Considerations](#non-functional-considerations)
-26. [Future Considerations](#future-considerations)
-27. [Hardware Reality](#hardware-reality)
-28. [Docker Install](#docker-install)
-29. [How It All Connects (High Level)](#how-it-all-connects-high-level)
+17. [Backups](#backups)
+18. [Testing Strategy](#testing-strategy)
+19. [Schema Repair and Backfills](#schema-repair-and-backfills)
+20. [Prax — Presence & Voice](#prax--presence--voice)
+21. [Frontend Architecture](#frontend-architecture)
+22. [Backend Architecture](#backend-architecture)
+23. [Progress Tracking](#progress-tracking)
+24. [Key Design Decisions](#key-design-decisions)
+25. [REST API Reference](#rest-api-reference)
+26. [Non-Functional Considerations](#non-functional-considerations)
+27. [Future Considerations](#future-considerations)
+28. [Hardware Reality](#hardware-reality)
+29. [Docker Install](#docker-install)
+30. [How It All Connects (High Level)](#how-it-all-connects-high-level)
 
 ---
 
@@ -1256,6 +1257,57 @@ app measures the wrong thing.
 
 ---
 
+## Backups
+
+```
+docker/backup/backup.sh          the backup service: snapshots, index, verify, restore
+docker/backup/restore.sh         host wrapper; stops and starts the app around a restore
+service/backup/BackupService     reads what the service wrote; asks for a snapshot
+api/BackupController             GET /api/backups, POST /api/backups ("Back up now")
+```
+
+The library was lost once to an infrastructure restart, and most of what lives
+in the database cannot be fetched again: drill history, practice games,
+settings versions, and hours of engine analysis. Games re-sync from Chess.com;
+nothing else does.
+
+**A separate service, not the app.** A `backup` container (the same
+`postgres:17-alpine` image, so `pg_dump` matches the server) runs beside
+PostgreSQL in both stacks. Backups keep working while the backend is stopped,
+restarting or broken, and the app needs no database superpowers.
+
+**The app never writes a snapshot.** It reads three files the service writes:
+`index.jsonl` (one line per snapshot, append-only, with row counts per table),
+`verify.jsonl` (one line per test restore) and `status.json` (the last check,
+rewritten as a heartbeat). "Back up now" and "before re-analysis" leave a
+request file, `<id>.json`; the service answers with `<id>.done.json`. In the
+Docker install the app sees the backup folder read-only and requests travel
+through a small shared volume.
+
+**Daily, but only when something changed.** Every hour the service checks; when
+the last check is 24 hours old it dumps the database and hashes the dump minus
+its header comments and PostgreSQL 17.6's random `estrict` key. Equal to the
+newest snapshot's hash, the dump is discarded and only the check is recorded.
+The checklist therefore measures freshness by the last check, not the last
+file: a week with no new games has one snapshot and is fully backed up.
+
+**Never deleted.** No retention rule. Old snapshots are history, and later
+material for analysis; thinning them is a decision a person makes.
+
+**A backup nobody has restored is a hope.** Weekly, the newest snapshot is
+loaded into a scratch database and each table's row count is compared with the
+dump's own `COPY` blocks. A full restore does the same into `praxis_incoming`
+before swapping it in, after taking a safety snapshot of the current data, and
+refuses while anything is connected.
+
+**Before destructive actions.** `POST /api/analysis/reanalyze` deletes analyses
+and drill cards, so it asks for a snapshot first and answers 409
+`backup_failed` when none could be taken. The UI says why and offers to go on
+without one (`skip_backup=true`). The wait happens outside the transaction, so
+it holds no database connection.
+
+---
+
 ## Testing Strategy
 
 Two suites, testing genuinely different things.
@@ -1820,7 +1872,7 @@ ai/openai/OpenAiCompatibleProvider   /chat/completions: OpenAI, OpenRouter, Groq
 ai/ModelRouter              Feature → (provider, model); the only reader of the AI config
 ```
 
-Callers (`PraxAgent`, `AnalysisLlmClient`, `TodayInsightService`) depend on
+Callers (`PraxAgent`, `AnalysisLlmClient`) depend on
 `ModelRouter` and `LlmProvider`, never on a vendor:
 - **Each adapter owns its wire format.** Ollama takes tool arguments as objects
   and no ids; chat-completions wants ids, JSON-string arguments and results

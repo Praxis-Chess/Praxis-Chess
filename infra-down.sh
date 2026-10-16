@@ -39,6 +39,8 @@ if $WIPE; then
   # hours of Stockfish work, not a cache.
   printf '  %sThis deletes the database volume: all synced games, analyses and\n' "$RED"
   printf '  conversations. Re-syncing and re-analysing takes hours.%s\n' "$RESET"
+  printf '  Snapshots in backups/dev are files on this computer and are kept;\n'
+  printf '  docker/backup/restore.sh --dev <file> brings one back.\n'
   read -r -p '  Type WIPE to confirm: ' reply
   if [ "$reply" = 'WIPE' ]; then
     docker compose --profile web down -v >/dev/null 2>&1 && ok 'stopped and volumes removed'

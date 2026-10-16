@@ -9,7 +9,8 @@
 # Optional settings live in docker/.env (copy docker/.env.example). Add-ons:
 #   NVIDIA GPU         -f docker/compose.gpu.yaml
 #   Ollama on the host -f docker/compose.host-ollama.yaml   (Mac: always)
-#   Back up the DB     docker compose -f docker/compose.yaml run --rm backup
+#
+# Backups run by themselves into backups/ (see the backup service below).
 #
 # Separate from the developer stack in ../docker-compose.yml: its own project
 # name, containers and volumes, so both can exist on one machine. Only the app
@@ -97,6 +98,10 @@ services:
       TZ: ${TZ:-}
     volumes:
       - praxis_setup:/setup:ro
+      # Read-only: the app shows the backups and asks for one through
+      # /backup-requests; only the backup service writes snapshots.
+      - ${PRAXIS_BACKUP_DIR:-../backups}:/backups:ro
+      - praxis_backup_requests:/backup-requests
 
   # ── optional ───────────────────────────────────────────────────────────────
 
@@ -123,28 +128,34 @@ services:
     volumes:
       - ../searxng/settings.example.yml:/etc/searxng/settings.yml:ro
 
-  # pg_dump of the whole database into ./backups (repository root).
-  #   docker compose -f docker/compose.yaml run --rm backup
+  # Automatic backups into backups/ (repository root), or PRAXIS_BACKUP_DIR:
+  # a snapshot when the last check is over 24 hours old (checked hourly; an
+  # unchanged database writes nothing), "Back up now" from Settings, and a
+  # weekly test restore. Snapshots are never deleted. See docker/INSTALL.md.
+  #   docker compose -f docker/compose.yaml exec backup backup snapshot
+  #   docker/backup/restore.sh <file>
   backup:
     image: postgres:17-alpine
-    profiles: ["tools"]
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
+      PGHOST: postgres
+      PGUSER: praxis_chess_user
       PGPASSWORD: ${POSTGRES_PASSWORD:-praxis_chess_pass}
+      PGDATABASE: praxis_chess
+      REQUESTS_DIR: /backup-requests
+      PRAXIS_VERSION: ${PRAXIS_VERSION:-}
+      TZ: ${TZ:-}
     volumes:
-      - ../backups:/backups
-    entrypoint:
-      - sh
-      - -c
-      - |
-        set -eo pipefail
-        f=/backups/praxis-$$(date +%Y%m%d-%H%M%S).sql.gz
-        pg_dump -h postgres -U praxis_chess_user -d praxis_chess --no-owner | gzip > "$$f" \
-          && echo "saved $${f#/}" && ls -lh "$$f" | awk '{print $$5}'
+      - ${PRAXIS_BACKUP_DIR:-../backups}:/backups
+      - ./backup:/opt/praxis-backup:ro
+      - praxis_backup_requests:/backup-requests
+    entrypoint: ["bash", "/opt/praxis-backup/backup.sh", "daemon"]
 
 volumes:
   praxis_db:
   praxis_models:
   praxis_setup:
+  praxis_backup_requests:

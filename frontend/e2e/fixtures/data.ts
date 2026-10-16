@@ -12,6 +12,7 @@
  * committed.
  */
 import type { AiStatus,
+  BackupOverview,
   PlayerView,
   SetupStatus,
   AnalysisProgress,
@@ -924,6 +925,7 @@ export const setupReady: SetupStatus = {
     { key: 'ollama', label: 'AI models', state: 'OK', detail: '3 model(s) ready', fix: null },
     { key: 'voice', label: "Prax's voice", state: 'SKIP', detail: 'Off', fix: null },
     { key: 'web', label: 'Web research', state: 'SKIP', detail: 'Off', fix: null },
+    { key: 'backups', label: 'Backups', state: 'OK', detail: 'Last backup 3 h ago · 3 snapshots · 4.5 MB', fix: null },
   ],
   models: [
     { name: 'qwen2.5:7b', role: 'Move explanations, pattern report, training plan', state: 'present', completed: 0, total: 0, message: null },
@@ -950,3 +952,46 @@ export const setupFresh: SetupStatus = {
 
 export const playerSet: PlayerView = { username: 'player', source: 'settings' }
 export const playerNone: PlayerView = { username: '', source: 'none' }
+
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
+
+/** Settings → Backups: the service running, three snapshots, the oldest tested. */
+export const backups: BackupOverview = {
+  configured: true,
+  service_running: true,
+  docker: false,
+  dir: 'D:/praxis/backups/dev',
+  last_check_at: hoursAgo(3),
+  last_check_result: 'unchanged',
+  last_error: null,
+  count: 3,
+  total_bytes: 4_718_592,
+  latest: null,
+  last_verification: { file: 'praxis-20261012-090000.sql.gz', verified_at: hoursAgo(50), ok: true, error: null },
+  snapshots: [
+    { file: 'praxis-20261014-090000.sql.gz', taken_at: hoursAgo(27), reason: 'before-reanalysis', bytes: 1_677_722, rows: 9_210, games: 412, verified: false },
+    { file: 'praxis-20261013-090000.sql.gz', taken_at: hoursAgo(51), reason: 'daily', bytes: 1_572_864, rows: 9_004, games: 405, verified: false },
+    { file: 'praxis-20261012-090000.sql.gz', taken_at: hoursAgo(75), reason: 'daily', bytes: 1_468_006, rows: 8_870, games: 398, verified: true },
+  ],
+  commands: {
+    list: 'docker compose exec backup backup list',
+    snapshot: 'docker compose exec backup backup snapshot',
+    restore: 'docker/backup/restore.sh --dev {file}',
+    restore_side: 'docker/backup/restore.sh --dev --side {file}',
+    restore_direct: 'docker compose exec backup backup restore {file}',
+  },
+}
+backups.latest = backups.snapshots[0]
+
+/** The dev stack started without the backup service. */
+export const backupsNotRunning: BackupOverview = {
+  ...backups,
+  service_running: false,
+  last_check_at: null,
+  last_check_result: null,
+  count: 0,
+  total_bytes: 0,
+  latest: null,
+  last_verification: null,
+  snapshots: [],
+}

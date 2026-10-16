@@ -2,7 +2,7 @@
 #
 # Brings up everything Praxis Chess needs, except the app itself.
 #
-#   ./infra-up.sh          start PostgreSQL, SearXNG and Ollama
+#   ./infra-up.sh          start PostgreSQL, backups, SearXNG and Ollama
 #   ./infra-up.sh --tts    also start the Prax voice service
 #   ./infra-up.sh --status just report, change nothing
 #   ./infra-down.sh        stop the containers again
@@ -102,6 +102,24 @@ else
     fail 'could not start'; PROBLEMS=$((PROBLEMS + 1))
     hint 'docker compose up -d postgres'
   fi
+fi
+
+# ── Backups ──────────────────────────────────────────────────────────────────
+#
+# A snapshot into backups/dev when the last check is over 24 hours old, and a
+# weekly test restore. Snapshots are never deleted (docker/backup/backup.sh).
+step 'Backups  (backups/dev)'
+bk_state=$(docker inspect -f '{{.State.Status}}' praxis-chess-backup 2>/dev/null || echo 'missing')
+if [ "$bk_state" = 'running' ]; then
+  ok 'already running'
+elif $STATUS_ONLY; then
+  warn "not running (state: $bk_state)"; PROBLEMS=$((PROBLEMS + 1))
+  hint 'docker compose up -d backup'
+elif docker compose up -d backup >/dev/null 2>&1; then
+  ok 'started: the first snapshot follows within a minute when none is recent'
+else
+  warn 'could not start'; PROBLEMS=$((PROBLEMS + 1))
+  hint 'docker compose up -d backup'
 fi
 
 # ── SearXNG ──────────────────────────────────────────────────────────────────

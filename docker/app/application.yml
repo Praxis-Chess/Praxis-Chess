@@ -78,6 +78,11 @@ praxis-chess:
   stockfish:
     # Built into the image from the pinned source tag (docker/Dockerfile).
     path: /usr/local/bin/stockfish
+  backup:
+    # Mounted read-only from the backups folder; snapshots are written only by
+    # the backup service. "Back up now" leaves its request in the shared volume.
+    dir: /backups
+    requests-dir: /backup-requests
   practice:
     # Containers run in UTC; "today" for streaks should be the player's day.
     timezone: ${TZ:}

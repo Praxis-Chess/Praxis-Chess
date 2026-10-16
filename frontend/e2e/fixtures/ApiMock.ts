@@ -120,6 +120,7 @@ export class ApiMock {
     this.json('/api/settings/estimate', data.estimate)
     this.json('/api/settings/player', data.playerSet)
     this.json('/api/setup/status', data.setupReady)
+    this.json('/api/backups', data.backups)
     this.json('/api/analysis/progress', data.analysisIdle)
     this.json('/api/dashboard/stats', data.dashboardStats)
     this.json('/api/dashboard/rating-history', data.dashboardStats.rating_history)

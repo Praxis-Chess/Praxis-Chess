@@ -14,7 +14,7 @@ not start. Every command runs from the repository root.
 | `models` | One-shot: downloads the models, then exits | no |
 | `voice` | Optional: Prax's voice (profile `voice`) | no |
 | `searxng` | Optional: web research (profile `web`) | no |
-| `backup` | On demand: `pg_dump` into `backups/` (profile `tools`) | no |
+| `backup` | Automatic backups into `backups/`, and restores | no |
 
 This stack is separate from the developer setup in `docker-compose.yml`
 (project `praxis`, its own containers and volumes), so both can live on one
@@ -59,7 +59,7 @@ docker compose -f docker/compose.yaml up models
 ## Upgrading
 
 ```bash
-docker compose -f docker/compose.yaml run --rm backup     # first, always
+docker compose -f docker/compose.yaml exec backup backup snapshot   # first, always
 git pull
 docker compose -f docker/compose.yaml up -d --build       # or: pull, then up -d
 ```
@@ -69,23 +69,54 @@ stay in their volumes.
 
 ## Backups
 
+The `backup` service runs whenever the stack does. Nothing to set up:
+
+- **Daily.** Every hour it checks; when the last check is over 24 hours old it
+  takes a snapshot. A laptop that was asleep catches up at the next check.
+- **Only when something changed.** A day with no changes writes no file.
+- **Before risky actions.** "Re-analyse" in the app takes one first, and so does
+  a restore.
+- **Tested.** Once a week the newest snapshot is restored into a scratch
+  database and every table's row count is compared.
+- **Never deleted.** Praxis never removes a snapshot. Thinning old ones is your
+  decision, made by hand.
+
+Snapshots are plain SQL, gzipped: `backups/praxis-YYYYMMDD-HHMMSS.sql.gz` (UTC),
+each with a `.sha256` beside it. `backups/index.jsonl` lists every snapshot
+with its row counts. Settings → Backups shows the same list, a "Back up now"
+button, and the restore commands. Nothing leaves this computer. To keep them on
+another drive, set `PRAXIS_BACKUP_DIR` in `docker/.env` (a second disk survives
+a dead one; a folder on the same disk does not).
+
 ```bash
-docker compose -f docker/compose.yaml run --rm backup
+docker compose -f docker/compose.yaml exec backup backup list       # every snapshot
+docker compose -f docker/compose.yaml exec backup backup snapshot   # one now
 ```
 
-writes `backups/praxis-YYYYMMDD-HHMMSS.sql.gz`. To restore one into an empty
-database:
+### Restoring
 
 ```bash
+docker/backup/restore.sh praxis-20261012-090000.sql.gz          # replace the current data
+docker/backup/restore.sh --side praxis-20261012-090000.sql.gz   # look at it beside the current data
+```
+
+A full restore stops the app, saves the current data as a new snapshot, loads
+the file into a separate database, checks every table's row count, swaps it in,
+starts the app, and prints the command that undoes it. `--side` loads the
+snapshot into the database `praxis_restore` and changes nothing else.
+
+The script needs bash (Git Bash on Windows). In PowerShell:
+
+```powershell
 docker compose -f docker/compose.yaml stop app
-gunzip -c backups/praxis-20261012-090000.sql.gz | \
-  docker compose -f docker/compose.yaml exec -T postgres psql -U praxis_chess_user -d praxis_chess
+docker compose -f docker/compose.yaml exec backup backup restore praxis-20261012-090000.sql.gz
 docker compose -f docker/compose.yaml start app
 ```
 
-**Moving from the developer setup:** dump the old database with
-`docker exec praxis-chess-postgres pg_dump -U praxis_chess_user -d praxis_chess --no-owner | gzip > backups/dev.sql.gz`,
-then restore it as above *before* the app first starts in the new stack.
+**Moving from the developer setup:** copy a snapshot from `backups/dev/` into
+`backups/`, start only the database and the backup service
+(`docker compose -f docker/compose.yaml up -d postgres backup`), restore it with
+`docker/backup/restore.sh <file>`, then `docker compose -f docker/compose.yaml up -d`.
 
 ## Stopping and uninstalling
 

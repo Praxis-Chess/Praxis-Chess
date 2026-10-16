@@ -129,7 +129,9 @@ test.describe('Insights', () => {
     await expect(app.main).toContainText('Accuracy & Elo Trend')
     const chart = page.getByLabel('Accuracy and Elo trend')
     await expect(chart.getByText('Elo', { exact: true })).toBeVisible()
-    await expect(chart.getByText('10-game avg', { exact: true })).toBeVisible()
+    await expect(chart.getByText('Rolling avg (up to 10 games)', { exact: true })).toBeVisible()
+    // Dates to scale: the fixture spans 10-20 August, labelled by real day.
+    await expect(chart).toContainText('Aug 10')
     // The right-hand axis is fitted to the fixture's ratings (1180-1224), not 0-100.
     await expect(chart).toContainText('1250')
     await expect(chart).toContainText('1150')

@@ -51,7 +51,10 @@ export function useLibraryActions() {
   const sync = useMutation({ mutationFn: () => api.sync.trigger(3), onSuccess })
   const resync = useMutation({ mutationFn: () => api.sync.forceResync(3), onSuccess })
   const analyzePending = useMutation({ mutationFn: () => api.analysis.analyzePending(), onSuccess })
-  const reanalyzeAll = useMutation({ mutationFn: () => api.analysis.reanalyzeAll(), onSuccess })
+  // A backup is taken first; with skipBackup the player has chosen to go on without one.
+  const reanalyzeAll = useMutation({
+    mutationFn: (skipBackup: boolean) => api.analysis.reanalyzeAll(false, skipBackup), onSuccess,
+  })
   const stop = useMutation({
     mutationFn: () => {
       markStopping(progress?.completed ?? 0, progress?.total ?? 0)

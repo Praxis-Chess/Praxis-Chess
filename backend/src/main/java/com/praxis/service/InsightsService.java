@@ -154,6 +154,7 @@ public class InsightsService {
             double avg = sum / (i - start + 1);
             out.add(new AccuracyTrendPoint(
                     withAcc.get(i).getPlayedAt().toLocalDate().toString(),
+                    withAcc.get(i).getPlayedAt().toInstant().toString(),
                     round1(acc), round1(avg), oneTimeClass ? playerRating(withAcc.get(i)) : null));
         }
         return out;
