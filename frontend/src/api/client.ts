@@ -1,4 +1,6 @@
 import type { AiStatus,
+  BackupOverview,
+  BackupResult,
   PlayerSaved,
   PlayerView,
   SetupStatus,
@@ -56,6 +58,17 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+/**
+ * Re-analysis was refused because no backup could be taken first. The UI shows
+ * the reason and offers to go ahead without one.
+ */
+export class BackupFailedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'BackupFailedError'
+  }
+}
+
 export const api = {
   sync: {
     trigger: (months = 1) =>
@@ -96,9 +109,23 @@ export const api = {
      * is set). `outdatedOnly` limits it to games not yet analysed with the
      * current engine settings.
      */
-    reanalyzeAll: (outdatedOnly = false) =>
-      request<{ message: string; games_queued: number }>(
-        `/analysis/reanalyze${outdatedOnly ? '?outdated_only=true' : ''}`, { method: 'POST' }),
+    reanalyzeAll: async (outdatedOnly = false, skipBackup = false) => {
+      // A backup is taken first (it can take a little while); a 409 means none
+      // could be, and nothing was deleted.
+      const q = new URLSearchParams()
+      if (outdatedOnly) q.set('outdated_only', 'true')
+      if (skipBackup) q.set('skip_backup', 'true')
+      const qs = q.toString()
+      const res = await fetch(`${BASE}/analysis/reanalyze${qs ? `?${qs}` : ''}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      })
+      if (res.status === 409) {
+        const j = await res.json().catch(() => ({}))
+        if (j.backup_failed) throw new BackupFailedError(j.error ?? 'No backup could be taken first.')
+      }
+      if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`)
+      return (await res.json()) as { message: string; games_queued: number; backup?: string | null }
+    },
     progress: () => request<AnalysisProgress>('/analysis/progress'),
     /** Honoured between games — the run ends after the one in flight. */
     stop: () =>
@@ -214,6 +241,17 @@ export const api = {
     /** Measured time estimate for a PROPOSED configuration. Changes nothing. */
     estimate: (body: { library: EngineConfig | null; practice: EngineConfig | null }) =>
       request<SettingsEstimate>('/settings/estimate', { method: 'POST', body: JSON.stringify(body) }),
+  },
+
+  backups: {
+    /** What the backup service has done: from the files it writes. */
+    get: () => request<BackupOverview>('/backups'),
+    /** "Back up now". A refusal (service not running) is returned, not thrown. */
+    create: async (): Promise<BackupResult> => {
+      const res = await fetch(`${BASE}/backups`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      if (res.ok || res.status === 503) return (await res.json()) as BackupResult
+      throw new Error(`API error ${res.status}: ${await res.text()}`)
+    },
   },
 
   setup: {

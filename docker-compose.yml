@@ -23,6 +23,30 @@ services:
       timeout: 5s
       retries: 5
 
+  # Automatic backups: a snapshot when the last check is over 24 hours old
+  # (checked hourly; an unchanged database writes nothing), "Back up now" from
+  # Settings, and a weekly test restore. Snapshots are never deleted.
+  # Folder: backups/dev/ in this repository, or PRAXIS_BACKUP_DIR in .env.
+  #   docker compose exec backup backup list
+  #   docker/backup/restore.sh --dev <file>
+  backup:
+    image: postgres:17-alpine
+    container_name: praxis-chess-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: praxis_chess_user
+      PGPASSWORD: ${POSTGRES_PASSWORD:-praxis_chess_pass}
+      PGDATABASE: praxis_chess
+      TZ: ${TZ:-}
+    volumes:
+      - ${PRAXIS_BACKUP_DIR:-./backups/dev}:/backups
+      - ./docker/backup:/opt/praxis-backup:ro
+    entrypoint: ["bash", "/opt/praxis-backup/backup.sh", "daemon"]
+
   # Search backend for Prax's web research. Behind a profile, so the ordinary
   #   docker compose up -d
   # still starts only PostgreSQL. Start this one explicitly:

@@ -34,12 +34,32 @@ test.describe('Setup checklist', () => {
     await expect(page.getByRole('region', { name: 'Player' })).toBeVisible()
   })
 
-  test('Settings always lists every check, including the optional ones that are off', async ({ page }) => {
+  test('warnings alone put no card on Today', async ({ page, api }) => {
+    api.json('/api/setup/status', {
+      ...data.setupReady,
+      checks: data.setupReady.checks.map(c => c.key === 'voice'
+        ? { ...c, state: 'WARN', detail: 'Voice service not reachable', fix: 'cd tts-service && python main.py' } : c),
+    })
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /setting up|Downloading|Almost ready/ })).toHaveCount(0)
+  })
+
+  test('Settings folds every check into one line under Sync Now, expanded on click', async ({ page }) => {
     await page.goto('/settings')
+    const library = page.getByRole('region', { name: 'Library' })
+    const toggle = library.getByRole('button', { name: /Setup/ })
+    await expect(toggle).toHaveText(/Setup · 5 ready · 2 off/)
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.getByRole('region', { name: 'Setup' })).toHaveCount(0)
+
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
     const card = page.getByRole('region', { name: 'Setup' })
     await expect(card.getByText('Web research', { exact: true })).toBeVisible()
     await expect(card.getByText('Stockfish 19').first()).toBeVisible()
     await expect(card.getByText('ready', { exact: true })).toHaveCount(3)
+    await expect(card.getByText('Backups', { exact: true })).toBeVisible()
   })
 })
 

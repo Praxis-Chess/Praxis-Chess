@@ -1,10 +1,15 @@
 import { useState } from 'react'
 import { praxInteract } from '../prax/PraxHost'
 import { useLibraryActions } from '../hooks/useLibraryActions'
+import { BackupFailedNotice } from './BackupFailedNotice'
+import { SetupChecklist } from './SetupChecklist'
 
 const muted: React.CSSProperties = { color: 'var(--text-secondary)', fontSize: '0.78rem', lineHeight: 1.5 }
 
-/** Settings → Library: where the library stands, and every sync and analysis action. */
+/**
+ * Settings → Library: where the library stands, every sync and analysis action,
+ * and the setup checklist folded into one line underneath.
+ */
 export function LibraryCard() {
   const lib = useLibraryActions()
   const { status, isBusy, pending, newGames } = lib
@@ -36,17 +41,22 @@ export function LibraryCard() {
           {lib.analyzePending.isPending ? 'Queuing…' : `▶ Analyze Pending${pending > 0 ? ` (${pending})` : ''}`}
         </button>
         {!confirmAll ? (
-          <button className="secondary" disabled={isBusy} onClick={() => setConfirmAll(true)}>⟳ Re-analyze All</button>
+          <button className="secondary" disabled={isBusy} onClick={() => setConfirmAll(true)}>
+            {lib.reanalyzeAll.isPending ? 'Backing up, then queuing…' : '⟳ Re-analyze All'}
+          </button>
         ) : (
           <>
             <span style={muted}>Re-analyses every game in range and rebuilds its drill cards.</span>
-            <button disabled={isBusy} onClick={() => { setConfirmAll(false); praxInteract('PRIMARY_ACTION'); lib.reanalyzeAll.mutate() }}>
+            <button disabled={isBusy} onClick={() => { setConfirmAll(false); praxInteract('PRIMARY_ACTION'); lib.reanalyzeAll.mutate(false) }}>
               Yes, re-analyze all
             </button>
             <button className="secondary" onClick={() => setConfirmAll(false)}>Cancel</button>
           </>
         )}
       </div>
+      <BackupFailedNotice error={lib.reanalyzeAll.error} busy={isBusy}
+                          onProceed={() => lib.reanalyzeAll.mutate(true)} onCancel={() => lib.reanalyzeAll.reset()} />
+      <SetupChecklist mode="inline" />
     </section>
   )
 }

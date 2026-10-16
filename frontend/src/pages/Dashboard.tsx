@@ -10,6 +10,7 @@ import { usePatternReport } from '../hooks/usePatternReport'
 import type { TimeControlStat } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { PraxAnchor } from '../prax/PraxHost'
+import { BackupFailedNotice } from '../components/BackupFailedNotice'
 
 const tile = (label: string, value: React.ReactNode, sub?: React.ReactNode, color = 'var(--text)') => (
   <div className="card" style={{ padding: '16px 18px' }}>
@@ -79,7 +80,7 @@ export function Dashboard() {
   const { data: pattern } = usePatternReport()
 
   const reanalyzeMut = useMutation({
-    mutationFn: () => api.analysis.reanalyzeAll(),
+    mutationFn: (skipBackup: boolean) => api.analysis.reanalyzeAll(false, skipBackup),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
       queryClient.invalidateQueries({ queryKey: ['analysis-progress'] })
@@ -235,10 +236,12 @@ export function Dashboard() {
             <button
               className="secondary"
               style={{ width: '100%', fontSize: '0.78rem', padding: '7px 12px' }}
-              onClick={() => reanalyzeMut.mutate()}
+              onClick={() => reanalyzeMut.mutate(false)}
               disabled={reanalyzeMut.isPending}>
-              {reanalyzeMut.isPending ? 'Queuing…' : '↺ Re-Analyze All'}
+              {reanalyzeMut.isPending ? 'Backing up, then queuing…' : '↺ Re-Analyze All'}
             </button>
+            <BackupFailedNotice error={reanalyzeMut.error} busy={reanalyzeMut.isPending}
+                                onProceed={() => reanalyzeMut.mutate(true)} onCancel={() => reanalyzeMut.reset()} />
           </div>
         </div>
       </div>

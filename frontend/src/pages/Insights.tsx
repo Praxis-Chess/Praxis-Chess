@@ -29,6 +29,26 @@ const tooltipStyle = {
   labelStyle: { color: 'var(--text-muted)', fontSize: 11 },
 }
 
+const shortDate = (ts: number) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+const longDate = (ts: number) => new Date(ts).toLocaleString('en-US',
+  { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+
+/**
+ * About six ticks at local midnights, evenly spaced in days, so the labels mean
+ * real dates. The axis starts at the first tick: the first game's own day.
+ */
+function dateTicks(times: number[]): number[] {
+  if (times.length === 0) return []
+  const day = 86_400_000
+  const first = new Date(Math.min(...times)); first.setHours(0, 0, 0, 0)
+  const last = Math.max(...times)
+  const span = Math.max(1, Math.ceil((last - first.getTime()) / day))
+  const step = Math.max(1, Math.ceil(span / 6))
+  const ticks: number[] = []
+  for (const d = new Date(first); d.getTime() <= last; d.setDate(d.getDate() + step)) ticks.push(d.getTime())
+  return ticks
+}
+
 function WinRateBars({ data }: { data: TimeBucket[] }) {
   const rows = data.map(d => ({ label: d.label, win_pct: d.win_pct, games: d.games }))
   return (
@@ -117,12 +137,15 @@ export function Insights() {
   const cv = data.conversion
   const phaseTotal = data.phase_accuracy.opening + data.phase_accuracy.middlegame + data.phase_accuracy.endgame || 1
   const maxMotif = Math.max(1, ...data.missed_tactics.map(m => m.count))
+  // Placed by when each game was played, so a gap of a week looks like one and
+  // four games on one day sit together.
   const accSeries = data.accuracy_trend.map(p => ({
-    date: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    ts: Date.parse(p.played_at ?? `${p.date}T12:00:00`),
     accuracy: p.accuracy,
     moving_avg: p.moving_avg,
     rating: p.rating,
   }))
+  const xTicks = dateTicks(accSeries.map(p => p.ts))
   // Elo is drawn on its own right-hand axis: it lives around 1000–1600, accuracy on 0–100.
   const hasRating = accSeries.some(p => p.rating != null)
 
@@ -182,8 +205,8 @@ export function Insights() {
       {/* Row 2 — accuracy trend (full width) */}
       <div className="card">
         <SectionTitle hint={hasRating
-          ? 'Per-game accuracy with a 10-game rolling average (left axis), and your Elo in each game (right axis).'
-          : 'Per-game accuracy with a 10-game rolling average — the least noisy signal of real improvement.'}>
+          ? 'Per-game accuracy with a rolling average of up to 10 games (left axis), and your Elo in each game (right axis). The first nine points average fewer games. Dates are to scale.'
+          : 'Per-game accuracy with a rolling average of up to 10 games, the least noisy signal of real improvement. The first nine points average fewer games. Dates are to scale.'}>
           {hasRating ? 'Accuracy & Elo Trend' : 'Accuracy Trend'}
         </SectionTitle>
         {accSeries.length > 1 ? (
@@ -200,24 +223,32 @@ export function Insights() {
                 ))}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} interval="preserveStartEnd" />
+              <XAxis dataKey="ts" type="number" scale="time" domain={[xTicks[0] ?? 'dataMin', 'dataMax']}
+                ticks={xTicks} tickFormatter={shortDate}
+                tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} />
               <YAxis yAxisId="acc" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} domain={[0, 100]} />
               {hasRating && (
                 <YAxis yAxisId="elo" orientation="right" tick={{ fill: 'var(--rating)', fontSize: 10 }} tickLine={false}
                   allowDecimals={false} width={44}
                   domain={[(min: number) => Math.floor((min - 25) / 50) * 50, (max: number) => Math.ceil((max + 25) / 50) * 50]} />
               )}
-              <Tooltip {...tooltipStyle} />
+              <Tooltip {...tooltipStyle} labelFormatter={label => (typeof label === 'number' ? longDate(label) : label)} />
               {/* Labels in muted text: the per-game line's own colour is too faint to read as a label. */}
               <Legend verticalAlign="top" height={22} iconType="plainline" wrapperStyle={{ fontSize: 11 }}
                 formatter={(value: string) => <span style={{ color: 'var(--text-muted)' }}>{value}</span>} />
-              <Area yAxisId="acc" type="monotone" dataKey="accuracy" stroke="var(--per-game)" strokeOpacity={0.7} strokeWidth={1}
-                fill="url(#fill-per-game)" dot={false} activeDot={{ r: 3 }} name="Game accuracy" />
-              <Area yAxisId="acc" type="monotone" dataKey="moving_avg" stroke="var(--accent)" strokeWidth={2.5}
-                fill="url(#fill-avg)" dot={false} activeDot={{ r: 3 }} name="10-game avg" />
+              {/* Linear, not smoothed: on a real time axis games played minutes apart
+                  sit almost on top of each other, and a smoothing curve swings wildly
+                  between them. One dot per game shows where the games are.
+                  Not animated: the draw-in took seconds on a time axis, and repainting
+                  this frosted card every frame over Prax's animated canvas left stale
+                  copies of card edges beside it. */}
+              <Area yAxisId="acc" type="linear" dataKey="accuracy" stroke="var(--per-game)" strokeOpacity={0.7} strokeWidth={1}
+                fill="url(#fill-per-game)" dot={{ r: 1.6, fill: 'var(--per-game)', strokeWidth: 0 }} activeDot={{ r: 3 }} name="Game accuracy" isAnimationActive={false} />
+              <Area yAxisId="acc" type="linear" dataKey="moving_avg" stroke="var(--accent)" strokeWidth={2.5}
+                fill="url(#fill-avg)" dot={false} activeDot={{ r: 3 }} name="Rolling avg (up to 10 games)" isAnimationActive={false} />
               {hasRating && (
-                <Area yAxisId="elo" type="monotone" dataKey="rating" stroke="var(--rating)" strokeWidth={2}
-                  fill="url(#fill-elo)" dot={false} activeDot={{ r: 3 }} name="Elo" connectNulls />
+                <Area yAxisId="elo" type="linear" dataKey="rating" stroke="var(--rating)" strokeWidth={2}
+                  fill="url(#fill-elo)" dot={false} activeDot={{ r: 3 }} name="Elo" connectNulls isAnimationActive={false} />
               )}
             </ComposedChart>
           </ResponsiveContainer>

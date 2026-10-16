@@ -7,6 +7,7 @@ import com.praxis.dto.SetupDto.Check;
 import com.praxis.dto.SetupDto.State;
 import com.praxis.dto.SetupDto.Status;
 import com.praxis.service.analysis.StockfishService;
+import com.praxis.service.backup.BackupService;
 import com.praxis.service.settings.PlayerIdentity;
 import com.praxis.service.voice.TtsClient;
 import org.junit.jupiter.api.DisplayName;
@@ -53,7 +54,10 @@ class SetupStatusServiceTest {
         when(router.forFeature(Feature.REPORTS)).thenReturn(new ModelRouter.Route(Feature.REPORTS, null, "qwen2.5:7b", false));
         when(router.forFeature(Feature.PRAX)).thenReturn(new ModelRouter.Route(Feature.PRAX, null, "qwen3:4b-instruct", false));
 
-        return new SetupStatusService(ds, props, engine, player, router, mock(TtsClient.class));
+        BackupService backups = mock(BackupService.class);
+        when(backups.check()).thenReturn(new Check("backups", "Backups", State.WARN, "No backups yet", "docker compose up -d backup"));
+
+        return new SetupStatusService(ds, props, engine, player, router, mock(TtsClient.class), backups);
     }
 
     private static Check check(Status s, String key) {
@@ -74,6 +78,13 @@ class SetupStatusServiceTest {
         Status s = service(true, true, "magnus").status();
         assertThat(s.ready()).isTrue();
         assertThat(check(s, "ollama").state()).isEqualTo(State.WARN);
+    }
+
+    @Test
+    void missingBackupsWarnButNeverMakeTheInstallNotReady() throws Exception {
+        Status s = service(true, true, "magnus").status();
+        assertThat(check(s, "backups").state()).isEqualTo(State.WARN);
+        assertThat(s.ready()).isTrue();
     }
 
     @Test

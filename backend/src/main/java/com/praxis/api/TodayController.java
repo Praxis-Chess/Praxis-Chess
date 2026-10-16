@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * GET /api/today  → TodayInsightDto
  *
- * Always returns 200. LLM failures fall back to a template-generated response
- * so the page never shows an error for this card.
+ * Always returns 200. Built from counts alone (TodayInsightService), with no
+ * model call, so the card is instant and every number in it is real.
  */
 @RestController
 @RequestMapping("/api/today")

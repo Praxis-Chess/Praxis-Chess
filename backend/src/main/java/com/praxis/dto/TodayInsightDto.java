@@ -4,11 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Structured LLM output for the "Today" page action card.
- *
- * The model is given only a fixed `availableFields` contract — aggregate statistics only.
- * It may not reference any field outside that contract. The response is validated before
- * being returned; if validation fails the server returns a template-generated fallback.
+ * The "Today" page action card. Built deterministically from engine-measured
+ * counts by TodayInsightService; no model writes it.
  *
  * Schema: { title, evidence: { metric, value, sampleSize }, action, expectedMinutes }
  */

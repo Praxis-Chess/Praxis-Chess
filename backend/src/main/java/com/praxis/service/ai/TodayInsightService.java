@@ -1,11 +1,7 @@
 package com.praxis.service.ai;
 
-import com.praxis.ai.CompletionRequest;
-import com.praxis.ai.Feature;
-import com.praxis.ai.ModelRouter;
-import com.praxis.ai.OutputBudget;
-import com.praxis.domain.Game;
 import com.praxis.domain.MoveError;
+import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.domain.enums.GamePhase;
 import com.praxis.domain.enums.Severity;
 import com.praxis.dto.TodayInsightDto;
@@ -13,157 +9,105 @@ import com.praxis.dto.TodayInsightDto.Evidence;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
 import com.praxis.service.settings.PlayerIdentity;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
- * Generates a single structured training recommendation for the "Today" page.
+ * The "Today's focus" card: the game phase where the player's worst mistakes
+ * happen, stated with the real counts.
  *
- * Phase 5 constraints:
- *   - availableFields contract: the model receives only aggregate statistics, never raw PGN or FEN
- *   - Temperature ≤ 0.3 (CompletionRequest.structured() = 0.2)
- *   - Response validated against TodayInsightDto.isValid(); falls back to template on failure
- *   - The model may not reference any field that is not present in the prompt
+ * Deterministic on purpose. A model used to write this card from the same
+ * counts plus the most frequent tactical motif. The motif came from unchecked
+ * per-move labels (most blunders had none, the rest often tied), and nothing
+ * checked the numbers the model wrote into its evidence line. Every word here
+ * comes from engine-measured severity and the move's game phase.
  */
 @Service
 public class TodayInsightService {
 
-    private static final Logger log = LoggerFactory.getLogger(TodayInsightService.class);
-
     private final MoveErrorRepository moveErrorRepository;
     private final GameRepository gameRepository;
     private final PlayerIdentity player;
-    private final ObjectMapper objectMapper;
-    private final ModelRouter router;
 
     public TodayInsightService(MoveErrorRepository moveErrorRepository,
                                GameRepository gameRepository,
-                               PlayerIdentity player,
-                               ObjectMapper objectMapper,
-                               ModelRouter router) {
-        this.router = router;
+                               PlayerIdentity player) {
         this.moveErrorRepository = moveErrorRepository;
         this.gameRepository = gameRepository;
         this.player = player;
-        this.objectMapper = objectMapper;
     }
 
     public TodayInsightDto generate() {
         String username = player.username();
-        AvailableFields fields = buildFields(username);
-        String prompt = buildPrompt(fields);
+        int analysed = (int) gameRepository.countByUsernameAndAnalysisStatus(username, AnalysisStatus.ANALYZED);
+        return build(moveErrorRepository.findAllByUsername(username), analysed);
+    }
 
-        try {
-            // Structured: a short answer that must follow the contract closely.
-            ModelRouter.Route route = router.forFeature(Feature.REPORTS);
-            String text = route.provider().completeWithRetry(
-                    CompletionRequest.structured(route.model(), prompt, OutputBudget.INSIGHT));
-
-            String json = text.replaceAll("```json", "").replaceAll("```", "").trim();
-
-            TodayInsightDto result = objectMapper.readValue(json, TodayInsightDto.class);
-            if (result.isValid()) {
-                log.debug("TodayInsight generated successfully");
-                return result;
-            }
-            log.warn("TodayInsight failed validation: {}", json);
-        } catch (Exception e) {
-            log.warn("TodayInsight LLM call failed: {}", e.getMessage());
+    /** The card for these mistakes, from {@code analysed} analysed games. */
+    static TodayInsightDto build(List<MoveError> errors, int analysed) {
+        if (analysed == 0) {
+            return new TodayInsightDto("Analyse your games first",
+                    new Evidence("Games analysed", "No analysed games yet", 0),
+                    "Sync your Chess.com games and run the analysis. Today's focus comes from your own mistakes.", 5);
         }
 
-        return templateFallback(fields);
-    }
-
-    // --- Field extraction ---
-
-    /** Aggregated statistics the model is allowed to reference. */
-    record AvailableFields(
-            int gamesAnalysed,
-            int totalBlunders,
-            int openingBlunders, int middlegameBlunders, int endgameBlunders,
-            String worstPhase,
-            String dominantMotif,
-            int openingGames,
-            double avgAccuracy
-    ) {}
-
-    private AvailableFields buildFields(String username) {
-        List<MoveError> errors = moveErrorRepository.findAllByUsername(username);
-        List<MoveError> blunders = errors.stream()
-                .filter(e -> e.getSeverity() == Severity.BLUNDER).toList();
-
-        int ob = (int) blunders.stream().filter(e -> e.getGamePhase() == GamePhase.OPENING).count();
-        int mb = (int) blunders.stream().filter(e -> e.getGamePhase() == GamePhase.MIDDLEGAME).count();
-        int eb = (int) blunders.stream().filter(e -> e.getGamePhase() == GamePhase.ENDGAME).count();
-
-        String worstPhase = mb >= ob && mb >= eb ? "middlegame"
-                : eb >= ob ? "endgame" : "opening";
-
-        String dominantMotif = blunders.stream()
-                .filter(e -> e.getTacticalMotif() != null)
-                .collect(Collectors.groupingBy(e -> e.getTacticalMotif().name(), Collectors.counting()))
-                .entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .orElse("POSITIONAL");
-
-        long games = gameRepository.findByUsernameOrderByPlayedAtDesc(username).stream()
-                .filter(Game::hasAccuracy).count();
-        double avgAcc = gameRepository.findByUsernameOrderByPlayedAtDesc(username).stream()
-                .filter(Game::hasAccuracy)
-                .mapToDouble(Game::getAccuracy)
-                .average().orElse(0);
-
-        return new AvailableFields(
-                (int) games, blunders.size(), ob, mb, eb,
-                worstPhase, dominantMotif, (int) games,
-                Math.round(avgAcc * 10.0) / 10.0
-        );
-    }
-
-    private String buildPrompt(AvailableFields f) {
-        return """
-            You are a chess coach. Based ONLY on the statistics below (availableFields), generate a single
-            concrete training recommendation for today. Do NOT invent statistics or reference information
-            not present below.
-
-            availableFields:
-            - games_analysed: %d
-            - avg_accuracy: %.1f%%
-            - total_blunders: %d
-            - blunders_by_phase: opening=%d, middlegame=%d, endgame=%d
-            - worst_phase: %s
-            - dominant_tactical_motif: %s
-
-            Respond ONLY with this JSON (no other text):
-            {
-              "title": "<short imperative title, max 8 words>",
-              "evidence": {
-                "metric": "<which stat drove this recommendation>",
-                "value": "<the stat value as a human-readable string>",
-                "sample_size": <number of games/positions this is based on>
-              },
-              "action": "<one concrete drill or study task, 10-20 words>",
-              "expected_minutes": <integer 5-30>
+        // Blunders when there are any; otherwise the next tier down.
+        for (Severity tier : List.of(Severity.BLUNDER, Severity.MISTAKE)) {
+            Map<GamePhase, Integer> byPhase = new EnumMap<>(GamePhase.class);
+            for (GamePhase p : GamePhase.values()) byPhase.put(p, 0);
+            int total = 0;
+            for (MoveError e : errors) {
+                if (e.getSeverity() != tier || e.getGamePhase() == null) continue;
+                byPhase.merge(e.getGamePhase(), 1, Integer::sum);
+                total++;
             }
-            """.formatted(f.gamesAnalysed(), f.avgAccuracy(), f.totalBlunders(),
-                f.openingBlunders(), f.middlegameBlunders(), f.endgameBlunders(),
-                f.worstPhase(), f.dominantMotif());
+            if (total == 0) continue;
+            return phaseCard(tier, byPhase, total, analysed);
+        }
+
+        return new TodayInsightDto("No blunders or mistakes found",
+                new Evidence("Blunders and mistakes", "None in " + analysed + " analysed games", analysed),
+                "Play and analyse a few more games. A focus appears once there are mistakes to learn from.", 5);
     }
 
-    /** Deterministic template fallback — no LLM needed. */
-    private TodayInsightDto templateFallback(AvailableFields f) {
-        String phase = f.worstPhase();
-        String title = "Drill your " + phase + " blunders";
-        String value = f.totalBlunders() + " blunders in " + f.gamesAnalysed() + " games";
-        String action = "Re-solve the 5 worst " + phase + " positions from your drill queue";
+    private static TodayInsightDto phaseCard(Severity tier, Map<GamePhase, Integer> byPhase, int total, int analysed) {
+        int top = byPhase.values().stream().mapToInt(Integer::intValue).max().orElse(0);
+        // Ties name every tied phase rather than picking one silently.
+        List<String> worst = new ArrayList<>();
+        int inWorst = 0;
+        for (GamePhase p : GamePhase.values()) {
+            if (byPhase.get(p) == top) {
+                worst.add(name(p));
+                inWorst += top;
+            }
+        }
+        String phases = String.join(" and ", worst);
+        String noun = tier == Severity.BLUNDER ? "blunders" : "mistakes";
+        int pct = Math.round(100f * inWorst / total);
+
+        String value = inWorst + " of " + total + " " + noun + " in the " + phases + " (" + pct + "%)";
+        List<String> others = new ArrayList<>();
+        for (GamePhase p : GamePhase.values()) {
+            if (byPhase.get(p) != top) others.add(name(p) + " " + byPhase.get(p));
+        }
+        if (!others.isEmpty()) value += " · " + String.join(" · ", others);
+
+        String title = "Cut your " + phases + " " + noun;
+        String action = "In today's session, before each " + phases + " move, ask what your opponent's best reply is.";
         return new TodayInsightDto(title,
-                new Evidence("Blunder phase distribution", value, f.gamesAnalysed()),
-                action, 15);
+                new Evidence(capitalise(noun) + " by game phase", value, analysed), action, 15);
+    }
+
+    private static String name(GamePhase p) {
+        return p.name().toLowerCase(Locale.ROOT);
+    }
+
+    private static String capitalise(String s) {
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 }

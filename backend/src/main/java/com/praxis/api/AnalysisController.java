@@ -13,11 +13,17 @@ import com.praxis.repository.AttemptRepository;
 import com.praxis.repository.CardRepository;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
+import com.praxis.dto.BackupDto;
+import com.praxis.service.backup.BackupService;
 import com.praxis.service.diagnosis.DiagnosisService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,6 +42,8 @@ public class AnalysisController {
     private final AnalysisProgressTracker progressTracker;
     private final SettingsService settings;
     private final DiagnosisService diagnosis;
+    private final BackupService backups;
+    private final TransactionTemplate tx;
 
     public AnalysisController(MoveErrorRepository moveErrorRepository,
                               GameRepository gameRepository,
@@ -45,7 +53,9 @@ public class AnalysisController {
                               PlayerIdentity player,
                               AnalysisProgressTracker progressTracker,
                               SettingsService settings,
-                              DiagnosisService diagnosis) {
+                              DiagnosisService diagnosis,
+                              BackupService backups,
+                              TransactionTemplate tx) {
         this.moveErrorRepository = moveErrorRepository;
         this.gameRepository = gameRepository;
         this.cardRepository = cardRepository;
@@ -55,6 +65,8 @@ public class AnalysisController {
         this.progressTracker = progressTracker;
         this.settings = settings;
         this.diagnosis = diagnosis;
+        this.backups = backups;
+        this.tx = tx;
     }
 
     @GetMapping("/{gameId}")
@@ -120,10 +132,31 @@ public class AnalysisController {
                 "games_queued", pending.size()));
     }
 
-    @Transactional
+    /**
+     * Re-analysis deletes analyses and drill history, so a backup comes first.
+     * 409 with {@code backup_failed} when none could be taken; the UI then
+     * offers {@code skip_backup=true}. The wait happens outside the
+     * transaction, so it holds no database connection.
+     */
     @PostMapping("/reanalyze")
     public ResponseEntity<Map<String, Object>> reanalyzeAll(
-            @RequestParam(name = "outdated_only", defaultValue = "false") boolean outdatedOnly) {
+            @RequestParam(name = "outdated_only", defaultValue = "false") boolean outdatedOnly,
+            @RequestParam(name = "skip_backup", defaultValue = "false") boolean skipBackup) {
+        BackupDto.Result backup = null;
+        if (!skipBackup) {
+            backup = backups.snapshot("before-reanalysis", Duration.ofMinutes(5));
+            if (!backup.ok()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                        "error", "No backup could be taken first. " + backup.error(),
+                        "backup_failed", true));
+            }
+        }
+        Map<String, Object> body = new HashMap<>(tx.execute(status -> queueReanalysis(outdatedOnly)));
+        if (backup != null) body.put("backup", backup.file());
+        return ResponseEntity.ok(body);
+    }
+
+    private Map<String, Object> queueReanalysis(boolean outdatedOnly) {
         String username = player.username();
         // Every version that measures the same way as the active one, not just its
         // id — the same set the coverage counts as current, so the button cannot
@@ -165,8 +198,8 @@ public class AnalysisController {
             pipelineOrchestrator.analyzeGames(games, username);
         }
 
-        return ResponseEntity.ok(Map.of(
+        return Map.of(
                 "message", "Reanalysis queued",
-                "games_queued", games.size()));
+                "games_queued", games.size());
     }
 }

@@ -32,7 +32,9 @@ public record InsightsDto(
 
     // Per-game accuracy over time with a rolling average.
     /** @param rating the player's rating in that game, drawn beside accuracy; null when not recorded */
-    public record AccuracyTrendPoint(String date, double accuracy, double movingAvg, Integer rating) {}
+    // playedAt: the exact moment (ISO-8601 instant), so games on one day keep their order
+    // and the chart can space points by real time.
+    public record AccuracyTrendPoint(String date, String playedAt, double accuracy, double movingAvg, Integer rating) {}
 
     // Win rate grouped by a time bucket (part of day or weekday).
     public record TimeBucket(String label, int games, int wins, double winPct) {}

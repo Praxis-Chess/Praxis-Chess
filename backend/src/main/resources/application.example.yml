@@ -106,6 +106,14 @@ praxis-chess:
     # Rename the .exe to stockfish.exe and paste the path here (use forward slashes)
     path: ""   # e.g. C:/tools/stockfish/stockfish.exe
 
+  # Backups are taken by the backup service in docker-compose.yml; the app only
+  # shows them and asks for one ("Back up now", and before "Re-analyse all").
+  # Empty means backups/dev of this repository, found from the directory the
+  # backend starts in. Set it when PRAXIS_BACKUP_DIR in .env points elsewhere.
+  backup:
+    dir: ""
+    requests-dir: ""   # empty: <dir>/.requests
+
   # Web research for Prax. The ONLY part of this application that reaches
   # outside your machine, so it is off until you turn it on.
   #
