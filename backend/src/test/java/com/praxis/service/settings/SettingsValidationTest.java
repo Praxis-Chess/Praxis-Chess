@@ -108,6 +108,16 @@ class SettingsValidationTest {
     }
 
     @Test
+    @DisplayName("explanations are a new version, but not a different engine")
+    void explanationsDoNotChangeTheEngine() {
+        AnalysisSettings a = SettingsService.v0(AnalysisSettings.LIBRARY);
+        AnalysisSettings b = SettingsService.v0(AnalysisSettings.LIBRARY);
+        b.setMaxExplanations(0);
+        assertThat(a.sameEngineAs(b)).isTrue();   // same measurement: games are not outdated
+        assertThat(a.sameAs(b)).isFalse();        // but saving it is a recorded change
+    }
+
+    @Test
     @DisplayName("v0 carries the built-in values every existing game was analysed with")
     void v0MatchesTheBuiltInProfiles() {
         AnalysisSettings lib = SettingsService.v0(AnalysisSettings.LIBRARY);

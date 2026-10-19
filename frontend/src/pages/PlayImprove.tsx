@@ -204,14 +204,22 @@ function OpponentCard({ skill }: { skill?: number }) {
 
   return (
     <Panel title="Your opponent">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {data.rationale.map((line, i) => (
-          <p key={i} style={{ margin: 0, fontSize: '0.82rem', lineHeight: 1.5,
-                              color: i === 0 ? 'var(--text)' : 'var(--text-secondary)' }}>
-            {line}
-          </p>
-        ))}
-      </div>
+      {/* Each line is "Label: facts": the label as a label, the facts as a row. */}
+      <dl style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 9.5rem) minmax(0, 1fr)', gap: '6px 12px', margin: 0 }}
+          className="stack-on-phone">
+        {data.rationale.map((line, i) => {
+          const at = line.indexOf(': ')
+          const label = at > 0 && at < 30 ? line.slice(0, at) : null
+          return (
+            <div key={i} style={{ display: 'contents' }}>
+              <dt className="micro-label" style={{ paddingTop: 3 }}>{label ?? ''}</dt>
+              <dd style={{ margin: 0, fontSize: '0.82rem', lineHeight: 1.5, color: i === 0 ? 'var(--text)' : 'var(--text-secondary)' }}>
+                {label ? line.slice(at + 2) : line}
+              </dd>
+            </div>
+          )
+        })}
+      </dl>
       {!data.personalised && (
         <p style={{ marginTop: 10, marginBottom: 0, fontSize: '0.74rem', color: 'var(--text-muted)' }}>
           Analyse some games and this opponent will be built from them.
@@ -458,7 +466,7 @@ export function PlayImprove() {
       <div>
         <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Play &amp; Improve</h2>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-          An opponent built from your own games — then the same measurements, to see if you played better.
+          An opponent built from your games, then measured the same way.
         </p>
       </div>
 

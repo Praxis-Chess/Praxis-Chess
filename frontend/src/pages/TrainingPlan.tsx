@@ -1,262 +1,219 @@
-import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import type { TrainingPlanJson, TrainingPriority } from '../api/types'
+import type { PlanPriority, PlanRecall, SincePlan } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
-import { PraxAnchor } from '../prax/PraxHost'
+import {
+  PopoverButton, Positions, dayMonth, drillLink, linkStyle, muted, rate1, sectionLabel, sectionTitle, statLine,
+} from '../components/report/ReportParts'
 
-const MISSION_COLORS = ['var(--loss)', 'var(--warn)', 'var(--orchid)']
 
-function MissionCard({
-  num, priority, done, onToggle,
-}: {
-  num: number
-  priority: TrainingPriority
-  done: boolean
-  onToggle: () => void
-}) {
-  const color = MISSION_COLORS[num - 1] ?? 'var(--orchid)'
-  const rank  = String(num).padStart(2, '0')
+/**
+ * Insights → Training Plan (Phase 12). A plan with memory: this week's dates,
+ * sessions of your own positions with what each trains, which are done, and
+ * the next one to do. Decided on the server from the report's facts.
+ *
+ * Show, don't tell: why each focus was chosen is the plan's own stat line,
+ * one tap away on its chip, not a second copy of the Pattern Report.
+ */
+export function TrainingPlan() {
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const { data: plan, isLoading } = useQuery({ queryKey: ['training-plan'], queryFn: api.trainingPlan.latest })
+  // F10 and F11: what happened since the plan. Read-only, and silent until there is enough.
+  const planId = plan?.plan ? plan.id : null
+  const { data: since } = useQuery({ queryKey: ['plan-since', planId], queryFn: () => api.trainingPlan.since(planId!), enabled: !!planId })
+  const { data: recall } = useQuery({ queryKey: ['plan-recall', planId], queryFn: () => api.trainingPlan.recall(planId!), enabled: !!planId })
+  const generate = useMutation({
+    mutationFn: api.trainingPlan.generate,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['training-plan'] }),
+  })
+
+  if (isLoading) return <LoadingSpinner label="Loading the plan…" />
+
+  const p = plan?.plan
+  const current = !!p?.sessions && p.sessions.every(s => typeof s.goal === 'string')
+  const makeButton = (
+    <button className={current ? 'secondary' : 'solid'} onClick={() => generate.mutate()} disabled={generate.isPending}
+            style={current ? { fontSize: '0.78rem', padding: '4px 10px' } : undefined}>
+      {generate.isPending ? 'Planning…' : current ? 'Make a new plan' : 'Make my plan'}
+    </button>
+  )
+  const failed = generate.isError && (
+    <p role="alert" style={{ ...muted, color: 'var(--red)' }}>
+      {/no analysed mistakes/i.test((generate.error as Error).message)
+        ? 'There is nothing to plan from yet: analyze some games first.'
+        : `Could not make a plan: ${(generate.error as Error).message}`}
+    </p>
+  )
+
+  if (!plan || !p || !current) {
+    return (
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <h3 style={{ ...sectionTitle, borderTop: 'none', paddingTop: 0 }}>Training Plan</h3>
+        <p style={muted}>
+          {plan ? 'This plan was made by an older version. Make a new one.'
+                : 'Short weekly sessions of your own positions, aimed at your costliest mistakes.'}
+        </p>
+        <div>{makeButton}</div>
+        {failed}
+      </section>
+    )
+  }
+
+  const progress = plan.progress ?? {}
+  const done = p.sessions.filter(s => progress[String(s.number)]).length
+  const next = p.sessions.find(s => !progress[String(s.number)])
+  const start = new Date(plan.generated_at)
+  const end = new Date(start.getTime() + 6 * 86_400_000)
+  // Every focus the sessions train, by name: the priorities in rank order, then the tactic.
+  const foci = new Map<string, { x: PlanPriority; of: number }>()
+  p.priorities.forEach(x => foci.set(x.focus, { x, of: p.priorities.length }))
+  if (p.pattern) foci.set(p.pattern.focus, { x: p.pattern, of: 0 })
+  const short = (x: PlanPriority) => plan.drill_short?.[x.key] ?? null
 
   return (
-    <div
-      className="card"
-      style={{
-        opacity: done ? 0.55 : 1,
-        transition: 'opacity 0.2s',
-        borderLeft: `3px solid ${color}`,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        {/* Checkbox */}
-        <button
-          onClick={onToggle}
-          style={{
-            width: 22, height: 22, borderRadius: 2, flexShrink: 0,
-            border: `1px solid ${done ? color : 'var(--hairline)'}`,
-            background: done ? color : 'transparent',
-            color: 'var(--canvas)', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.75rem', fontWeight: 700, marginTop: 2,
-          }}
-        >
-          {done ? '✓' : ''}
-        </button>
-
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <span className="stat-value" style={{ fontSize: '0.72rem', color, letterSpacing: '0.08em' }}>{rank}</span>
-            <h3 style={{
-              fontSize: '0.95rem', fontWeight: 600,
-              textDecoration: done ? 'line-through' : 'none',
-              color: done ? 'var(--text-muted)' : 'var(--text)',
-            }}>
-              {priority.focus}
-            </h3>
-            <span style={{
-              marginLeft: 'auto', fontSize: '0.65rem', fontWeight: 600,
-              textTransform: 'uppercase', letterSpacing: '0.05em',
-              color, padding: '2px 8px', border: `1px solid ${color}`,
-              borderRadius: 10,
-            }}>
-              Priority {num}
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div style={{
-              background: 'var(--surface-2)', borderRadius: 6, padding: '8px 12px',
-            }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
-                Action
-              </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.5 }}>
-                {priority.action}
-              </p>
-            </div>
-            <div style={{
-              background: 'var(--surface-2)', borderRadius: 6, padding: '8px 12px',
-            }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
-                Why
-              </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                {priority.reason}
-              </p>
-            </div>
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+      <section aria-label="This week" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <p data-reading="takeaway" style={{ fontSize: '1.1rem', lineHeight: 1.5, color: 'var(--text)', margin: 0 }}>
+            This week, {dayMonth(start)} to {dayMonth(end)}: {p.sessions.length} sessions of about {p.minutes_per_session} minutes.
+          </p>
+          <p style={{ ...muted, margin: 0 }} aria-live="polite">
+            {done === p.sessions.length ? `All ${done} done.` : `${done} of ${p.sessions.length} done.`}
+            {next && ` Next: session ${next.number}.`}
+          </p>
+          {p.priorities.length > 0 && (
+            <p style={sectionLabel}>
+              <span className="micro-label" style={{ marginRight: 4 }}>Focus</span>{' '}
+              {p.priorities.map(x => x.focus).join(', then ')}
+              {p.pattern && <> · tactic: {p.pattern.focus}</>}
+            </p>
+          )}
         </div>
+        {p.sessions.length === 0 && <p style={muted}>No positions to work on yet.</p>}
+        <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid',
+                     gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: 12 }}>
+          {p.sessions.map(s => {
+            const result = progress[String(s.number)]
+            const isNext = next?.number === s.number
+            return (
+              <li key={s.number} className="card plain" aria-label={`Session ${s.number}`}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 16 }}>
+                <div className="micro-label">Session {s.number} · {s.positions.length} positions</div>
+                <h4 style={{ fontSize: '0.98rem', fontWeight: 600, margin: 0 }}>{s.goal}</h4>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {s.focus.map(name => {
+                    const f = foci.get(name)
+                    return f ? <FocusChip key={name} x={f.x} of={f.of} short={short(f.x)} since={since} />
+                             : <span key={name} style={chipStyle}>{name}</span>
+                  })}
+                </div>
+                <Positions positions={s.positions} first={s.positions.length} />
+                <RecallLine r={recall?.sessions.find(x => x.number === s.number)} since={recall?.since} />
+                <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  {result && (
+                    <span style={{ fontSize: '0.78rem', color: 'var(--green)' }}>
+                      ✓ Done {dayMonth(new Date(result.done_at))} · {result.solved} of {result.total} solved
+                    </span>
+                  )}
+                  <button className={isNext ? 'solid' : 'secondary'}
+                          onClick={() => navigate(drillLink(s.positions, s.number, plan.id))}>
+                    {result ? 'Do it again' : `Start session ${s.number}`}
+                  </button>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      </section>
+
+      {p.openings_to_review.length > 0 && (
+        <section aria-labelledby="review-title" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <h3 id="review-title" style={sectionTitle}>Openings to review</h3>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {p.openings_to_review.map(o => (
+              <li key={o.name} data-scope={o.name} style={{ fontSize: '0.82rem' }}>
+                {o.name} · <span className="mono">{rate1(o.serious_per_game)}</span> vs your{' '}
+                <span className="mono">{rate1(p.per_game)}</span> per game · <span className="mono">{o.games}</span> games
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div style={{ ...muted, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
+        <span>Made {dayMonth(start)} · <span className="mono">{p.based_on_games}</span> analyzed games</span>
+        {makeButton}
+        <span>Keeps this plan in your history</span>
       </div>
+      {failed}
     </div>
   )
 }
 
-export function TrainingPlan() {
-  const queryClient = useQueryClient()
-  const [doneMissions, setDoneMissions] = useState<Set<number>>(new Set())
+/** A chip as a label: the focus of a session. */
+const chipStyle: React.CSSProperties = {
+  fontSize: '0.7rem', padding: '2px 8px', borderRadius: 10,
+  border: '1px solid var(--hairline-lit)', color: 'var(--text-secondary)',
+}
 
-  const { data: plan, isLoading } = useQuery({
-    queryKey: ['training-plan'],
-    queryFn: api.trainingPlan.latest,
-  })
-
-  const generateMutation = useMutation({
-    mutationFn: api.trainingPlan.generate,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['training-plan'] })
-      setDoneMissions(new Set())
-    },
-  })
-
-  const parsed: TrainingPlanJson | null = (() => {
-    if (!plan?.plan_json) return null
-    try { return JSON.parse(plan.plan_json) } catch { return null }
-  })()
-
-  const openings: string[] = (() => {
-    if (!plan?.openings_to_drill) return []
-    try { return JSON.parse(plan.openings_to_drill) } catch { return [] }
-  })()
-
-  const tactics: string[] = (() => {
-    if (!plan?.tactical_patterns) return []
-    try { return JSON.parse(plan.tactical_patterns) } catch { return [] }
-  })()
-
-  const toggleMission = (n: number) => {
-    setDoneMissions(prev => {
-      const next = new Set(prev)
-      if (next.has(n)) next.delete(n)
-      else next.add(n)
-      return next
-    })
-  }
-
-  const completedCount = doneMissions.size
-  const totalMissions  = parsed ? 3 : 0
-
+/**
+ * A focus chip that opens: interactive, so orchid, with a caret. Inside, what
+ * the plan knew about this focus when it was made: rank, stat line, drill.
+ */
+function FocusChip({ x, of, short, since }: { x: PlanPriority; of: number; short: string | null; since?: SincePlan }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div>
-          <h1 style={{ fontSize: '1.3rem', fontWeight: 700 }}>Training Plan</h1>
-          {plan && (
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
-              Generated {new Date(plan.generated_at).toLocaleString()} · {plan.based_on_games} games
-            </p>
-          )}
-        </div>
+    <span data-scope={x.focus} style={{ display: 'inline-flex' }}>
+      <PopoverButton title={x.focus} ariaLabel={`${x.focus}: why this session trains it`}
+                     style={{ ...chipStyle, color: 'var(--orchid)', fontWeight: 600, display: 'inline-flex', gap: 4 }}
+                     label={<>{x.focus}<span aria-hidden="true" style={{ color: 'var(--text-tertiary)' }}>▾</span></>}>
+        <span className="micro-label">{of > 0 ? `Priority ${x.rank} of ${of}` : 'Tactic your opponent got'}</span>
+        <strong style={{ fontSize: '0.85rem' }}>{x.focus}</strong>
+        <span style={{ ...muted, fontSize: '0.78rem' }}>{statLine(x)}</span>
+        {short && <span style={{ fontSize: '0.8rem' }}>{short}</span>}
+        <span style={{ ...muted, fontSize: '0.78rem' }}>{x.drill}</span>
+        {since && <SinceLine since={since} focusKey={x.key} />}
+        <Link to="/insights/patterns" style={{ ...linkStyle, fontSize: '0.78rem' }}>See in Pattern Report →</Link>
+      </PopoverButton>
+    </span>
+  )
+}
 
-        {/* Mission progress */}
-        {totalMissions > 0 && (
-          <div style={{ marginLeft: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ height: 8, width: 120, background: 'var(--surface-2)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%',
-                width: `${(completedCount / totalMissions) * 100}%`,
-                background: completedCount === totalMissions ? 'var(--green)' : 'var(--accent)',
-                borderRadius: 4, transition: 'width 0.3s',
-              }} />
-            </div>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              {completedCount}/{totalMissions} done
-            </span>
-          </div>
-        )}
+/**
+ * F10: this focus in games since the plan, against before, per 100 of your
+ * moves. Silent, and says why, until there has been enough play to compare.
+ */
+function SinceLine({ since, focusKey }: { since: SincePlan; focusKey: string }) {
+  const c = since.foci.find(f => f.key === focusKey)
+  if (!c) return null
+  const day = dayMonth(new Date(`${since.since}T12:00:00`))
+  return (
+    <span data-scope="Since this plan" style={{ ...muted, fontSize: '0.78rem', borderTop: '1px solid var(--hairline)', paddingTop: 6 }}>
+      <span className="micro-label" style={{ marginRight: 4 }}>Since {day}</span>{' '}
+      {since.enough
+        ? <><span className="mono">{rate1(c.after.per_hundred)}</span> per 100 moves, from{' '}
+            <span className="mono">{rate1(c.before.per_hundred)}</span> · <span className="mono">{c.after.games}</span> games</>
+        : <>too little play to compare: <span className="mono">{since.serious_after}</span> of {since.min_sample} serious mistakes</>}
+    </span>
+  )
+}
 
-        <button
-          onClick={() => generateMutation.mutate()}
-          disabled={generateMutation.isPending}
-          style={{ marginLeft: 'auto' }}
-        >
-          {generateMutation.isPending ? 'Generating...' : 'Regenerate Plan'}
-        </button>
-      </div>
-
-      {isLoading && <LoadingSpinner label="Loading training plan…" />}
-
-      {!isLoading && !plan && (
-        <div className="card">
-          <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>
-            No training plan yet. Analyze your games first, then generate a plan.
-          </p>
-          <button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
-            {generateMutation.isPending ? 'Generating...' : 'Generate First Plan'}
-          </button>
-          {generateMutation.isError && (
-            <p style={{ color: 'var(--red)', marginTop: 10, fontSize: '0.82rem' }}>
-              {(generateMutation.error as Error).message}
-            </p>
-          )}
-        </div>
-      )}
-
-      {plan && parsed && (
-        <>
-          {/* Mission cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {[1, 2, 3].map((n) => {
-              const priority = parsed[`priority_${n}` as keyof TrainingPlanJson] as TrainingPriority
-              return priority ? (
-                <MissionCard
-                  key={n}
-                  num={n}
-                  priority={priority}
-                  done={doneMissions.has(n)}
-                  onToggle={() => toggleMission(n)}
-                />
-              ) : null
-            })}
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            {openings.length > 0 && (
-              <div className="card">
-                <h2 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 12 }}>
-                  Openings to Drill
-                </h2>
-                <ul style={{ listStyle: 'none' }}>
-                  {openings.map((o, i) => (
-                    <li key={i} style={{
-                      fontSize: '0.85rem', padding: '7px 0',
-                      borderBottom: '1px solid var(--border)',
-                      display: 'flex', alignItems: 'center', gap: 8,
-                    }}>
-                      <span style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>▶</span>
-                      {o}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {tactics.length > 0 && (
-              <div className="card">
-                <h2 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 12 }}>
-                  Tactical Patterns to Study
-                </h2>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {tactics.map((t, i) => (
-                    <span key={i} className="badge" style={{
-                      background: 'var(--surface-2)', color: 'var(--text)',
-                      border: '1px solid var(--border)', fontSize: '0.78rem', padding: '5px 12px',
-                      borderRadius: 16,
-                    }}>
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Contract §4 — the PAGE decides where Prax belongs. Without this
-          the registry falls back to a fixed 0.68/0.46, which on this
-          layout is directly on top of the content. */}
-      {/* Right of the plan column. */}
-      <PraxAnchor x={0.9} y={0.45} />
-    </div>
+/**
+ * F11: how the reviews of this session's positions went since the plan, for
+ * the positions that are also cards in your review deck.
+ */
+function RecallLine({ r, since }: { r?: PlanRecall['sessions'][number]; since?: string }) {
+  if (!r || !since) return null
+  const day = dayMonth(new Date(since))
+  return (
+    <span style={{ ...muted, fontSize: '0.75rem' }}>
+      {r.tracked === 0
+        ? 'Not in your review deck'
+        : r.reviews === 0
+          ? <>In your review deck: <span className="mono">{r.tracked}</span> of {r.positions} · no reviews since {day}</>
+          : <>Reviews since {day}: <span className="mono">{r.correct}</span> of {r.reviews} correct
+              · <span className="mono">{r.tracked}</span> of {r.positions} positions in your deck</>}
+    </span>
   )
 }

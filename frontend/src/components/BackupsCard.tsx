@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { BackupResult, BackupSnapshot } from '../api/types'
+import { Disclose } from './report/ReportParts'
 
 const muted: React.CSSProperties = { color: 'var(--text-secondary)', fontSize: '0.78rem', lineHeight: 1.5 }
 const cell: React.CSSProperties = { padding: '4px 8px', borderTop: '1px solid var(--hairline)' }
@@ -128,16 +129,21 @@ export function BackupsCard() {
         )}
       </div>
 
-      <p style={{ ...muted, marginTop: 10 }}>
-        Automatic once a day while Docker is running, and before every re-analysis. A day with no changes adds
-        no file. Snapshots are never deleted, and they stay on this computer
-        {b.dir && <>: <span className="mono">{b.dir}</span></>}.
-      </p>
+      <div style={{ marginTop: 10 }}>
+        <Disclose summary="How backups work">
+          Automatic once a day while Docker is running, and before every re-analysis. A day with no changes adds
+          no file. Snapshots are never deleted, and they stay on this computer
+          {b.dir && <>: <span className="mono">{b.dir}</span></>}.
+        </Disclose>
+      </div>
 
+      {/* The status line above says how many, how big, how recent and whether a restore was
+          tested; the list itself is one tap away. */}
       {b.snapshots.length > 0 && (
-        <div style={{ overflowX: 'auto', marginTop: 12 }}>
+        <details data-disclose className="disclose" style={{ marginTop: 12 }}>
+        <summary>Snapshots ({b.snapshots.length}), newest first</summary>
+        <div style={{ overflowX: 'auto', marginTop: 8 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-            <caption className="micro-label" style={{ textAlign: 'left', paddingBottom: 6 }}>Snapshots, newest first</caption>
             <thead>
               <tr style={{ color: 'var(--text-secondary)', textAlign: 'left' }}>
                 <th scope="col" style={{ padding: '4px 8px', fontWeight: 500 }}>Taken</th>
@@ -149,8 +155,12 @@ export function BackupsCard() {
             </thead>
             <tbody>
               {shown.map(s => (
-                <tr key={s.file} title={s.file}>
-                  <td style={cell} className="mono">{s.taken_at ? new Date(s.taken_at).toLocaleString() : s.file}</td>
+                <tr key={s.file} data-scope={s.taken_at ? new Date(s.taken_at).toLocaleString() : s.file}>
+                  <td style={cell} className="mono">
+                    {s.taken_at ? new Date(s.taken_at).toLocaleString() : s.file}
+                    {/* The file name was hover-only; the restore commands need it. */}
+                    {s.taken_at && <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>{s.file}</div>}
+                  </td>
                   <td style={cell}>{REASON[s.reason] ?? s.reason}</td>
                   <td style={{ ...cell, textAlign: 'right' }} className="mono">{size(s.bytes)}</td>
                   <td style={{ ...cell, textAlign: 'right' }} className="mono">{s.games ?? '–'}</td>
@@ -165,10 +175,11 @@ export function BackupsCard() {
             </button>
           )}
         </div>
+        </details>
       )}
 
-      <details style={{ marginTop: 14 }}>
-        <summary style={{ ...muted, cursor: 'pointer', fontWeight: 600 }}>How to restore</summary>
+      <details data-disclose className="disclose" style={{ marginTop: 10 }}>
+        <summary>How to restore</summary>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
           <p style={muted}>
             Run from the Praxis folder. A restore first saves the current data, checks every table of the snapshot,

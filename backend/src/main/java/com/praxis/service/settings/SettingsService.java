@@ -262,7 +262,7 @@ public class SettingsService {
                 .maxExplanations(c.maxExplanations())
                 .active(true)
                 .build();
-        if (proposed.sameEngineAs(current)) return false;
+        if (proposed.sameAs(current)) return false;
 
         current.setActive(false);
         versions.save(current);

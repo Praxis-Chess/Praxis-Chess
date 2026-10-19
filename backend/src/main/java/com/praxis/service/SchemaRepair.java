@@ -50,6 +50,28 @@ public class SchemaRepair implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         dropNotNull("games", "chess_com_id",
                 "practice games have no Chess.com identity");
+        relinkEvidence();
+    }
+
+    /**
+     * Phase 12: diagnoses point at the current mistake row at their (game, ply).
+     * Before history was kept, every re-analysis wrote new mistake rows and left
+     * these references dangling (254 of 276 on the dev database). Idempotent:
+     * a no-op once every link is current.
+     */
+    private void relinkEvidence() {
+        try {
+            int n = jdbc.update("""
+                UPDATE mistake_evidence e SET move_error_id = me.id
+                FROM move_errors me
+                WHERE me.game_id = e.game_id AND me.move_number = e.move_number
+                  AND me.superseded_at IS NULL
+                  AND e.move_error_id IS DISTINCT FROM me.id
+                """);
+            if (n > 0) log.info("[schema] {} diagnoses re-linked to their current mistake rows", n);
+        } catch (Exception e) {
+            log.warn("[schema] could not re-link diagnoses: {}", e.getMessage());
+        }
     }
 
     private void dropNotNull(String table, String column, String why) {

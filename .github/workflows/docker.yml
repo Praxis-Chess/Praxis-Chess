@@ -100,7 +100,9 @@ jobs:
           echo "$s" | jq -e '.stockfish | startswith("Stockfish")'
           test "$(state username)" = FAIL
           test "$(state ollama)" = WARN
-          echo "$s" | jq -e '.models | length == 3'
+          # Phase 12: qwen3:4b-instruct (reports, plan, Prax) and the trained
+          # commentary model; qwen2.5:7b is retired.
+          echo "$s" | jq -e '[.models[].name] | sort == ["praxis-grid-2b-r3", "qwen3:4b-instruct"]'
 
       - name: The UI is served, deep links included
         run: |

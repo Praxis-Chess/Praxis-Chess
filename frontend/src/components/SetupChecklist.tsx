@@ -8,7 +8,7 @@ const muted: React.CSSProperties = { color: 'var(--text-secondary)', fontSize: '
 
 const MARK: Record<SetupState, { glyph: string; color: string; label: string }> = {
   OK: { glyph: '✓', color: 'var(--green)', label: 'ready' },
-  WARN: { glyph: '!', color: 'var(--yellow)', label: 'needs attention' },
+  WARN: { glyph: '…', color: 'var(--yellow)', label: 'needs attention' },
   FAIL: { glyph: '✕', color: 'var(--red)', label: 'missing' },
   SKIP: { glyph: '–', color: 'var(--text-tertiary)', label: 'off' },
 }
@@ -48,7 +48,7 @@ export function SetupChecklist({ mode }: { mode: 'attention' | 'inline' }) {
     return (
       <section className="card" aria-labelledby="setup-title-attention" style={{ maxWidth: 540, marginBottom: 28 }}>
         <h2 id="setup-title-attention" style={{ fontSize: '1rem', marginBottom: 10 }}>{title}</h2>
-        <ChecklistBody s={s} hideSkipped />
+        <ChecklistBody s={s} hideSkipped readyFolded modelsFolded={!s.ready} />
       </section>
     )
   }
@@ -83,17 +83,38 @@ export function SetupChecklist({ mode }: { mode: 'attention' | 'inline' }) {
   )
 }
 
-function ChecklistBody({ s, hideSkipped }: { s: SetupStatus; hideSkipped?: boolean }) {
+function ChecklistBody({ s, hideSkipped, readyFolded, modelsFolded }: {
+  s: SetupStatus; hideSkipped?: boolean; readyFolded?: boolean
+  /** While something else blocks (no username), the model list is one tap away under its own check. */
+  modelsFolded?: boolean
+}) {
   const modelsMissing = s.models.some(m => m.state !== 'present')
+  const [showReady, setShowReady] = useState(false)
+  const [showModels, setShowModels] = useState(false)
+  const checks = s.checks.filter(c => !hideSkipped || c.state !== 'SKIP')
+  // On Today, what blocks comes first; what is ready is one tap away.
+  const ready = readyFolded ? checks.filter(c => c.state === 'OK') : []
+  const shown = readyFolded && !showReady ? checks.filter(c => c.state !== 'OK') : checks
   return (
     <>
       <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {s.checks.filter(c => !hideSkipped || c.state !== 'SKIP').map(c => (
-          <CheckRow key={c.key} c={c} />
-        ))}
+        {shown.map(c => <CheckRow key={c.key} c={c} />)}
       </ul>
+      {ready.length > 0 && (
+        <button type="button" data-disclose aria-expanded={showReady} onClick={() => setShowReady(!showReady)}
+                style={{ all: 'unset', cursor: 'pointer', color: 'var(--orchid)', fontSize: '0.78rem', fontWeight: 600, marginTop: 10 }}>
+          {showReady ? 'Hide the ready ones' : `${ready.length} ready ▾`}
+        </button>
+      )}
 
-      {s.models.length > 0 && (
+      {s.models.length > 0 && modelsFolded && (
+        <button type="button" data-disclose aria-expanded={showModels} onClick={() => setShowModels(!showModels)}
+                style={{ all: 'unset', cursor: 'pointer', color: 'var(--orchid)', fontSize: '0.78rem', fontWeight: 600,
+                         marginTop: 10, marginLeft: 14 }}>
+          {showModels ? 'Hide models' : `Models (${s.models.length}) ▾`}
+        </button>
+      )}
+      {s.models.length > 0 && (!modelsFolded || showModels) && (
         <div style={{ marginTop: 14, borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
           <div style={{ ...muted, fontWeight: 600, marginBottom: 8 }}>AI models</div>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -101,7 +122,7 @@ function ChecklistBody({ s, hideSkipped }: { s: SetupStatus; hideSkipped?: boole
           </ul>
           {modelsMissing && (
             <p style={{ ...muted, marginTop: 10 }}>
-              Syncing and engine analysis work already; explanations, reports and Ask Prax wait for their model.
+              Engine analysis works now; AI features wait for their model.
             </p>
           )}
         </div>
@@ -117,7 +138,7 @@ function CheckRow({ c }: { c: SetupCheck }) {
       <span aria-label={mark.label} style={{ color: mark.color, fontWeight: 700, textAlign: 'center' }}>{mark.glyph}</span>
       <div style={{ minWidth: 0 }}>
         <span style={{ fontWeight: 600 }}>{c.label}</span>
-        {c.detail && <span style={{ color: 'var(--text-secondary)' }}> — {c.detail}</span>}
+        {c.detail && <span style={{ color: 'var(--text-secondary)' }}> · {c.detail}</span>}
         {c.fix && (
           <div style={{ ...muted, marginTop: 2, overflowWrap: 'anywhere' }}>
             {c.key === 'username'
@@ -154,7 +175,7 @@ function ModelRow({ m }: { m: SetupModel }) {
              aria-valuenow={pct ?? undefined}
              style={{ height: 4, borderRadius: 2, background: 'var(--hairline)', marginTop: 5, overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${m.state === 'creating' ? 100 : pct ?? 0}%`,
-                        background: 'var(--orchid)', transition: 'width 0.6s ease' }} />
+                        background: 'var(--grey-1)', transition: 'width 0.6s ease' }} />
         </div>
       )}
       {m.state === 'failed' && m.message && (

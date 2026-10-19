@@ -23,11 +23,18 @@ test.describe('Setup checklist', () => {
     const card = page.getByRole('region', { name: 'Finish setting up Praxis' })
     await expect(card).toBeVisible()
     await expect(card.getByText('Chess.com username', { exact: true })).toBeVisible()
+    // What blocks comes first; what is ready, and the model downloads, are one tap away.
+    await expect(card.getByText('Database', { exact: true })).toHaveCount(0)
+    await card.getByRole('button', { name: /^3 ready/ }).click()
+    await expect(card.getByText('Database', { exact: true })).toBeVisible()
+    await card.getByRole('button', { name: /^Models \(3\)/ }).click()
     await expect(card.getByText('2.4 / 4.7 GB')).toBeVisible()
     await expect(card.getByRole('progressbar', { name: 'qwen2.5:7b download' })).toHaveAttribute('aria-valuenow', '51')
     await expect(card.getByText('queued')).toHaveCount(2)
     // Engine analysis does not wait for the models; the card says so.
-    await expect(card.getByText(/Syncing and engine analysis work already/)).toBeVisible()
+    await expect(card.getByText(/engine analysis works now/i)).toBeVisible()
+    // "!" is a chess annotation, never a UI marker.
+    await expect(card.getByLabel('needs attention')).toHaveText('…')
 
     await card.getByRole('link', { name: /Enter it in Settings/ }).click()
     await expect(page).toHaveURL(/\/settings#player$/)

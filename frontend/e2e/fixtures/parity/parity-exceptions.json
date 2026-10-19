@@ -1,0 +1,234 @@
+{
+  "_doc": "The one reviewed list of deliberate differences from the goldens. removed: a fact taken off a screen on purpose (cite the decision). formats: one token shown in a new format ('to' is read like page text; for ~text data, alternatives are separated by ' | '). moves: a scope renamed or moved (segment 'from' becomes 'to'). methods: hover help reworded when it moved into a disclosure. Every entry needs a reason. Read by e2e/tests/readability.spec.ts; see docs/design/READABILITY_PLAN.md.",
+  "removed": [
+    {
+      "screen": "pattern-report",
+      "scope": "Summary",
+      "token": "32",
+      "reason": "M1, audit P3: deleted as repetition. The sentence 'It cost you more winning chances than any other cause: 32 of 145 (22%) · 19 blunders · −27% winning chance each' is identical to cause 1's stat line on the same screen, and 'more than any other cause' is rank 1 in a list labelled 'Ranked by winning chances lost'.",
+      "decision": "audit P3"
+    },
+    {
+      "screen": "pattern-report",
+      "scope": "Summary",
+      "token": "145",
+      "reason": "M1, audit P3: deleted as repetition. The sentence 'It cost you more winning chances than any other cause: 32 of 145 (22%) · 19 blunders · −27% winning chance each' is identical to cause 1's stat line on the same screen, and 'more than any other cause' is rank 1 in a list labelled 'Ranked by winning chances lost'.",
+      "decision": "audit P3"
+    },
+    {
+      "screen": "pattern-report",
+      "scope": "Summary",
+      "token": "22%",
+      "reason": "M1, audit P3: deleted as repetition. The sentence 'It cost you more winning chances than any other cause: 32 of 145 (22%) · 19 blunders · −27% winning chance each' is identical to cause 1's stat line on the same screen, and 'more than any other cause' is rank 1 in a list labelled 'Ranked by winning chances lost'.",
+      "decision": "audit P3"
+    },
+    {
+      "screen": "pattern-report",
+      "scope": "Summary",
+      "token": "19",
+      "reason": "M1, audit P3: deleted as repetition. The sentence 'It cost you more winning chances than any other cause: 32 of 145 (22%) · 19 blunders · −27% winning chance each' is identical to cause 1's stat line on the same screen, and 'more than any other cause' is rank 1 in a list labelled 'Ranked by winning chances lost'.",
+      "decision": "audit P3"
+    },
+    {
+      "screen": "pattern-report",
+      "scope": "Summary",
+      "token": "−27%",
+      "reason": "M1, audit P3: deleted as repetition. The sentence 'It cost you more winning chances than any other cause: 32 of 145 (22%) · 19 blunders · −27% winning chance each' is identical to cause 1's stat line on the same screen, and 'more than any other cause' is rank 1 in a list labelled 'Ranked by winning chances lost'.",
+      "decision": "audit P3"
+    },
+    {
+      "screen": "pattern-report",
+      "scope": "Summary",
+      "token": "~blunders",
+      "reason": "M1, audit P3: deleted as repetition. The sentence 'It cost you more winning chances than any other cause: 32 of 145 (22%) · 19 blunders · −27% winning chance each' is identical to cause 1's stat line on the same screen, and 'more than any other cause' is rank 1 in a list labelled 'Ranked by winning chances lost'.",
+      "decision": "audit P3"
+    },
+    {
+      "screen": "insights",
+      "token": "~blunders",
+      "reason": "M3: 'Practice your own blunders' on the Drill tile described where the link goes, which the tile itself (a link to /drills) still does; no figure or state was in it.",
+      "decision": "audit: Drill tile"
+    },
+    {
+      "screen": "settings",
+      "scope": "Engine for your Chess.com games",
+      "token": "50–1000",
+      "reason": "M4: the setting's label and its range were printed once per engine card; in the table they are said once per row, for both engines (audit: Settings, 'Two engine cards with identical labels').",
+      "decision": "audit: engine table"
+    },
+    {
+      "screen": "settings",
+      "scope": "Engine for practice games",
+      "token": "50–1000",
+      "reason": "M4: the setting's label and its range were printed once per engine card; in the table they are said once per row, for both engines (audit: Settings, 'Two engine cards with identical labels').",
+      "decision": "audit: engine table"
+    },
+    {
+      "screen": "settings",
+      "scope": "Engine for your Chess.com games",
+      "token": "12–30",
+      "reason": "M4: the setting's label and its range were printed once per engine card; in the table they are said once per row, for both engines (audit: Settings, 'Two engine cards with identical labels').",
+      "decision": "audit: engine table"
+    },
+    {
+      "screen": "settings",
+      "scope": "Engine for practice games",
+      "token": "12–30",
+      "reason": "M4: the setting's label and its range were printed once per engine card; in the table they are said once per row, for both engines (audit: Settings, 'Two engine cards with identical labels').",
+      "decision": "audit: engine table"
+    },
+    {
+      "screen": "settings",
+      "scope": "Engine for your Chess.com games",
+      "token": "1–10",
+      "reason": "M4: the setting's label and its range were printed once per engine card; in the table they are said once per row, for both engines (audit: Settings, 'Two engine cards with identical labels').",
+      "decision": "audit: engine table"
+    },
+    {
+      "screen": "settings",
+      "scope": "Engine for practice games",
+      "token": "1–10",
+      "reason": "M4: the setting's label and its range were printed once per engine card; in the table they are said once per row, for both engines (audit: Settings, 'Two engine cards with identical labels').",
+      "decision": "audit: engine table"
+    },
+    {
+      "screen": "settings",
+      "scope": "Engine for your Chess.com games",
+      "token": "0–50",
+      "reason": "M4: the setting's label and its range were printed once per engine card; in the table they are said once per row, for both engines (audit: Settings, 'Two engine cards with identical labels').",
+      "decision": "audit: engine table"
+    },
+    {
+      "screen": "settings",
+      "scope": "Engine for practice games",
+      "token": "0–50",
+      "reason": "M4: the setting's label and its range were printed once per engine card; in the table they are said once per row, for both engines (audit: Settings, 'Two engine cards with identical labels').",
+      "decision": "audit: engine table"
+    },
+    {
+      "screen": "settings",
+      "scope": "Engine for your Chess.com games",
+      "token": "~explanations",
+      "reason": "M4: the setting's label and its range were printed once per engine card; in the table they are said once per row, for both engines (audit: Settings, 'Two engine cards with identical labels').",
+      "decision": "audit: engine table"
+    },
+    {
+      "screen": "settings",
+      "scope": "Engine for practice games",
+      "token": "~explanations",
+      "reason": "M4: the setting's label and its range were printed once per engine card; in the table they are said once per row, for both engines (audit: Settings, 'Two engine cards with identical labels').",
+      "decision": "audit: engine table"
+    },
+    {
+      "screen": "play",
+      "token": "154",
+      "reason": "M6, D6: 'Your most frequent mistake pattern is Positional, 154 times' named a pattern the board never proved ('positional' means no tactic was found). Play now names the most frequent proven tactic (hanging piece, 63 times), the Pattern Report's verified classification.",
+      "decision": "D6"
+    },
+    {
+      "screen": "play",
+      "token": "~positional",
+      "reason": "M6, D6: 'Your most frequent mistake pattern is Positional, 154 times' named a pattern the board never proved ('positional' means no tactic was found). Play now names the most frequent proven tactic (hanging piece, 63 times), the Pattern Report's verified classification.",
+      "decision": "D6"
+    },
+    {
+      "screen": "play",
+      "token": "~mistake",
+      "reason": "M6, D6: 'Your most frequent mistake pattern is Positional, 154 times' named a pattern the board never proved ('positional' means no tactic was found). Play now names the most frequent proven tactic (hanging piece, 63 times), the Pattern Report's verified classification.",
+      "decision": "D6"
+    },
+    {
+      "screen": "play",
+      "token": "~win",
+      "reason": "M6: 'a game you can lose, not one you cannot win' described the calibration's intent and held no figure; the calibration itself (9 of 20, to your 68% average accuracy) stays.",
+      "decision": "audit: Play"
+    }
+  ],
+  "formats": [
+    {
+      "screen": "pattern-report",
+      "from": "10/16/2026",
+      "to": "16 Oct",
+      "reason": "M1: principle 7, dates read '6 Sep' everywhere; the footer used toLocaleDateString()."
+    },
+    {
+      "screen": "training-plan",
+      "from": "10/16/2026",
+      "to": "16 Oct",
+      "reason": "M2: principle 7, dates read '6 Sep' everywhere; the footer used toLocaleDateString()."
+    },
+    {
+      "screen": "insights",
+      "from": "2026-08-20T17:44:00Z",
+      "to": "20 Aug",
+      "reason": "M3: principle 7, dates read '6 Sep'; Thrown-Away Wins printed a raw ISO timestamp."
+    },
+    {
+      "screen": "game-analysis",
+      "from": "g7g6",
+      "to": "g6",
+      "reason": "M6: principle 7, moves read in SAN everywhere; the engine's best move was shown in UCI."
+    }
+  ],
+  "moves": [
+    {
+      "screen": "pattern-report",
+      "from": "^popover (.+)$",
+      "to": "$1",
+      "regex": true,
+      "reason": "M1, D1/D2: the board, opening and date of a position now open from its chip, inside the position's own item, instead of a hover tooltip."
+    },
+    {
+      "screen": "training-plan",
+      "from": "^popover (.+)$",
+      "to": "$1",
+      "regex": true,
+      "reason": "M2, D1/D2: a position's board, opening and date open from its chip, inside the position's own item."
+    },
+    {
+      "screen": "training-plan",
+      "from": "What the sessions work on",
+      "to": "This week",
+      "reason": "M2, audit: the section repeated the Pattern Report's causes (88 words). Each focus's rank, stat line and full drill, as the plan recorded them, now open from its chip on the session cards in 'This week'; the order stays visible in the Focus line."
+    },
+    {
+      "screen": "training-plan",
+      "from": "^([^:]+): .*$",
+      "to": "$1",
+      "regex": true,
+      "reason": "M2: an opening to review is one row named by the opening ('Center Game · 6.0 vs your 4.7 per game · 5 games') instead of a sentence."
+    },
+    {
+      "screen": "settings",
+      "from": "Engine for your Chess.com games",
+      "to": "Chess.com games",
+      "reason": "M4: the two engine cards are one table; each value sits in its engine's column group."
+    },
+    {
+      "screen": "settings",
+      "from": "Engine for practice games",
+      "to": "Practice games",
+      "reason": "M4: as above."
+    },
+    {
+      "screen": "settings",
+      "from": "^(.*\\))ⓘ$",
+      "to": "$1",
+      "regex": true,
+      "reason": "M4: an engine field's hover-only ⓘ became a tappable help button outside its label, so those labels ('… (50–1000 ms)') no longer end in ⓘ. Headings keep their ⓘ button inside."
+    },
+    {
+      "screen": "today",
+      "from": "!",
+      "to": "…",
+      "reason": "M5: '!' means a good move in chess, so 'needs attention' is marked with an ellipsis; the setup rows are named by their mark."
+    },
+    {
+      "screen": "settings",
+      "from": "!",
+      "to": "…",
+      "reason": "M5: '!' means a good move in chess, so 'needs attention' is marked with an ellipsis; the setup rows are named by their mark."
+    }
+  ],
+  "methods": []
+}

@@ -30,6 +30,9 @@ import java.util.UUID;
  *
  * Lookups by game id are deliberately NOT filtered — they act on rows the caller
  * has already identified, not on statistics.
+ *
+ * Every query here returns current rows only: superseded rows (an earlier
+ * analysis of the same game) are hidden by MoveError's {@code @SQLRestriction}.
  */
 public interface MoveErrorRepository extends JpaRepository<MoveError, UUID> {
 
@@ -81,9 +84,14 @@ public interface MoveErrorRepository extends JpaRepository<MoveError, UUID> {
         """)
     List<MoveError> findExplainedByUsername(String username);
 
+    /**
+     * Re-analysis: the game's current rows become history. Nothing is deleted;
+     * the entity's restriction hides superseded rows from every other query.
+     */
     @Transactional
     @Modifying
-    void deleteByGameId(UUID gameId);
+    @Query("UPDATE MoveError me SET me.supersededAt = :at WHERE me.game.id = :gameId AND me.supersededAt IS NULL")
+    int supersedeByGameId(@Param("gameId") UUID gameId, @Param("at") java.time.OffsetDateTime at);
 
     @Query("""
         SELECT COUNT(me) FROM MoveError me

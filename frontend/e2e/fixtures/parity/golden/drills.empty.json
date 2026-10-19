@@ -1,0 +1,14 @@
+{
+ "screen": "drills",
+ "state": "empty",
+ "path": "/drills",
+ "metrics": {
+  "prose": 18,
+  "data": 0,
+  "paragraphs": [
+   "No drills yet. Analyze some games — every blunder with an engine best move becomes a puzzle here."
+  ]
+ },
+ "pairs": [],
+ "methods": []
+}

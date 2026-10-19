@@ -5,8 +5,10 @@ import com.praxis.domain.MoveError;
 import com.praxis.play.domain.PracticeGame;
 import com.praxis.service.analysis.ParsedGame;
 import com.praxis.service.analysis.ParsedMove;
+import com.praxis.service.diagnosis.VerifiedMistakes;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -20,8 +22,15 @@ public record AnalysedGame(
         PracticeGame practice,
         Game game,
         ParsedGame parsed,
-        List<MoveError> errors
+        List<MoveError> errors,
+        /** Verified diagnoses by ply (Phase 12); empty for a game not diagnosed yet. */
+        Map<Integer, VerifiedMistakes.Diagnosis> diagnoses
 ) {
+
+    /** Without diagnoses: for detectors that read only the PGN and the engine's verdicts. */
+    public AnalysedGame(PracticeGame practice, Game game, ParsedGame parsed, List<MoveError> errors) {
+        this(practice, game, parsed, errors, Map.of());
+    }
 
     public UUID gameId() {
         return game.getId();

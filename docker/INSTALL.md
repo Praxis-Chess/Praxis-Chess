@@ -135,7 +135,7 @@ lines are in the app's log: `docker compose -f docker/compose.yaml logs app`.
 | `models` exited with code 1 | Read `logs models`. Usually the network; run `up models` again — downloads resume. "does not match the published SHA-256": the commentary file was corrupted in transit; it is deleted, run again. |
 | Explanations take minutes | Ollama is on the CPU. Add `compose.gpu.yaml` (NVIDIA), or on a Mac use `compose.host-ollama.yaml`. Check with `exec ollama ollama ps` — PROCESSOR should say GPU. |
 | "could not select device driver nvidia" | No NVIDIA driver visible to Docker. Drop `compose.gpu.yaml`, or install the driver (Windows: a current NVIDIA driver plus Docker Desktop's WSL 2 engine). |
-| Models fail to load, or the app is killed, on Windows | WSL 2 gives Docker half the machine's memory by default; the 7B model needs about 6 GB on the CPU. Raise it in `%UserProfile%\.wslconfig` (`[wsl2]` then `memory=12GB`), run `wsl --shutdown`, restart Docker Desktop. Or use the light model set. |
+| Models fail to load, or the app is killed, on Windows | WSL 2 gives Docker half the machine's memory by default; the 4B model needs about 4 GB on the CPU (a 7B report writer about 6 GB). Raise it in `%UserProfile%\.wslconfig` (`[wsl2]` then `memory=12GB`), run `wsl --shutdown`, restart Docker Desktop. |
 | `compose.host-ollama.yaml` on Linux: Ollama not reachable | Ollama listens on 127.0.0.1 by default, which containers can't reach on Linux. Set `OLLAMA_HOST=0.0.0.0` for the Ollama service and restart it. |
 | Port 8086 is already in use | Another Praxis (the developer backend?) is running. Stop it, or set `PRAXIS_PORT=8090` in `docker/.env`. |
 | Sync says to add a username | Settings → Player. |

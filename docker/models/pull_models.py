@@ -222,8 +222,8 @@ def build_commentary(name, status):
 
 def main():
     names = []
-    for n in (os.environ.get("PRAXIS_MOVE_MODEL", "qwen2.5:7b"),
-              os.environ.get("PRAXIS_REPORT_MODEL", "qwen2.5:7b"),
+    for n in (os.environ.get("PRAXIS_MOVE_MODEL", "qwen3:4b-instruct"),
+              os.environ.get("PRAXIS_REPORT_MODEL", "qwen3:4b-instruct"),
               os.environ.get("PRAXIS_REASONING_MODEL", "qwen3:4b-instruct"),
               COMMENTARY):
         if n and n not in names:

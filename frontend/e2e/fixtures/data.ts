@@ -289,13 +289,14 @@ export const opponentProfile: OpponentProfile = {
   target_eco: 'A01',
   target_opening: 'Nimzovich-Larsen Attack',
   target_phase: 'MIDDLEGAME',
-  target_motif: 'POSITIONAL',
+  target_motif: 'HANGING_PIECE',
   targeted_weakness: 'opening:A01',
+  // As OpponentProfileService writes them: "Label: facts". Positional is never a pattern (no tactic proven).
   rationale: [
-    'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games — your weakest opening with enough games to judge. This opponent will steer toward it.',
-    'Most of your blunders land in the middlegame (97 of them).',
-    'Your most frequent mistake pattern is Positional, 154 times.',
-    'Strength is set to 9 of 20, calibrated to your 68% average accuracy — a game you can lose, not one you cannot win.',
+    'Steers toward: Nimzovich-Larsen Attack · 49% accuracy in 12 games, your weakest opening with enough games to judge',
+    'Most blunders: middlegame · 97 of them',
+    'Most frequent tactic: hanging piece · 63 times',
+    'Strength: 9 of 20 · calibrated to your 68% average accuracy',
   ],
   personalised: true,
 }

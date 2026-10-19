@@ -1,6 +1,7 @@
 package com.praxis.dto;
 
 import com.praxis.domain.MoveError;
+import com.praxis.service.diagnosis.VerifiedMistakes;
 
 import java.util.UUID;
 
@@ -18,19 +19,25 @@ public record DrillDto(
         String gamePhase,
         String explanation,
         String playerColor,   // board orientation / side to move
-        String gameId
+        String gameId,
+        /** The ply of the mistake in its game: with gameId, the position's stable name across re-analysis. */
+        int ply
 ) {
-    public static DrillDto from(MoveError e) {
+    /** Motif and explanation from the verified diagnosis (Phase 12); null without one. */
+    public static DrillDto from(VerifiedMistakes.Mistake m) {
+        MoveError e = m.error();
+        VerifiedMistakes.Diagnosis d = m.diagnosis();
         return new DrillDto(
                 e.getId(),
                 e.getFenPosition(),
                 e.getBetterMove(),
                 e.getMovePlayed(),
                 e.getSeverity() != null ? e.getSeverity().name() : null,
-                e.getTacticalMotif() != null ? e.getTacticalMotif().name() : null,
+                d != null ? d.motif() : null,
                 e.getGamePhase() != null ? e.getGamePhase().name() : null,
-                e.getExplanation(),
+                d != null ? d.text() : null,
                 e.getPlayerColor(),
-                e.getGame() != null ? e.getGame().getId().toString() : null);
+                e.getGame() != null ? e.getGame().getId().toString() : null,
+                e.getMoveNumber());
     }
 }

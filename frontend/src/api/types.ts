@@ -173,20 +173,151 @@ export interface Pattern {
   critical_move_range: string | null
   dominant_motif: string | null
   opening_assessment: string | null
+  /** Phase 12: every figure, computed in code. Null on reports made before. */
+  facts?: ReportFacts | null
+  /** The model's paragraphs, present only when they passed the number checker. */
+  prose?: { summary?: string; weaknesses?: string[]; openings?: string } | null
+  prose_status?: ProseStatus | null
+  prose_model?: string | null
+  /** Each drill as an imperative of at most eight words, by cause or tactic key. */
+  drill_short?: Record<string, string> | null
 }
 
-export interface TrainingPriority {
+/** checked: every paragraph passed the number checker; rejected: still wrong after a retry; unavailable: no model answer. */
+export type ProseStatus = 'checked' | 'rejected' | 'unavailable'
+
+/** A share of diagnosed serious mistakes. */
+export interface ReportCount {
+  key: string
+  label: string
+  count: number
+  blunders: number
+  pct: number
+}
+
+/** Serious mistakes in a group, and the player's own moves in it. */
+export interface ReportRate {
+  key: string
+  label: string
+  count: number
+  blunders: number
+  moves: number
+  /** Serious mistakes per 100 of those moves. */
+  per_hundred: number
+  /** At least min_sample mistakes behind it. */
+  enough: boolean
+}
+
+export interface ReportExample {
+  game_id: string
+  ply: number
+  /** "12...Nf6" */
+  move: string
+  severity: string
+  fen: string
+  better_move: string | null
+  played_on: string | null
+  opening: string | null
+  /** Winning-chance points this move lost. */
+  lost: number
+}
+
+export interface ReportWeakness {
+  kind: 'CAUSE' | 'TIME_PRESSURE' | 'TACTIC'
+  key: string
+  title: string
+  count: number
+  /** What count is a share of: diagnosed serious mistakes, or those with a clock. */
+  base: number
+  pct: number
+  blunders: number
+  /** Winning-chance points lost in total: the ranking. */
+  lost: number
+  /** Lost per mistake. */
+  avg_lost: number
+  drill: string
+  /** Every position behind it, costliest first. */
+  positions: ReportExample[]
+}
+
+export interface ReportOpening {
+  eco: string | null
+  name: string
+  games: number
+  serious: number
+  blunders: number
+  serious_per_game: number
+  /** serious_per_game divided by the player's own rate. */
+  vs_average: number
+}
+
+/**
+ * Serious = blunders and mistakes. Causes and tactics are separate axes: one
+ * mistake can have both. Rates are per 100 of the player's own moves.
+ */
+export interface ReportFacts {
+  games_analysed: number
+  mistakes: number
+  blunders: number
+  serious_mistakes: number
+  inaccuracies: number
+  serious: number
+  diagnosed: number
+  diagnosed_serious: number
+  player_moves: number
+  by_phase: ReportRate[]
+  by_move_range: ReportRate[]
+  causes: ReportCount[]
+  tactics: ReportCount[]
+  no_named_tactic: number
+  /** Diagnosed serious mistakes the rules found no cause for. */
+  no_cause: number
+  /** The one threshold: fewer mistakes than this, and a figure is not ranked or is marked too few. */
+  min_sample: number
+  time_pressure: { with_clock: number; under_thirty: number; blunders_under_thirty: number; pct: number; enough: boolean }
+  top_causes: ReportWeakness[]
+  top_tactics: ReportWeakness[]
+  per_game: number
+  openings: ReportOpening[]
+  worst_phase: string | null
+  worst_range: string | null
+}
+
+export interface PlanPriority {
+  rank: number
+  kind: string
+  key: string
   focus: string
-  action: string
-  reason: string
+  /** The evidence, one sentence written in code from the facts. */
+  why: string
+  drill: string
+  /** How many of the player's own positions there are for it. */
+  positions: number
+  count: number
+  base: number
+  pct: number
+  blunders: number
+  avg_lost: number
 }
 
-export interface TrainingPlanJson {
-  priority_1: TrainingPriority
-  priority_2: TrainingPriority
-  priority_3: TrainingPriority
-  openings_to_drill: string[]
-  tactical_patterns_to_study: string[]
+export interface PlanSession {
+  number: number
+  /** One line: what the session trains. */
+  goal: string
+  /** The priorities its positions come from. */
+  focus: string[]
+  positions: ReportExample[]
+}
+
+export interface PlanFacts {
+  based_on_games: number
+  sessions_per_week: number
+  minutes_per_session: number
+  per_game: number
+  priorities: PlanPriority[]
+  pattern: PlanPriority | null
+  sessions: PlanSession[]
+  openings_to_review: ReportOpening[]
 }
 
 export interface TrainingPlan {
@@ -196,6 +327,15 @@ export interface TrainingPlan {
   plan_json: string
   openings_to_drill: string | null
   tactical_patterns: string | null
+  /** Phase 12: the plan decided in code. Null for plans made before. */
+  plan?: PlanFacts | null
+  prose?: { intro?: string; priorities?: string[] } | null
+  prose_status?: ProseStatus | null
+  prose_model?: string | null
+  /** Sessions done, by number. */
+  progress?: Record<string, { done_at: string; solved: number; total: number }> | null
+  /** Each drill as an imperative of at most eight words, by cause or tactic key. */
+  drill_short?: Record<string, string> | null
 }
 
 // --- Insights (practical analytics) ---
@@ -313,6 +453,40 @@ export interface Drill {
   explanation: string | null
   player_color: string
   game_id: string | null
+  /** The mistake's ply in its game: with game_id, the position's stable name. */
+  ply?: number
+}
+
+/** F10: one side of a "since this plan" comparison. Rates are per 100 of your moves. */
+export interface SinceWindow { games: number; moves: number; count: number; per_hundred: number }
+
+/** F10: each plan focus in games since the plan, against before. Silent (enough: false) on too little play. */
+export interface SincePlan {
+  since: string
+  serious_after: number
+  min_sample: number
+  enough: boolean
+  foci: { key: string; kind: string; before: SinceWindow; after: SinceWindow }[]
+}
+
+/** F11: reviews since the plan, for plan positions that are also cards in the review deck. */
+export interface PlanRecall {
+  since: string
+  sessions: {
+    number: number; positions: number; tracked: number; reviews: number; correct: number
+    detail: { game_id: string; ply: number; tracked: boolean; reviews: number; correct: number }[]
+  }[]
+}
+
+/** One position answered in a Training Plan session (F12). */
+export interface PlanAnswer {
+  game_id: string
+  ply: number
+  move_error_id: string | null
+  correct: boolean
+  wrong_tries: number
+  revealed: boolean
+  response_ms: number | null
 }
 
 // --- Drill sessions (FSRS) ---
@@ -348,6 +522,8 @@ export interface Session {
   completed: boolean
   started_at: string
   completed_at: string | null
+  /** Cards whose first attempt in this session was correct (F4). */
+  cards_solved?: number | null
 }
 
 export interface AttemptRequest {

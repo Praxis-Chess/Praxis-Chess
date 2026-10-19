@@ -1,4 +1,7 @@
 import type { AiStatus,
+  PlanAnswer,
+  PlanRecall,
+  SincePlan,
   BackupOverview,
   BackupResult,
   PlayerSaved,
@@ -142,16 +145,35 @@ export const api = {
 
   drills: {
     list: (limit = 20) => request<Drill[]>(`/drills?limit=${limit}`),
+    /** A Training Plan session: exactly these positions ("gameId:ply"), in order. */
+    positions: (positions: string[]) =>
+      request<Drill[]>(`/drills?positions=${encodeURIComponent(positions.join(','))}`),
   },
 
   patterns: {
     latest: () => request<Pattern | null>('/patterns'),
+    /** Rebuild from the current diagnoses; one checked model call for the prose (up to a minute). */
+    recompute: () => request<Pattern | null>('/patterns/recompute', { method: 'POST' }),
   },
 
   trainingPlan: {
     latest: () => request<TrainingPlan | null>('/training-plan'),
     generate: () =>
       request<TrainingPlan>('/training-plan/generate', { method: 'POST' }),
+    /** A session finished in Drills. */
+    sessionDone: (planId: string, session: number, solved: number, total: number) =>
+      request<TrainingPlan>(`/training-plan/${planId}/sessions/${session}`, {
+        method: 'POST', body: JSON.stringify({ solved, total }),
+      }),
+    /** F10: each focus since the plan was made, against before. */
+    since: (planId: string) => request<SincePlan>(`/training-plan/${planId}/since`),
+    /** F11: reviews since the plan, for its positions that are review cards. */
+    recall: (planId: string) => request<PlanRecall>(`/training-plan/${planId}/recall`),
+    /** One position answered in a plan session: kept per position, not only as a total. */
+    answer: (planId: string, session: number, answer: PlanAnswer) =>
+      request<void>(`/training-plan/${planId}/sessions/${session}/answers`, {
+        method: 'POST', body: JSON.stringify(answer),
+      }),
   },
 
   today: {

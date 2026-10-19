@@ -2,7 +2,6 @@ package com.praxis.repository;
 
 import com.praxis.domain.Attempt;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,17 +13,6 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
     List<Attempt> findByCardIdOrderByCreatedAtDesc(UUID cardId);
 
     List<Attempt> findBySessionIdOrderByCreatedAtAsc(UUID sessionId);
-
-    /** Wipe all drill attempts for a user — called before Re-analyze All to avoid FK violations. */
-    @Modifying
-    @Query("DELETE FROM Attempt a WHERE a.card.username = :username")
-    void deleteByCardUsername(@Param("username") String username);
-
-    /** Attempts on cards drawn from these games — must go before the cards (FK). */
-    @Modifying
-    @Query("DELETE FROM Attempt a WHERE a.card.id IN (SELECT c.id FROM Card c WHERE c.sourceError.id IN "
-            + "(SELECT me.id FROM MoveError me WHERE me.game.id IN :gameIds))")
-    void deleteByGameIds(@Param("gameIds") java.util.Collection<java.util.UUID> gameIds);
 
     /**
      * Just the timestamps, for the practice-ledger backfill. Attempt has no

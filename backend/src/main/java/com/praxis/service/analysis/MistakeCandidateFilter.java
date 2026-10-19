@@ -103,6 +103,15 @@ public class MistakeCandidateFilter {
     }
 
     private GamePhase detectPhase(int ply, String fenBefore) {
+        return phaseOf(ply, fenBefore);
+    }
+
+    /**
+     * The phase of any move, by the same rule as a flagged one: the Pattern
+     * Report divides mistakes per phase by the player's moves per phase, and the
+     * two counts must use one ruler.
+     */
+    public static GamePhase phaseOf(int ply, String fenBefore) {
         if (ply <= OPENING_PLY_MAX) return GamePhase.OPENING;
         if (countNonKingPieces(fenBefore) <= ENDGAME_PIECE_THRESHOLD) return GamePhase.ENDGAME;
         return GamePhase.MIDDLEGAME;
@@ -112,7 +121,7 @@ public class MistakeCandidateFilter {
      * Counts non-king pieces on the board from FEN (piece placement field only).
      * Kings are always present so excluding them gives a cleaner endgame signal.
      */
-    private int countNonKingPieces(String fen) {
+    private static int countNonKingPieces(String fen) {
         if (fen == null || fen.isBlank()) return 16; // conservative — not endgame
         String placement = fen.split(" ")[0];
         int count = 0;

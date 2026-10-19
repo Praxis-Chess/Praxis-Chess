@@ -13,6 +13,7 @@ import com.praxis.domain.enums.CardStatus;
 import com.praxis.domain.enums.GamePhase;
 import com.praxis.domain.enums.MeaningfulActivity;
 import com.praxis.repository.*;
+import com.praxis.service.diagnosis.VerifiedMistakes;
 import com.praxis.service.practice.PracticeLedgerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +66,7 @@ public class SessionEngineService {
     private final ObjectMapper objectMapper;
     private final PracticeLedgerService practiceLedger;
     private final PraxisClock clock;
+    private final VerifiedMistakes verified;
 
     public SessionEngineService(CardRepository cardRepository,
                                 DrillSessionRepository sessionRepository,
@@ -74,7 +76,8 @@ public class SessionEngineService {
                                 AppProperties appProperties,
                                 ObjectMapper objectMapper,
                                 PracticeLedgerService practiceLedger,
-                                PraxisClock clock) {
+                                PraxisClock clock,
+                                VerifiedMistakes verified) {
         this.cardRepository = cardRepository;
         this.sessionRepository = sessionRepository;
         this.attemptRepository = attemptRepository;
@@ -83,6 +86,7 @@ public class SessionEngineService {
         this.appProperties = appProperties;
         this.objectMapper = objectMapper;
         this.practiceLedger = practiceLedger;
+        this.verified = verified;
         this.clock = clock;
     }
 
@@ -253,9 +257,15 @@ public class SessionEngineService {
      */
     private List<Card> siblingRotate(List<Card> cards) {
         Map<String, List<Card>> groups = new LinkedHashMap<>();
+        // The verified motif of each card's mistake (Phase 12), one lookup per game.
+        Map<UUID, Map<Integer, VerifiedMistakes.Diagnosis>> byGame = new HashMap<>();
         for (Card c : cards) {
-            String motif = c.getSourceError() != null && c.getSourceError().getTacticalMotif() != null
-                    ? c.getSourceError().getTacticalMotif().name() : "NONE";
+            String motif = "NONE";
+            if (c.getSourceError() != null && c.getSourceError().getGame() != null) {
+                var d = byGame.computeIfAbsent(c.getSourceError().getGame().getId(), verified::forGame)
+                        .get(c.getSourceError().getMoveNumber());
+                if (d != null && d.motif() != null) motif = d.motif();
+            }
             String phase = c.getSourceError() != null && c.getSourceError().getGamePhase() != null
                     ? c.getSourceError().getGamePhase().name() : "NONE";
             groups.computeIfAbsent(motif + "_" + phase, k -> new ArrayList<>()).add(c);

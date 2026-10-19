@@ -72,12 +72,20 @@ public class AnalysisSettings {
                 maxExplanations == null ? Integer.MAX_VALUE : maxExplanations);
     }
 
-    /** Same engine behaviour — the fields that decide what gets measured. */
+    /**
+     * Same engine behaviour — the fields that decide what gets measured. Written
+     * explanations are not among them (Phase 12): turning them off changes no
+     * evaluation, severity or diagnosis, so it must not make games "outdated".
+     */
     public boolean sameEngineAs(AnalysisSettings o) {
         return o != null
                 && sweepMoveTimeMs == o.sweepMoveTimeMs
                 && multiPvDepth == o.multiPvDepth
-                && multiPvLines == o.multiPvLines
-                && java.util.Objects.equals(maxExplanations, o.maxExplanations);
+                && multiPvLines == o.multiPvLines;
+    }
+
+    /** The identical configuration, explanations included: saving it again creates no version. */
+    public boolean sameAs(AnalysisSettings o) {
+        return sameEngineAs(o) && java.util.Objects.equals(maxExplanations, o.maxExplanations);
     }
 }

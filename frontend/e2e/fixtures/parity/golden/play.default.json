@@ -1,0 +1,97 @@
+{
+ "screen": "play",
+ "state": "default",
+ "path": "/play",
+ "metrics": {
+  "prose": 85,
+  "data": 7,
+  "paragraphs": [
+   "An opponent built from your own games — then the same measurements, to see if you played better.",
+   "You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games — your weakest opening with enough games to judge. This opponent will steer toward it.",
+   "Strength is set to 9 of 20, calibrated to your 68% average accuracy — a game you can lose, not one you cannot win."
+  ]
+ },
+ "pairs": [
+  [
+   "",
+   "~accuracy",
+   2
+  ],
+  [
+   "",
+   "~blunders",
+   1
+  ],
+  [
+   "",
+   "~middlegame",
+   1
+  ],
+  [
+   "",
+   "~mistake",
+   1
+  ],
+  [
+   "",
+   "~nimzovich-larsen attack",
+   1
+  ],
+  [
+   "",
+   "~opening",
+   1
+  ],
+  [
+   "",
+   "~positional",
+   1
+  ],
+  [
+   "",
+   "~win",
+   1
+  ],
+  [
+   "",
+   "12",
+   1
+  ],
+  [
+   "",
+   "154",
+   1
+  ],
+  [
+   "",
+   "20",
+   1
+  ],
+  [
+   "",
+   "49%",
+   1
+  ],
+  [
+   "",
+   "68%",
+   1
+  ],
+  [
+   "",
+   "9",
+   1
+  ],
+  [
+   "",
+   "97",
+   1
+  ],
+  [
+   "Which colour to play",
+   "~your weaker colour",
+   1
+  ]
+ ],
+ "methods": []
+}

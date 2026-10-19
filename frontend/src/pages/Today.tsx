@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { TodayInsight } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { SetupChecklist } from '../components/SetupChecklist'
 import { weekOf, WEEKDAY_LABELS, type DayCell } from '../components/practiceDates'
 import { PraxAnchor, praxThoughts, praxBus, useFocusIntent, praxInteract } from '../prax/PraxHost'
+import { shortDate } from '../components/report/ReportParts'
 
 /**
  * This week, Mon–Sun.
@@ -34,8 +35,8 @@ function WeeklyStreak() {
   return (
     <div style={{ maxWidth: 540, marginBottom: 28 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: '0.72rem', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
-          This week
+        <span className="mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          {shortDate(week[0].date)} – {shortDate(week[week.length - 1].date)}
         </span>
         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
           {/* Ended is a statement and an open door, never a lament. */}
@@ -47,10 +48,11 @@ function WeeklyStreak() {
 
       <div style={{ display: 'flex', gap: 4 }}>
         {week.map((d, i) => (
-          <div key={d.date} style={{ flex: 1, textAlign: 'center' }} title={dayTitle(d)}>
+          <div key={d.date} style={{ flex: 1, textAlign: 'center' }} title={dayTitle(d)} role="img" aria-label={dayTitle(d)}>
             <div style={{
               fontSize: '0.62rem',
-              color: d.isToday ? 'var(--orchid)' : 'var(--text-muted)',
+              color: d.isToday ? 'var(--text-primary)' : 'var(--text-muted)',
+              fontWeight: d.isToday ? 700 : 400,
               opacity: d.future ? 0.4 : 1,
               marginBottom: 5,
             }}>
@@ -61,13 +63,13 @@ function WeeklyStreak() {
                 width: d.isToday ? 10 : 8,
                 height: d.isToday ? 10 : 8,
                 borderRadius: '50%',
-                background: d.practiced ? 'var(--orchid)' : 'transparent',
+                background: d.practiced ? 'var(--gain)' : 'transparent',
                 // A future day is barely drawn; a missed one has a real edge.
                 border: d.practiced ? 'none'
                       : d.future    ? '1px solid var(--hairline)'
                                     : '1px solid var(--text-tertiary, #625C6D)',
                 opacity: d.future ? 0.35 : 1,
-                boxShadow: d.isToday ? '0 0 0 3px var(--accent-wash, rgba(231,166,214,0.12))' : 'none',
+                boxShadow: d.isToday ? '0 0 0 3px var(--surface-2)' : 'none',
               }} />
             </div>
           </div>
@@ -98,10 +100,10 @@ function InsightCard({ insight, onStartSession }: { insight: TodayInsight; onSta
   return (
     <div className="card" style={{ padding: '28px 24px', maxWidth: 540 }}>
       <div style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em',
-                    color: 'var(--orchid)', textTransform: 'uppercase', marginBottom: 12 }}>
+                    color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 12 }}>
         Today's focus
       </div>
-      <h2 style={{ fontSize: '1.45rem', fontWeight: 700, lineHeight: 1.25, marginBottom: 16,
+      <h2 data-reading="takeaway" style={{ fontSize: '1.45rem', fontWeight: 700, lineHeight: 1.25, marginBottom: 16,
                    letterSpacing: '-0.02em' }}>
         {insight.title}
       </h2>
@@ -110,7 +112,7 @@ function InsightCard({ insight, onStartSession }: { insight: TodayInsight; onSta
       </p>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
-        <button onClick={onStartSession} style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem' }}>
+        <button className="solid" onClick={onStartSession} style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem' }}>
           Start session →
         </button>
         <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -119,6 +121,7 @@ function InsightCard({ insight, onStartSession }: { insight: TodayInsight; onSta
       </div>
 
       <button
+        data-disclose aria-expanded={evidenceOpen} aria-controls="today-evidence"
         onClick={() => { setEvidenceOpen(o => !o); praxInteract('EVIDENCE_OPENED') }}
         className="secondary"
         style={{ fontSize: '0.75rem', padding: '4px 10px', color: 'var(--text-muted)' }}
@@ -127,9 +130,13 @@ function InsightCard({ insight, onStartSession }: { insight: TodayInsight; onSta
       </button>
 
       {evidenceOpen && (
-        <div style={{ marginTop: 14, borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
+        <div id="today-evidence" style={{ marginTop: 14, borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
           <EvidenceRow label={insight.evidence.metric} value={insight.evidence.value} />
           <EvidenceRow label="Sample size" value={`${insight.evidence.sample_size} games`} />
+          {/* Where the claim is measured against your own rate (F3): the report's phase bars. */}
+          <Link to="/insights/patterns#where-they-happen" style={{ display: 'inline-block', marginTop: 10, fontSize: '0.8rem' }}>
+            Where your mistakes happen →
+          </Link>
         </div>
       )}
     </div>
@@ -148,7 +155,7 @@ function DueCount() {
   return (
     <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>
       {[
-        { label: 'Due today', value: due, color: 'var(--orchid)' },
+        { label: 'Due today', value: due, color: 'var(--text-primary)' },
         { label: 'Learning', value: d.learning_cards, color: 'var(--yellow)' },
         { label: 'Review', value: d.review_cards, color: 'var(--gain)' },
         { label: 'New', value: d.new_cards, color: 'var(--text-muted)' },
@@ -200,9 +207,6 @@ export function Today() {
         <h1 style={{ fontSize: '1.35rem', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>
           Today
         </h1>
-        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-          One clear focus. No overwhelm.
-        </p>
       </div>
 
       <SetupChecklist mode="attention" />
@@ -222,7 +226,7 @@ export function Today() {
           <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: 20 }}>
             Re-solve your worst mistakes. Start a session to begin.
           </p>
-          <button onClick={startSession} style={{ padding: '10px 20px', fontWeight: 600 }}>
+          <button className="solid" onClick={startSession} style={{ padding: '10px 20px', fontWeight: 600 }}>
             Start session →
           </button>
         </div>

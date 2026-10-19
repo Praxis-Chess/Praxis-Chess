@@ -1,0 +1,460 @@
+{
+ "screen": "training-plan",
+ "state": "none-done",
+ "path": "/insights/training",
+ "metrics": {
+  "prose": 180,
+  "data": 50,
+  "paragraphs": [
+   "A new plan starts a new week. This one, with its progress, stays in your history."
+  ]
+ },
+ "pairs": [
+  [
+   "",
+   "~analyzed",
+   1
+  ],
+  [
+   "",
+   "10/16/2026",
+   1
+  ],
+  [
+   "",
+   "31",
+   1
+  ],
+  [
+   "Insights sections",
+   "@/insights",
+   1
+  ],
+  [
+   "Insights sections",
+   "@/insights/patterns",
+   1
+  ],
+  [
+   "Insights sections",
+   "@/insights/training",
+   1
+  ],
+  [
+   "Openings to review > Center Game: 6.0 serious mistakes per game against your 4.7 ",
+   "~center game",
+   1
+  ],
+  [
+   "Openings to review > Center Game: 6.0 serious mistakes per game against your 4.7 ",
+   "4.7",
+   1
+  ],
+  [
+   "Openings to review > Center Game: 6.0 serious mistakes per game against your 4.7 ",
+   "5",
+   1
+  ],
+  [
+   "Openings to review > Center Game: 6.0 serious mistakes per game against your 4.7 ",
+   "6.0",
+   1
+  ],
+  [
+   "This week",
+   "~done",
+   1
+  ],
+  [
+   "This week",
+   "~oct",
+   2
+  ],
+  [
+   "This week",
+   "0",
+   1
+  ],
+  [
+   "This week",
+   "1",
+   1
+  ],
+  [
+   "This week",
+   "16",
+   1
+  ],
+  [
+   "This week",
+   "2",
+   2
+  ],
+  [
+   "This week",
+   "20",
+   1
+  ],
+  [
+   "This week",
+   "22",
+   1
+  ],
+  [
+   "This week > Session 1",
+   "~forks",
+   1
+  ],
+  [
+   "This week > Session 1",
+   "~ignoring your opponent's threat",
+   1
+  ],
+  [
+   "This week > Session 1",
+   "~spot the threat before you move",
+   1
+  ],
+  [
+   "This week > Session 1",
+   "1",
+   2
+  ],
+  [
+   "This week > Session 1",
+   "3",
+   1
+  ],
+  [
+   "This week > Session 1 > 17...g6",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "This week > Session 1 > 17...g6",
+   "~scandinavian defense",
+   1
+  ],
+  [
+   "This week > Session 1 > 17...g6",
+   "~sep",
+   1
+  ],
+  [
+   "This week > Session 1 > 17...g6",
+   "−34%",
+   1
+  ],
+  [
+   "This week > Session 1 > 17...g6",
+   "17...g6",
+   1
+  ],
+  [
+   "This week > Session 1 > 17...g6",
+   "6",
+   1
+  ],
+  [
+   "This week > Session 1 > 23.Qxc6",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "This week > Session 1 > 23.Qxc6",
+   "~scandinavian defense",
+   1
+  ],
+  [
+   "This week > Session 1 > 23.Qxc6",
+   "~sep",
+   1
+  ],
+  [
+   "This week > Session 1 > 23.Qxc6",
+   "−34%",
+   1
+  ],
+  [
+   "This week > Session 1 > 23.Qxc6",
+   "23.Qxc6",
+   1
+  ],
+  [
+   "This week > Session 1 > 23.Qxc6",
+   "6",
+   1
+  ],
+  [
+   "This week > Session 1 > 25.g5",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "This week > Session 1 > 25.g5",
+   "~scandinavian defense",
+   1
+  ],
+  [
+   "This week > Session 1 > 25.g5",
+   "~sep",
+   1
+  ],
+  [
+   "This week > Session 1 > 25.g5",
+   "−34%",
+   1
+  ],
+  [
+   "This week > Session 1 > 25.g5",
+   "25.g5",
+   1
+  ],
+  [
+   "This week > Session 1 > 25.g5",
+   "6",
+   1
+  ],
+  [
+   "This week > Session 1 > popover 17...g6",
+   "~white",
+   1
+  ],
+  [
+   "This week > Session 1 > popover 17...g6",
+   "~white to move",
+   1
+  ],
+  [
+   "This week > Session 1 > popover 23.Qxc6",
+   "~white",
+   1
+  ],
+  [
+   "This week > Session 1 > popover 23.Qxc6",
+   "~white to move",
+   1
+  ],
+  [
+   "This week > Session 1 > popover 25.g5",
+   "~white",
+   1
+  ],
+  [
+   "This week > Session 1 > popover 25.g5",
+   "~white to move",
+   1
+  ],
+  [
+   "This week > Session 2",
+   "~find your own chances first",
+   1
+  ],
+  [
+   "This week > Session 2",
+   "~missing your own chances",
+   1
+  ],
+  [
+   "This week > Session 2",
+   "2",
+   3
+  ],
+  [
+   "This week > Session 2 > 14.exd5",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "This week > Session 2 > 14.exd5",
+   "~scandinavian defense",
+   1
+  ],
+  [
+   "This week > Session 2 > 14.exd5",
+   "~sep",
+   1
+  ],
+  [
+   "This week > Session 2 > 14.exd5",
+   "−34%",
+   1
+  ],
+  [
+   "This week > Session 2 > 14.exd5",
+   "14.exd5",
+   1
+  ],
+  [
+   "This week > Session 2 > 14.exd5",
+   "6",
+   1
+  ],
+  [
+   "This week > Session 2 > 18...Rxf8",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "This week > Session 2 > 18...Rxf8",
+   "~scandinavian defense",
+   1
+  ],
+  [
+   "This week > Session 2 > 18...Rxf8",
+   "~sep",
+   1
+  ],
+  [
+   "This week > Session 2 > 18...Rxf8",
+   "−34%",
+   1
+  ],
+  [
+   "This week > Session 2 > 18...Rxf8",
+   "18...Rxf8",
+   1
+  ],
+  [
+   "This week > Session 2 > 18...Rxf8",
+   "6",
+   1
+  ],
+  [
+   "This week > Session 2 > popover 14.exd5",
+   "~white",
+   1
+  ],
+  [
+   "This week > Session 2 > popover 14.exd5",
+   "~white to move",
+   1
+  ],
+  [
+   "This week > Session 2 > popover 18...Rxf8",
+   "~white",
+   1
+  ],
+  [
+   "This week > Session 2 > popover 18...Rxf8",
+   "~white to move",
+   1
+  ],
+  [
+   "What the sessions work on > Forks",
+   "~blunders",
+   1
+  ],
+  [
+   "What the sessions work on > Forks",
+   "~forks",
+   1
+  ],
+  [
+   "What the sessions work on > Forks",
+   "−30%",
+   1
+  ],
+  [
+   "What the sessions work on > Forks",
+   "10%",
+   1
+  ],
+  [
+   "What the sessions work on > Forks",
+   "11",
+   1
+  ],
+  [
+   "What the sessions work on > Forks",
+   "14",
+   1
+  ],
+  [
+   "What the sessions work on > Forks",
+   "145",
+   1
+  ],
+  [
+   "What the sessions work on > Ignoring your opponent's threat",
+   "~blunders",
+   1
+  ],
+  [
+   "What the sessions work on > Ignoring your opponent's threat",
+   "~ignoring your opponent's threat",
+   1
+  ],
+  [
+   "What the sessions work on > Ignoring your opponent's threat",
+   "−27%",
+   1
+  ],
+  [
+   "What the sessions work on > Ignoring your opponent's threat",
+   "1",
+   1
+  ],
+  [
+   "What the sessions work on > Ignoring your opponent's threat",
+   "145",
+   1
+  ],
+  [
+   "What the sessions work on > Ignoring your opponent's threat",
+   "19",
+   1
+  ],
+  [
+   "What the sessions work on > Ignoring your opponent's threat",
+   "22%",
+   1
+  ],
+  [
+   "What the sessions work on > Ignoring your opponent's threat",
+   "32",
+   1
+  ],
+  [
+   "What the sessions work on > Missing your own chances",
+   "~blunders",
+   1
+  ],
+  [
+   "What the sessions work on > Missing your own chances",
+   "~missing your own chances",
+   1
+  ],
+  [
+   "What the sessions work on > Missing your own chances",
+   "−19%",
+   1
+  ],
+  [
+   "What the sessions work on > Missing your own chances",
+   "145",
+   1
+  ],
+  [
+   "What the sessions work on > Missing your own chances",
+   "15%",
+   1
+  ],
+  [
+   "What the sessions work on > Missing your own chances",
+   "2",
+   1
+  ],
+  [
+   "What the sessions work on > Missing your own chances",
+   "22",
+   1
+  ],
+  [
+   "What the sessions work on > Missing your own chances",
+   "9",
+   1
+  ]
+ ],
+ "methods": []
+}

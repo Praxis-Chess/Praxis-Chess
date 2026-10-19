@@ -169,9 +169,6 @@ export function Library() {
         <h1 style={{ fontSize: '1.35rem', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>
           Library
         </h1>
-        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-          All your games and drill archive
-        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--hairline)', paddingBottom: 0 }}>

@@ -188,6 +188,8 @@ class DiagnosisServiceTest {
 
         assertThat(service.buildForGame(GAME)).isEqualTo(1);
         verifyNoInteractions(engine);
+        // Phase 12: a re-analysed game's diagnoses point at its current mistake rows.
+        verify(evidence).relinkToCurrentMistakes(GAME);
     }
 
     /** Phase 9b: each current diagnosis gets the model's commentary once, with the verifier's verdict. */
@@ -207,6 +209,27 @@ class DiagnosisServiceTest {
         assertThat(fresh.getCommentaryVerified()).isTrue();
         verify(evidence).save(fresh);
         verify(evidence, never()).save(done);
+        // First commentary: nothing to archive.
+        verify(evidence, never()).archive(fresh.getId(), "commentary");
+    }
+
+    /** Phase 12: replacing an earlier model's commentary keeps the old row in the history. */
+    @Test
+    void replacedCommentaryIsArchivedFirst() {
+        when(commentary.enabled()).thenReturn(true);
+        when(commentary.model()).thenReturn("praxis-grid-2b-r4");
+        when(commentary.write(org.mockito.ArgumentMatchers.any())).thenReturn(Optional.of(
+                new TrainedCommentary.Result("Nf6 ignores Qxf7#.", "OTHER", true, "praxis-grid-2b-r4", 4600)));
+        var old = diagnosed(6, EvidenceGraphBuilder.GRAPH_VERSION);
+        old.setId(java.util.UUID.randomUUID());
+        old.setCommentary("An earlier answer.");
+        old.setCommentaryModel("praxis-grid-2b-r3");
+        when(evidence.findByGameId(GAME)).thenReturn(List.of(old));
+
+        assertThat(service.commentForGame(GAME)).isEqualTo(1);
+        var order = org.mockito.Mockito.inOrder(evidence);
+        order.verify(evidence).archive(old.getId(), "commentary");
+        order.verify(evidence).save(old);
     }
 
     @Test

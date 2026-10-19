@@ -53,11 +53,11 @@ test.describe('Settings', () => {
 
     await expect(card).toContainText('2026-07-03')
     await expect(card).toContainText('2026-08-20')
-    await expect(card).toContainText('5 synced')
-    await expect(card).toContainText('4 analysed')
-    await expect(card).toContainText('1 pending')
+    // The totals are a row of the same table, read by the same column headers.
+    const total = card.getByRole('row', { name: /^Total/ })
+    await expect(total.getByRole('cell')).toHaveText(['5', '4', '1', '0', ''])
     // Practice games are a different population and never folded into these.
-    await expect(card).toContainText('3 played')
+    await expect(card).toContainText('practice 3 played')
 
     const august = card.getByRole('row', { name: /2026-08/ })
     await expect(august).toContainText('library-v0')
@@ -146,7 +146,9 @@ test.describe('Settings', () => {
     const sent = mockSettings(api, () => ({ status: 200, body: saved({ library_version_created: false }) }))
     await page.goto('/settings')
 
-    await page.getByRole('region', { name: /your Chess.com games/ })
+    const engine = page.getByRole('region', { name: 'Engine' })
+    await engine.getByText('Retired explanations').click()
+    await engine.getByRole('group', { name: /^Written explanations/ }).getByRole('group', { name: 'Chess.com games' })
       .getByRole('checkbox', { name: 'Every flagged move' }).check()
     await page.getByRole('button', { name: 'Save settings' }).click()
 
@@ -177,11 +179,13 @@ test.describe('Settings', () => {
   test('a measured estimate shows figures', async ({ page }) => {
     await page.goto('/settings')
     const card = page.getByRole('region', { name: 'Estimated time' })
-    await expect(card).toContainText('46 s')          // 45,600 ms per game
-    await expect(card).toContainText('5 games')       // in range
-    await expect(card).toContainText('4 min')         // 228,000 ms total
-    await expect(card).toContainText('within the report window')
-    await expect(card).toContainText('measured on 12 games with library-v0')
+    const library = card.getByRole('row', { name: /^Chess.com games/ })
+    await expect(library).toContainText('46 s')          // 45,600 ms per game
+    await expect(library).toContainText('5 in range')    // games in range
+    await expect(library).toContainText('4 min')         // 228,000 ms total
+    await expect(library).toContainText('12 games, library-v0')
+    await expect(card.getByRole('columnheader', { name: 'Measured on' })).toBeVisible()
+    await expect(card.getByRole('row', { name: /^Practice games/ })).toContainText('within the report window')
   })
 
   test('an unmeasured estimate says so instead of guessing', async ({ page, api }) => {
@@ -201,8 +205,8 @@ test.describe('Settings', () => {
     await expect(page.getByText(/library-v0 \(3\), library-v1 \(1\)/)).toBeVisible()
 
     await page.getByRole('button', { name: 'Re-analyse 3 games with current settings' }).click()
-    // It removes drill cards, so it asks first — and hasn't fired yet.
-    await expect(page.getByText(/removes their drill cards/)).toBeVisible()
+    // It rewrites analyses, so it asks first — and hasn't fired yet.
+    await expect(page.getByText(/keeps their drill cards/)).toBeVisible()
     expect(api.requestsMatching(/\/api\/analysis\/reanalyze/)).toHaveLength(0)
 
     await page.getByRole('button', { name: 'Yes, re-analyse' }).click()
@@ -266,5 +270,49 @@ test.describe('Insights and engine settings', () => {
     await page.goto('/insights')
     await expect(page.getByRole('heading', { name: 'Insights' })).toBeVisible()
     await expect(page.getByText(/different engine settings/)).toHaveCount(0)
+  })
+})
+
+test.describe('Settings: show, don\'t tell', () => {
+  test('one solid button: Sync Now, until the form has changes, then Save settings', async ({ page }) => {
+    await page.goto('/settings')
+    const solid = page.locator('main button.solid')
+    await expect(solid).toHaveCount(1)
+    await expect(solid).toHaveText('Sync Now')
+
+    await page.getByLabel('Deep-check depth (12–30), Chess.com games').fill('20')
+    await expect(solid).toHaveCount(1)
+    await expect(solid).toHaveText('Save settings')
+  })
+
+  test('help is a tap away, never only on hover', async ({ page }) => {
+    await page.goto('/settings')
+    await expect(page.locator('main [title]')).toHaveCount(0)
+    const about = page.getByRole('button', { name: /^About Scan time per move/ })
+    await expect(about).toHaveAttribute('aria-expanded', 'false')
+    await about.click()
+    await expect(page.getByText('The first pass over every position. Decides which moves get flagged.')).toBeVisible()
+  })
+
+  test('the engine settings are one table: each label once, a value per engine', async ({ page }) => {
+    await page.goto('/settings')
+    const engine = page.getByRole('region', { name: 'Engine' })
+    await expect(engine.getByText(/^Scan time per move/)).toHaveCount(1)
+    await expect(engine.getByLabel('Scan time per move (50–1000 ms), Chess.com games')).toHaveValue('100')
+    await expect(engine.getByLabel('Scan time per move (50–1000 ms), Practice games')).toHaveValue('200')
+    // Retired, but its values are one tap away.
+    await engine.getByText('Retired explanations').click()
+    await expect(engine.getByLabel('Written explanations per game (0–50), Chess.com games')).toHaveValue('3')
+  })
+
+  test.describe('on a phone', () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
+    test('the engine table stacks, and every value says which engine it is for', async ({ page }) => {
+      await page.goto('/settings')
+      const engine = page.getByRole('region', { name: 'Engine' })
+      await expect(engine.locator('.only-stacked').first()).toBeVisible()
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+      expect(overflow).toBeLessThanOrEqual(0)
+    })
   })
 })

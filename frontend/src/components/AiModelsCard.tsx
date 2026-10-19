@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
+import { useHelp } from './report/ReportParts'
 
 const muted: React.CSSProperties = { color: 'var(--text-secondary)', fontSize: '0.78rem', lineHeight: 1.5 }
 
@@ -10,6 +11,8 @@ const muted: React.CSSProperties = { color: 'var(--text-secondary)', fontSize: '
  */
 export function AiModelsCard() {
   const { data: ai } = useQuery({ queryKey: ['settings-ai'], queryFn: api.settings.ai })
+  const [help, helpPanel] = useHelp('AI models',
+    'Ollama on this machine by default. A cloud provider is set in application.yml under praxis-chess.ai, per feature.')
   if (!ai) return null
 
   const cloudFeatures = ai.features.filter(f => f.cloud)
@@ -21,25 +24,25 @@ export function AiModelsCard() {
   return (
     <section className="card" aria-labelledby="ai-title">
       <h2 id="ai-title" style={{ fontSize: '1rem', marginBottom: 10 }}>
-        AI models
-        <span title="Ollama on this machine by default. A cloud provider is set in application.yml under praxis-chess.ai, per feature."
-              style={{ marginLeft: 6, color: 'var(--text-tertiary)', cursor: 'help', fontWeight: 400 }}>ⓘ</span>
+        AI models{help}
       </h2>
+      {helpPanel && <div style={{ marginTop: -4, marginBottom: 10 }}>{helpPanel}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '6px 16px', fontSize: '0.8rem' }}>
+      {/* Three columns, so the badges line up whatever the model name's length:
+          feature | where (left-aligned) | model (left-aligned). */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: '6px 12px',
+                    alignItems: 'center', fontSize: '0.8rem' }}>
         {ai.features.map(f => (
           <div key={f.feature} style={{ display: 'contents' }}>
             <span style={{ minWidth: 0 }}>{f.label}</span>
-            <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-              <span className="badge" style={{
-                marginRight: 8,
-                color: f.cloud ? 'var(--orchid)' : 'var(--text-muted)',
-                border: `1px solid ${f.cloud ? 'var(--orchid)' : 'var(--border)'}`,
-              }}>
-                {f.cloud ? ai.cloud_host ?? 'cloud' : 'this laptop'}
-              </span>
-              <span className="mono" style={{ color: 'var(--text-secondary)' }}>{f.model ?? 'off'}</span>
+            <span className="badge" style={{
+              justifySelf: 'start', whiteSpace: 'nowrap',
+              color: f.cloud ? 'var(--orchid)' : 'var(--text-muted)',
+              border: `1px solid ${f.cloud ? 'var(--orchid)' : 'var(--border)'}`,
+            }}>
+              {f.cloud ? ai.cloud_host ?? 'cloud' : 'this laptop'}
             </span>
+            <span className="mono" style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{f.model ?? 'off'}</span>
           </div>
         ))}
       </div>

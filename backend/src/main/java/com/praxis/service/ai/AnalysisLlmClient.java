@@ -32,11 +32,6 @@ public class AnalysisLlmClient {
         return analyze(Feature.EXPLANATIONS, prompt, OutputBudget.EXPLANATION, responseType);
     }
 
-    /** Pattern report and training plan. */
-    public <T> T analyzeReport(String prompt, Class<T> responseType) {
-        return analyze(Feature.REPORTS, prompt, OutputBudget.REPORT, responseType);
-    }
-
     private <T> T analyze(Feature feature, String prompt, OutputBudget budget, Class<T> responseType) {
         ModelRouter.Route route = router.forFeature(feature);
         String text = route.provider().completeWithRetry(CompletionRequest.standard(route.model(), prompt, budget));

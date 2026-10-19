@@ -147,7 +147,7 @@ export function Dashboard() {
             </div>
           </div>
           <Link
-            to="/training"
+            to="/insights/training"
             style={{
               display: 'inline-block', padding: '7px 15px', borderRadius: 3,
               background: 'var(--orchid)', color: 'var(--canvas)', fontWeight: 600,

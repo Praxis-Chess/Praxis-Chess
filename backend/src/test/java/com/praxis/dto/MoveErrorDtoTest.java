@@ -53,6 +53,24 @@ class MoveErrorDtoTest {
         assertThat(MoveErrorDto.from(mistake(), failed).verified().commentary()).isNull();
     }
 
+    /** Phase 12 (D2): the old model's text and label are kept in the database, never shown. */
+    @Test
+    void neverShowsTheOldModelsExplanationOrLabel() {
+        var m = mistake();
+        when(m.getExplanation()).thenReturn("An unchecked sentence from the old per-move model.");
+        when(m.getTacticalMotif()).thenReturn(com.praxis.domain.enums.TacticalMotif.PIN);
+        var e = MistakeEvidence.builder().ruleMotif("FORK").ruleMechanism("CREATED_TACTIC")
+                .graphVersion(com.praxis.evidence.graph.EvidenceGraphBuilder.GRAPH_VERSION)
+                .ruleDiagnosisJson(GraphJson.write(DiagnosisRules.diagnose(TestGraphs.scholarsMate())))
+                .ruleDiagnosisVerified(true).build();
+
+        var dto = MoveErrorDto.from(m, e);
+
+        assertThat(dto.explanation()).isNull();
+        assertThat(dto.tacticalMotif()).isEqualTo("FORK");
+        assertThat(MoveErrorDto.from(m).tacticalMotif()).isNull();   // undiagnosed: no label at all
+    }
+
     @Test
     void hasNoneBeforeTheMistakeIsDiagnosed() {
         assertThat(MoveErrorDto.from(mistake()).verified()).isNull();

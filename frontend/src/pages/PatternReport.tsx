@@ -1,160 +1,275 @@
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { api } from '../api/client'
+import type { ReportCount, ReportFacts, ReportRate, ReportWeakness } from '../api/types'
 import { usePatternReport } from '../hooks/usePatternReport'
-import { PatternHeatmap } from '../components/PatternHeatmap'
 import { LoadingSpinner } from '../components/LoadingSpinner'
-import { PraxAnchor } from '../prax/PraxHost'
+import {
+  Bars, Disclose, Positions, dayMonth, drillLink, itemTitle, linkButton, linkStyle, marker, muted, rate1,
+  sectionLabel, sectionTitle, statLine,
+} from '../components/report/ReportParts'
 
+/**
+ * Insights → Pattern Report (Phase 12).
+ *
+ * Principles, in order: say what the data measures (cost is winning chances
+ * lost, a rate is per 100 moves); show what a figure is compared with (your own
+ * overall rate, your own average per game); account for the whole (every cause
+ * and every tactic, not only the top ones); one threshold for "too few"; one
+ * format per fact; pink only for what can be clicked; show, don't tell: no
+ * sentence repeats a number already on screen, method sits behind one
+ * disclosure per section, and every caveat stays visible.
+ */
 export function PatternReport() {
+  const qc = useQueryClient()
+  const navigate = useNavigate()
   const { data: pattern, isLoading } = usePatternReport()
+  const { data: plan } = useQuery({ queryKey: ['training-plan'], queryFn: api.trainingPlan.latest })
+  const [fullDrills, setFullDrills] = useState(false)
+  const rebuild = useMutation({
+    mutationFn: api.patterns.recompute,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['patterns'] }),
+  })
+  const makePlan = useMutation({
+    mutationFn: api.trainingPlan.generate,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['training-plan'] }); navigate('/insights/training') },
+  })
 
-  if (isLoading) return <LoadingSpinner label="Analysing patterns…" />
-  if (!pattern) {
+  if (isLoading) return <LoadingSpinner label="Loading the report…" />
+
+  const rebuildButton = (
+    <button className="secondary" onClick={() => rebuild.mutate()} disabled={rebuild.isPending}
+            style={{ fontSize: '0.78rem', padding: '4px 10px' }}>
+      {rebuild.isPending ? 'Rebuilding…' : 'Rebuild'}
+    </button>
+  )
+
+  // Reports made before this layout have another shape: offer a rebuild.
+  if (!pattern?.facts || pattern.facts.min_sample == null) {
     return (
-      <div>
-        <h1 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 12 }}>Pattern Report</h1>
-        <p style={{ color: 'var(--text-muted)' }}>No pattern data yet. Sync and analyze your games first.</p>
-
-        {/* See Drills.tsx — every return branch places Prax. */}
-        <PraxAnchor x={0.9} y={0.45} />
-      </div>
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <h3 style={{ ...sectionTitle, borderTop: 'none', paddingTop: 0 }}>Pattern Report</h3>
+        <p style={muted}>
+          {pattern ? 'This report was made by an older version. Rebuild it to see the current one.'
+                   : 'No report yet. It is built after each analysis run, or now.'}
+        </p>
+        <div>{rebuildButton}</div>
+        {rebuild.isError && <p role="alert" style={{ ...muted, color: 'var(--red)' }}>Could not rebuild: {(rebuild.error as Error).message}</p>}
+      </section>
     )
   }
 
-  const motifData: Record<string, number> = pattern.motif_frequency ? JSON.parse(pattern.motif_frequency) : {}
-
-  const totalMistakes = pattern.mistakes_opening + pattern.mistakes_middlegame + pattern.mistakes_endgame
-  const gamesAnalyzed = pattern.games_analyzed || 1
-  const totalMotifCount = Object.values(motifData).reduce((s, v) => s + v, 0) || 1
-
-  const phaseData = [
-    { phase: 'Opening',    count: pattern.mistakes_opening,    color: 'var(--green)' },
-    { phase: 'Middlegame', count: pattern.mistakes_middlegame, color: 'var(--yellow)' },
-    { phase: 'Endgame',    count: pattern.mistakes_endgame,    color: 'var(--red)' },
-  ]
-
-  const sortedMotifs = Object.entries(motifData).sort(([, a], [, b]) => b - a)
+  const f = pattern.facts
+  const prose = pattern.prose_status === 'checked' ? pattern.prose?.summary : null
+  const overall = f.player_moves > 0 ? Math.round((1000 * f.serious) / f.player_moves) / 10 : 0
+  const short = (w: ReportWeakness) => pattern.drill_short?.[w.key] ?? null
+  const hasPlan = !!plan?.plan?.sessions?.every(s => typeof s.goal === 'string')
+  const anyDrill = [...f.top_causes, ...f.top_tactics].length > 0
+  const drillsToggle = anyDrill && (
+    <button type="button" data-disclose aria-expanded={fullDrills} onClick={() => setFullDrills(!fullDrills)} style={linkButton}>
+      {fullDrills ? 'Hide full drills' : 'Show full drills'}
+    </button>
+  )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-        <h1 style={{ fontSize: '1.3rem', fontWeight: 700 }}>Pattern Report</h1>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          {pattern.games_analyzed} games · {totalMistakes} mistakes flagged
-        </span>
-      </div>
-
-      {/* AI-generated weaknesses — ranked by severity */}
-      {pattern.primary_weakness && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-          {[
-            { rank: 1, label: 'Primary Weakness',   text: pattern.primary_weakness,   color: 'var(--red)' },
-            { rank: 2, label: 'Secondary Weakness',  text: pattern.secondary_weakness, color: 'var(--yellow)' },
-            { rank: 3, label: 'Tertiary Weakness',   text: pattern.tertiary_weakness,  color: 'var(--accent)' },
-          ].filter(w => w.text).map(({ rank, label, text, color }) => (
-            <div key={rank} className="card" style={{ borderLeft: `2px solid ${color}` }}>
-              <div style={{ fontSize: '0.7rem', color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-                #{rank} {label}
-              </div>
-              <p style={{ fontSize: '0.85rem', lineHeight: 1.6 }}>{text}</p>
-            </div>
-          ))}
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+      <Headline f={f} overall={overall}
+                action={hasPlan
+                  ? <button className="solid" onClick={() => navigate('/insights/training')}>Train this week →</button>
+                  : <button className="solid" onClick={() => makePlan.mutate()} disabled={makePlan.isPending}>
+                      {makePlan.isPending ? 'Planning…' : 'Make my plan'}
+                    </button>} />
+      {makePlan.isError && <p role="alert" style={{ ...muted, color: 'var(--red)', margin: 0 }}>Could not make a plan: {(makePlan.error as Error).message}</p>}
+      {prose && (
+        <p style={{ ...muted, fontStyle: 'italic' }}>
+          {prose} <span style={{ fontStyle: 'normal' }}>(Written by AI; its numbers were checked, its wording was not.)</span>
+        </p>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {/* Mistake heatmap by move range */}
-        <div className="card">
-          <h2 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 16 }}>
-            Mistakes by Move Range
-          </h2>
-          <PatternHeatmap pattern={pattern} />
-          {pattern.critical_move_range && (
-            <p style={{ marginTop: 10, fontSize: '0.8rem', color: 'var(--orange)' }}>
-              Critical zone: <strong>{pattern.critical_move_range}</strong>
-            </p>
-          )}
-        </div>
-
-        {/* Phase breakdown */}
-        <div className="card">
-          <h2 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 16 }}>
-            Mistakes by Game Phase
-          </h2>
-          {phaseData.map(({ phase, count, color }) => {
-            const pct = Math.round((count / Math.max(1, totalMistakes)) * 100)
-            const perGame = gamesAnalyzed > 0 ? (count / gamesAnalyzed).toFixed(1) : '0'
-            return (
-              <div key={phase} style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.82rem' }}>
-                  <span>{phase}</span>
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    {count} ({pct}%) · <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{perGame}/game</span>
-                  </span>
-                </div>
-                <div style={{ height: 8, background: 'var(--surface-2)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4 }} />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Tactical motif ranking */}
-      {sortedMotifs.length > 0 && (
-        <div className="card">
-          <h2 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 16 }}>
-            Tactical Motifs — Ranked by Frequency
-            {pattern.dominant_motif && (
-              <span style={{ marginLeft: 10, color: 'var(--orange)', fontWeight: 400 }}>
-                dominant: {pattern.dominant_motif.replace(/_/g, ' ')}
-              </span>
-            )}
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
-            {sortedMotifs.map(([motif, count], i) => {
-              const pctOfErrors = Math.round((count / Math.max(1, totalMistakes)) * 100)
-              const barPct = Math.round((count / totalMotifCount) * 100)
-              return (
-                <div key={motif} className="card" style={{ padding: '10px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                    <span style={{
-                      fontSize: '0.62rem', color: 'var(--text-muted)',
-                      background: 'var(--surface-2)', borderRadius: 10,
-                      padding: '1px 6px', fontWeight: 600,
-                    }}>#{i + 1}</span>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--yellow)' }}>{count}</span>
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text)', fontWeight: 500 }}>
-                    {motif.replace(/_/g, ' ')}
-                  </div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                    {pctOfErrors}% of flagged errors
-                  </div>
-                  <div style={{ height: 3, background: 'var(--surface-2)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${barPct}%`, background: 'var(--yellow)', borderRadius: 2 }} />
-                  </div>
-                </div>
-              )
-            })}
+      <section aria-labelledby="causes-title" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <h3 id="causes-title" style={sectionTitle}>What goes wrong</h3>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <p data-reading="intro" style={sectionLabel}>Ranked by winning chances lost</p>
+            {drillsToggle}
           </div>
         </div>
-      )}
+        {f.top_causes.length === 0
+          ? <p style={muted}>No cause has {f.min_sample} serious mistakes behind it yet.</p>
+          : <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {f.top_causes.map((w, i) => (
+                <WeaknessRow key={w.key} label={String(i + 1)} w={w} short={short(w)} full={fullDrills} />
+              ))}
+            </ol>}
+        <Remainder rows={f.causes} shown={f.top_causes} extra={f.no_cause > 0 ? `no cause found ${f.no_cause}` : null} />
+      </section>
 
-      {/* Opening assessment */}
-      {pattern.opening_assessment && (
-        <div className="card">
-          <h2 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8 }}>
-            Opening Assessment
-          </h2>
-          <p style={{ fontSize: '0.85rem', lineHeight: 1.6 }}>{pattern.opening_assessment}</p>
+      <section aria-labelledby="tactics-title" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <h3 id="tactics-title" style={sectionTitle}>Tactics your opponent got</h3>
+          <p data-reading="intro" style={sectionLabel}>
+            No proven tactic in <span className="mono">{f.no_named_tactic}</span> of <span className="mono">{f.diagnosed_serious}</span>
+          </p>
+          <Disclose>
+            The tactic your opponent had after your move, or a piece of yours left undefended. A tactic is named only
+            when the board proves it; the rest are counted, never guessed.
+          </Disclose>
         </div>
-      )}
+        {f.top_tactics.length > 0 && (
+          <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {f.top_tactics.map(w => (
+              <WeaknessRow key={w.key} label="–" w={w} short={short(w)} full={fullDrills} note={overlapNote(w, f.top_causes)} />
+            ))}
+          </ol>
+        )}
+        <Remainder rows={f.tactics} shown={f.top_tactics} extra={null} />
+      </section>
 
-      {/* Contract §4 — the PAGE decides where Prax belongs. Without this
-          the registry falls back to a fixed 0.68/0.46, which on this
-          layout is directly on top of the content. */}
-      {/* Right of the report column. */}
-      <PraxAnchor x={0.9} y={0.45} />
+      <section id="where-they-happen" aria-labelledby="where-title" style={{ display: 'flex', flexDirection: 'column', gap: 14, scrollMarginTop: 72 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <h3 id="where-title" style={sectionTitle}>Where they happen</h3>
+          <p data-reading="intro" style={sectionLabel}>
+            Per 100 of your moves · line = your rate, <span className="mono">{rate1(overall)}</span>
+          </p>
+          <Disclose>
+            Serious mistakes for every 100 moves you played in that part of the game. A brighter bar is above your
+            overall rate. A figure with fewer than {f.min_sample} mistakes behind it is faded, marked few, and never
+            called the worst.
+          </Disclose>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 22 }}>
+          <RateBars title="By phase" rows={f.by_phase} baseline={overall} />
+          <RateBars title="By move number" rows={f.by_move_range} baseline={overall} />
+        </div>
+        {!f.time_pressure.enough && (
+          <p style={sectionLabel}>
+            Time trouble: clock data on <span className="mono">{f.time_pressure.with_clock}</span> of{' '}
+            <span className="mono">{f.serious}</span>, fewer than {f.min_sample}
+          </p>
+        )}
+      </section>
+
+      <section aria-labelledby="openings-title" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <h3 id="openings-title" style={sectionTitle}>Openings above your average</h3>
+        {f.openings.length === 0 ? (
+          <p style={muted}>
+            None: no opening with 3 or more games and {f.min_sample} or more serious mistakes is a fifth above your
+            average of <span className="mono">{rate1(f.per_game)}</span> per game.
+          </p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>
+              <caption style={{ ...muted, textAlign: 'left', paddingBottom: 6 }}>
+                Your average: <span className="mono">{rate1(f.per_game)}</span> per game
+              </caption>
+              <thead>
+                <tr style={{ color: 'var(--text-secondary)', textAlign: 'left' }}>
+                  <th scope="col" style={{ padding: '4px 8px', fontWeight: 500 }}>Opening</th>
+                  <th scope="col" style={{ padding: '4px 8px', fontWeight: 500, textAlign: 'right' }}>Games</th>
+                  <th scope="col" style={{ padding: '4px 8px', fontWeight: 500, textAlign: 'right' }}>Per game</th>
+                  <th scope="col" style={{ padding: '4px 8px', fontWeight: 500, textAlign: 'right' }}>vs average</th>
+                </tr>
+              </thead>
+              <tbody>
+                {f.openings.map(o => (
+                  <tr key={o.name} style={{ borderTop: '1px solid var(--hairline)' }}>
+                    <td style={{ padding: '4px 8px' }}>{o.name}</td>
+                    <td className="mono" style={{ padding: '4px 8px', textAlign: 'right' }}>{o.games}</td>
+                    <td className="mono" style={{ padding: '4px 8px', textAlign: 'right' }}>{rate1(o.serious_per_game)}</td>
+                    <td className="mono" style={{ padding: '4px 8px', textAlign: 'right' }}>×{o.vs_average.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <p style={{ ...muted, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
+        <span>
+          <span className="mono">{f.games_analysed}</span> analyzed games · {dayMonth(new Date(pattern.computed_at))}
+          {f.diagnosed_serious < f.serious && <> · {f.serious - f.diagnosed_serious} serious mistakes not diagnosed yet</>}
+        </span>
+        {rebuildButton}
+      </p>
+    </div>
+  )
+}
+
+/** The one thing to take away; where mistakes cluster, as a label; and the next step. */
+function Headline({ f, overall, action }: { f: ReportFacts; overall: number; action: React.ReactNode }) {
+  const top = f.top_causes[0]
+  const worst = f.by_phase.find(r => r.key === f.worst_phase)
+  return (
+    <section aria-label="Summary" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <p data-reading="takeaway" style={{ fontSize: '1.1rem', lineHeight: 1.5, color: 'var(--text)', margin: 0 }}>
+        {top
+          ? <>Your costliest habit: <strong>{top.title.toLowerCase()}</strong>.</>
+          : <>No cause has {f.min_sample} serious mistakes behind it yet.</>}
+      </p>
+      {worst && f.player_moves > 0 && (
+        <p style={sectionLabel}>
+          <span className="micro-label" style={{ marginRight: 4 }}>Most often</span>{' '}
+          <a href="#where-they-happen" style={{ ...linkStyle, fontWeight: 600 }}>{worst.label}</a>
+          {' · '}<span className="mono">{rate1(worst.per_hundred)}</span> vs <span className="mono">{rate1(overall)}</span> per 100 moves
+        </p>
+      )}
+      <div style={{ paddingTop: 4 }}>{action}</div>
+    </section>
+  )
+}
+
+function WeaknessRow({ w, label, note, short, full }: {
+  w: ReportWeakness; label: string; note?: string | null; short: string | null; full: boolean
+}) {
+  return (
+    <li aria-label={w.title} style={{ display: 'grid', gridTemplateColumns: '1.5rem minmax(0, 1fr)', gap: 8 }}>
+      <span style={marker}>{label}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <h4 style={itemTitle}>{w.title}</h4>
+        <span style={{ ...muted, fontSize: '0.78rem' }}>{statLine(w)}</span>
+        <p data-reading={short ? 'item' : undefined} style={{ ...muted, margin: 0, color: 'var(--text)' }}>{short ?? w.drill}</p>
+        {full && short && <p style={{ ...muted, margin: 0 }}>{w.drill}</p>}
+        {note && <p style={{ ...muted, margin: 0, fontSize: '0.75rem' }}>{note}</p>}
+        <Positions positions={w.positions} />
+        {w.positions.length > 0 && (
+          <Link to={drillLink(w.positions)} style={{ ...linkStyle, fontSize: '0.78rem', width: 'fit-content' }}>
+            Drill {w.positions.length === 1 ? 'this position' : `these ${w.positions.length}`}
+          </Link>
+        )}
+      </div>
+    </li>
+  )
+}
+
+/** The rest of the list, so the section accounts for every mistake. */
+function Remainder({ rows, shown, extra }: { rows: ReportCount[]; shown: ReportWeakness[]; extra: string | null }) {
+  const rest = rows.filter(r => !shown.some(w => w.key === r.key)).map(r => `${r.label} ${r.count}`)
+  if (extra) rest.push(extra)
+  if (rest.length === 0) return null
+  return <p style={muted}>The rest: {rest.join(', ')}.</p>
+}
+
+/** One mistake can have a cause and a tactic; say how much of a tactic is already above. */
+function overlapNote(t: ReportWeakness, causes: ReportWeakness[]) {
+  const ids = (w: ReportWeakness) => new Set(w.positions.map(p => `${p.game_id}:${p.ply}`))
+  const mine = ids(t)
+  const best = causes
+    .map(c => ({ c, shared: [...ids(c)].filter(k => mine.has(k)).length }))
+    .sort((a, b) => b.shared - a.shared)[0]
+  if (!best || best.shared === 0) return null
+  return `${best.shared} of ${t.count} also under: ${best.c.title}`
+}
+
+function RateBars({ title, rows, baseline }: { title: string; rows: ReportRate[]; baseline: number }) {
+  return (
+    <div>
+      <div className="micro-label" style={{ marginBottom: 8 }}>{title}</div>
+      <Bars baseline={baseline} rows={rows.filter(r => r.moves > 0).map(r => ({
+        key: r.key, label: r.label, value: r.per_hundred, enough: r.enough,
+        text: `${rate1(r.per_hundred)} · ${r.count} of ${r.moves}`,
+      }))} />
     </div>
   )
 }

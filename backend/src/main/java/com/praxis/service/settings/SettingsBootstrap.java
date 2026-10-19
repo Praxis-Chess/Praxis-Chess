@@ -61,6 +61,50 @@ public class SettingsBootstrap implements ApplicationRunner {
         } catch (Exception e) {
             log.warn("[settings] bootstrap failed: {}", e.getMessage());
         }
+        try {
+            retireExplanations();
+        } catch (Exception e) {
+            log.warn("[settings] could not switch off per-move explanations: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Phase 12, once per install: per-move written explanations off. Every mistake
+     * has a verified diagnosis instead, and the old model's text is no longer
+     * shown. Recorded as a new settings version like any other change; a version
+     * no game was analysed with yet (a fresh install) is changed in place.
+     */
+    private void retireExplanations() {
+        AppSettings a = app.findById(AppSettings.SINGLETON_ID).orElse(null);
+        if (a == null || a.getExplanationsRetiredAt() != null) return;
+        for (String kind : java.util.List.of(AnalysisSettings.LIBRARY, AnalysisSettings.PRACTICE)) {
+            AnalysisSettings cur = versions.findFirstByKindAndActiveTrueOrderByIdDesc(kind).orElse(null);
+            if (cur == null || Integer.valueOf(0).equals(cur.getMaxExplanations())) continue;
+            Integer used = jdbc.queryForObject(
+                    "SELECT count(*) FROM games WHERE analysis_settings_id = ?", Integer.class, cur.getId());
+            if (used == null || used == 0) {
+                cur.setMaxExplanations(0);
+                versions.save(cur);
+                log.info("[settings] {}: per-move explanations off", cur.getLabel());
+                continue;
+            }
+            cur.setActive(false);
+            versions.save(cur);
+            AnalysisSettings off = AnalysisSettings.builder()
+                    .kind(kind)
+                    .label(kind.toLowerCase(java.util.Locale.ROOT) + "-v" + versions.findByKindOrderByIdDesc(kind).size())
+                    .sweepMoveTimeMs(cur.getSweepMoveTimeMs())
+                    .multiPvDepth(cur.getMultiPvDepth())
+                    .multiPvLines(cur.getMultiPvLines())
+                    .maxExplanations(0)
+                    .active(true)
+                    .build();
+            versions.save(off);
+            log.info("[settings] {}: per-move explanations off (was {} per game, now settings {})",
+                    kind, cur.getMaxExplanations() == null ? "all" : cur.getMaxExplanations(), off.getLabel());
+        }
+        a.setExplanationsRetiredAt(java.time.OffsetDateTime.now());
+        app.save(a);
     }
 
     /** The v0 row for a kind, created if the kind has no rows at all. */

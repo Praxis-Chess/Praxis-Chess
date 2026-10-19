@@ -1,5 +1,6 @@
 import type { MoveError } from '../api/types'
 import { CONSEQUENCE, MECHANISM } from './WhyPanel'
+import { uciToSan } from './san'
 
 interface Props {
   error: MoveError
@@ -54,7 +55,7 @@ export function MoveErrorCard({ error, isSelected, onClick }: Props) {
       </div>
       {error.better_move && (
         <div style={{ fontSize: '0.8rem', color: 'var(--green)', marginBottom: 4 }}>
-          Engine best: <strong>{error.better_move}</strong>
+          Engine best: <strong>{uciToSan(error.fen_position, error.better_move)}</strong>
         </div>
       )}
       {/* Phase 9: the rules' verified diagnosis leads. The rules won the
@@ -78,20 +79,12 @@ export function MoveErrorCard({ error, isSelected, onClick }: Props) {
           <span style={{ fontWeight: 600 }}>AI commentary</span>
           <span style={{ color: 'var(--green)', fontWeight: 600 }}> · checked</span>: {error.verified.commentary}
         </p>
-      ) : error.explanation && error.analysis_state === 'EXPLAINED' && (
-        <p style={{ fontSize: error.verified ? '0.76rem' : '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-          {error.verified && <span style={{ fontWeight: 600 }}>AI commentary: </span>}
-          {error.explanation}
-        </p>
-      )}
-      {!error.verified && error.analysis_state === 'SKIPPED' && (
+      ) : null}
+      {/* Phase 12: the old per-move model's text is never shown; without a
+          diagnosis yet, the Why? panel builds one on request. */}
+      {!error.verified && (
         <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-          Found by the engine, but not among the mistakes written up for this game.
-        </p>
-      )}
-      {error.analysis_state === 'LLM_FAILED' && (
-        <p style={{ fontSize: '0.78rem', color: 'var(--red)', fontStyle: 'italic' }}>
-          AI commentary failed for this move.
+          Not diagnosed yet: open Why? to check this move.
         </p>
       )}
       {error.clock_remaining !== null && error.clock_remaining !== undefined && error.clock_remaining <= 30 && (

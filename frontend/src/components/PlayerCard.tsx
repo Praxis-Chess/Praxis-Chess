@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
+import { useHelp } from './report/ReportParts'
 
 const muted: React.CSSProperties = { color: 'var(--text-secondary)', fontSize: '0.78rem', lineHeight: 1.5 }
 
@@ -17,6 +18,8 @@ export function PlayerCard() {
   const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => { if (player) setName(player.username) }, [player])
+  const [help, helpPanel] = useHelp('usernames',
+    'Games are kept per username: switching shows that player’s games, and the others stay stored.')
 
   // Today's checklist links here as /settings#player.
   useEffect(() => {
@@ -60,10 +63,11 @@ export function PlayerCard() {
       {error && <p role="alert" style={{ ...muted, color: 'var(--red)', marginTop: 8 }}>{error}</p>}
       {notice && <p role="status" style={{ ...muted, marginTop: 8 }}>{notice}</p>}
       <p id="player-help" style={{ ...muted, marginTop: 8 }}>
-        {player.source === 'config' && <>Currently from <span className="mono">application.yml</span>; saving here takes over. </>}
-        {player.source === 'none' && <>Praxis reads this player&rsquo;s public games from Chess.com. No account or password. </>}
-        Games are kept per username: switching shows that player&rsquo;s games, and the others stay stored.
+        {player.source === 'config' && <>Currently from <span className="mono">application.yml</span>; saving here takes over.</>}
+        {player.source === 'none' && <>Public games only: no account or password.</>}
+        {help}
       </p>
+      {helpPanel}
     </section>
   )
 }

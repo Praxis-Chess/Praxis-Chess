@@ -1,0 +1,829 @@
+{
+ "screen": "settings",
+ "state": "first-run",
+ "path": "/settings",
+ "metrics": {
+  "prose": 275,
+  "data": 66,
+  "paragraphs": [
+   "Praxis reads this player’s public games from Chess.com. No account or password. Games are kept per username: switching shows that player’s games, and the others stay stored.",
+   "Last backup 3 h ago (no change since 27 h ago) · 3 snapshots · 4.5 MB · test restore passed 2 days ago",
+   "Automatic once a day while Docker is running, and before every re-analysis. A day with no changes adds no file. Snapshots are never deleted, and they stay on this computer: D:/praxis/backups/dev.",
+   "Chess.com games: ≈ 46 s per game. Re-analysing the 5 games in range: ≈ 4 min (measured on 12 games with library-v0)",
+   "Practice games: ≈ 2 min per game, within the report window (measured on 12 games with library-v0)"
+  ]
+ },
+ "pairs": [
+  [
+   "",
+   "~settings",
+   2
+  ],
+  [
+   "AI modelsⓘ",
+   "~ai models",
+   1
+  ],
+  [
+   "AI modelsⓘ",
+   "~checked commentary (your trained model)",
+   1
+  ],
+  [
+   "AI modelsⓘ",
+   "~commentary",
+   1
+  ],
+  [
+   "AI modelsⓘ",
+   "~pattern report, training plan, today's insight",
+   1
+  ],
+  [
+   "AI modelsⓘ",
+   "~prax",
+   1
+  ],
+  [
+   "AI modelsⓘ",
+   "~prax chat",
+   1
+  ],
+  [
+   "AI modelsⓘ",
+   "~this laptop",
+   3
+  ],
+  [
+   "AI modelsⓘ",
+   "praxis-grid-2b-r3",
+   1
+  ],
+  [
+   "AI modelsⓘ",
+   "qwen3:4b-instruct",
+   2
+  ],
+  [
+   "Backups",
+   "~backups",
+   1
+  ],
+  [
+   "Backups",
+   "~passed",
+   1
+  ],
+  [
+   "Backups",
+   "2",
+   1
+  ],
+  [
+   "Backups",
+   "27",
+   1
+  ],
+  [
+   "Backups",
+   "3",
+   2
+  ],
+  [
+   "Backups",
+   "4.5",
+   1
+  ],
+  [
+   "Backups > 10/13/2026, 9:00:00 AM",
+   "~daily",
+   1
+  ],
+  [
+   "Backups > 10/13/2026, 9:00:00 AM",
+   "~passed",
+   1
+  ],
+  [
+   "Backups > 10/13/2026, 9:00:00 AM",
+   "1.4",
+   1
+  ],
+  [
+   "Backups > 10/13/2026, 9:00:00 AM",
+   "10/13/2026",
+   1
+  ],
+  [
+   "Backups > 10/13/2026, 9:00:00 AM",
+   "398",
+   1
+  ],
+  [
+   "Backups > 10/13/2026, 9:00:00 AM",
+   "9:00:00",
+   1
+  ],
+  [
+   "Backups > 10/14/2026, 9:00:00 AM",
+   "~daily",
+   1
+  ],
+  [
+   "Backups > 10/14/2026, 9:00:00 AM",
+   "1.5",
+   1
+  ],
+  [
+   "Backups > 10/14/2026, 9:00:00 AM",
+   "10/14/2026",
+   1
+  ],
+  [
+   "Backups > 10/14/2026, 9:00:00 AM",
+   "405",
+   1
+  ],
+  [
+   "Backups > 10/14/2026, 9:00:00 AM",
+   "9:00:00",
+   1
+  ],
+  [
+   "Backups > 10/15/2026, 9:00:00 AM",
+   "~before re-analysis",
+   1
+  ],
+  [
+   "Backups > 10/15/2026, 9:00:00 AM",
+   "1.6",
+   1
+  ],
+  [
+   "Backups > 10/15/2026, 9:00:00 AM",
+   "10/15/2026",
+   1
+  ],
+  [
+   "Backups > 10/15/2026, 9:00:00 AM",
+   "412",
+   1
+  ],
+  [
+   "Backups > 10/15/2026, 9:00:00 AM",
+   "9:00:00",
+   1
+  ],
+  [
+   "Backups > How to restore",
+   "~docker compose exec backup backup list",
+   1
+  ],
+  [
+   "Backups > How to restore",
+   "praxis-20261014-090000.sql.gz",
+   3
+  ],
+  [
+   "Coverage",
+   "~analysed",
+   2
+  ],
+  [
+   "Coverage",
+   "~failed",
+   1
+  ],
+  [
+   "Coverage",
+   "~pending",
+   1
+  ],
+  [
+   "Coverage",
+   "0",
+   1
+  ],
+  [
+   "Coverage",
+   "1",
+   1
+  ],
+  [
+   "Coverage",
+   "2026-07-03",
+   1
+  ],
+  [
+   "Coverage",
+   "2026-08-20",
+   1
+  ],
+  [
+   "Coverage",
+   "3",
+   2
+  ],
+  [
+   "Coverage",
+   "4",
+   1
+  ],
+  [
+   "Coverage",
+   "5",
+   1
+  ],
+  [
+   "Coverage > ▾ 2026-07",
+   "0",
+   2
+  ],
+  [
+   "Coverage > ▾ 2026-07",
+   "2",
+   2
+  ],
+  [
+   "Coverage > ▾ 2026-07",
+   "2026-07",
+   1
+  ],
+  [
+   "Coverage > ▾ 2026-07",
+   "library-v0",
+   1
+  ],
+  [
+   "Coverage > ▾ 2026-08",
+   "0",
+   1
+  ],
+  [
+   "Coverage > ▾ 2026-08",
+   "1",
+   1
+  ],
+  [
+   "Coverage > ▾ 2026-08",
+   "2",
+   1
+  ],
+  [
+   "Coverage > ▾ 2026-08",
+   "2026-08",
+   1
+  ],
+  [
+   "Coverage > ▾ 2026-08",
+   "3",
+   1
+  ],
+  [
+   "Coverage > ▾ 2026-08",
+   "library-v0",
+   1
+  ],
+  [
+   "Coverage > 2026-07-03",
+   "0",
+   2
+  ],
+  [
+   "Coverage > 2026-07-03",
+   "2",
+   2
+  ],
+  [
+   "Coverage > 2026-07-03",
+   "2026-07-03",
+   1
+  ],
+  [
+   "Coverage > 2026-08-05",
+   "0",
+   2
+  ],
+  [
+   "Coverage > 2026-08-05",
+   "1",
+   2
+  ],
+  [
+   "Coverage > 2026-08-05",
+   "2026-08-05",
+   1
+  ],
+  [
+   "Coverage > 2026-08-20",
+   "0",
+   1
+  ],
+  [
+   "Coverage > 2026-08-20",
+   "1",
+   2
+  ],
+  [
+   "Coverage > 2026-08-20",
+   "2",
+   1
+  ],
+  [
+   "Coverage > 2026-08-20",
+   "2026-08-20",
+   1
+  ],
+  [
+   "Coverage > Month",
+   "~analysed",
+   2
+  ],
+  [
+   "Coverage > Month",
+   "~failed",
+   1
+  ],
+  [
+   "Coverage > Month",
+   "~pending",
+   1
+  ],
+  [
+   "Engine for practice games",
+   "~[off] every flagged move",
+   1
+  ],
+  [
+   "Engine for practice games",
+   "~explanations",
+   1
+  ],
+  [
+   "Engine for practice games",
+   "0–50",
+   1
+  ],
+  [
+   "Engine for practice games",
+   "1–10",
+   1
+  ],
+  [
+   "Engine for practice games",
+   "12–30",
+   1
+  ],
+  [
+   "Engine for practice games",
+   "5",
+   1
+  ],
+  [
+   "Engine for practice games",
+   "50–1000",
+   1
+  ],
+  [
+   "Engine for practice games",
+   "practice-v0",
+   1
+  ],
+  [
+   "Engine for practice games > Candidate moves per position (1–10)ⓘ",
+   "4",
+   1
+  ],
+  [
+   "Engine for practice games > Deep-check depth (12–30)ⓘ",
+   "20",
+   1
+  ],
+  [
+   "Engine for practice games > Scan time per move (50–1000 ms)ⓘ",
+   "200",
+   1
+  ],
+  [
+   "Engine for practice games > Written explanations per game (0–50)ⓘ",
+   "10",
+   1
+  ],
+  [
+   "Engine for your Chess.com games",
+   "~[off] every flagged move",
+   1
+  ],
+  [
+   "Engine for your Chess.com games",
+   "~explanations",
+   1
+  ],
+  [
+   "Engine for your Chess.com games",
+   "0–50",
+   1
+  ],
+  [
+   "Engine for your Chess.com games",
+   "1–10",
+   1
+  ],
+  [
+   "Engine for your Chess.com games",
+   "12–30",
+   1
+  ],
+  [
+   "Engine for your Chess.com games",
+   "50–1000",
+   1
+  ],
+  [
+   "Engine for your Chess.com games",
+   "library-v0",
+   1
+  ],
+  [
+   "Engine for your Chess.com games > Candidate moves per position (1–10)ⓘ",
+   "3",
+   1
+  ],
+  [
+   "Engine for your Chess.com games > Deep-check depth (12–30)ⓘ",
+   "18",
+   1
+  ],
+  [
+   "Engine for your Chess.com games > Scan time per move (50–1000 ms)ⓘ",
+   "100",
+   1
+  ],
+  [
+   "Engine for your Chess.com games > Written explanations per game (0–50)ⓘ",
+   "3",
+   1
+  ],
+  [
+   "Estimated time",
+   "12",
+   2
+  ],
+  [
+   "Estimated time",
+   "2",
+   1
+  ],
+  [
+   "Estimated time",
+   "4",
+   1
+  ],
+  [
+   "Estimated time",
+   "46",
+   1
+  ],
+  [
+   "Estimated time",
+   "5",
+   1
+  ],
+  [
+   "Estimated time",
+   "library-v0",
+   2
+  ],
+  [
+   "Library",
+   "~analyzed",
+   1
+  ],
+  [
+   "Library",
+   "~off",
+   1
+  ],
+  [
+   "Library",
+   "~pending",
+   1
+  ],
+  [
+   "Library",
+   "1",
+   2
+  ],
+  [
+   "Library",
+   "101",
+   1
+  ],
+  [
+   "Library",
+   "2",
+   1
+  ],
+  [
+   "Library",
+   "3",
+   1
+  ],
+  [
+   "Library",
+   "7:36:48",
+   1
+  ],
+  [
+   "Library",
+   "8/21/2026",
+   1
+  ],
+  [
+   "Library > Setup",
+   "~ai models",
+   1
+  ],
+  [
+   "Library > Setup > –",
+   "~off",
+   2
+  ],
+  [
+   "Library > Setup > –",
+   "~prax",
+   1
+  ],
+  [
+   "Library > Setup > –",
+   "~prax's voice",
+   1
+  ],
+  [
+   "Library > Setup > –",
+   "~voice",
+   1
+  ],
+  [
+   "Library > Setup > –",
+   "~web",
+   1
+  ],
+  [
+   "Library > Setup > –",
+   "~web research",
+   1
+  ],
+  [
+   "Library > Setup > !",
+   "~ai models",
+   1
+  ],
+  [
+   "Library > Setup > !",
+   "~downloading",
+   1
+  ],
+  [
+   "Library > Setup > !",
+   "2",
+   1
+  ],
+  [
+   "Library > Setup > ✓",
+   "~backups",
+   1
+  ],
+  [
+   "Library > Setup > ✓",
+   "~database",
+   1
+  ],
+  [
+   "Library > Setup > ✓",
+   "~postgresql reachable",
+   1
+  ],
+  [
+   "Library > Setup > ✓",
+   "~stockfish",
+   2
+  ],
+  [
+   "Library > Setup > ✓",
+   "19",
+   1
+  ],
+  [
+   "Library > Setup > ✓",
+   "3",
+   2
+  ],
+  [
+   "Library > Setup > ✓",
+   "4.5",
+   1
+  ],
+  [
+   "Library > Setup > ✕",
+   "@/settings",
+   1
+  ],
+  [
+   "Library > Setup > ✕",
+   "~chess.com username",
+   1
+  ],
+  [
+   "Library > Setup > ✕",
+   "~not set yet",
+   1
+  ],
+  [
+   "Library > Setup > ✕",
+   "~settings",
+   1
+  ],
+  [
+   "Library > Setup > ✕",
+   "~username",
+   1
+  ],
+  [
+   "Library > Setup > praxis-grid-2b-r3 · Checked commentary (trained for Praxis)",
+   "~checked commentary (trained for praxis)",
+   1
+  ],
+  [
+   "Library > Setup > praxis-grid-2b-r3 · Checked commentary (trained for Praxis)",
+   "~commentary",
+   1
+  ],
+  [
+   "Library > Setup > praxis-grid-2b-r3 · Checked commentary (trained for Praxis)",
+   "~queued",
+   1
+  ],
+  [
+   "Library > Setup > praxis-grid-2b-r3 · Checked commentary (trained for Praxis)",
+   "praxis-grid-2b-r3",
+   1
+  ],
+  [
+   "Library > Setup > qwen3:4b-instruct · Pattern report, training plan, Ask Prax",
+   "~ask prax",
+   1
+  ],
+  [
+   "Library > Setup > qwen3:4b-instruct · Pattern report, training plan, Ask Prax",
+   "~pattern report, training plan, ask prax",
+   1
+  ],
+  [
+   "Library > Setup > qwen3:4b-instruct · Pattern report, training plan, Ask Prax",
+   "~prax",
+   1
+  ],
+  [
+   "Library > Setup > qwen3:4b-instruct · Pattern report, training plan, Ask Prax",
+   "1.3",
+   1
+  ],
+  [
+   "Library > Setup > qwen3:4b-instruct · Pattern report, training plan, Ask Prax",
+   "2.5",
+   1
+  ],
+  [
+   "Library > Setup > qwen3:4b-instruct · Pattern report, training plan, Ask Prax",
+   "qwen3:4b-instruct",
+   1
+  ],
+  [
+   "Player",
+   "~chess.com username",
+   1
+  ],
+  [
+   "Player",
+   "~player",
+   1
+  ],
+  [
+   "Player",
+   "~username",
+   1
+  ],
+  [
+   "What to sync and analyseⓘ",
+   "~analysed",
+   1
+  ],
+  [
+   "What to sync and analyseⓘ > Time controls to analyse",
+   "~[off] blitz",
+   1
+  ],
+  [
+   "What to sync and analyseⓘ > Time controls to analyse",
+   "~[off] bullet",
+   1
+  ],
+  [
+   "What to sync and analyseⓘ > Time controls to analyse",
+   "~[off] daily",
+   1
+  ],
+  [
+   "What to sync and analyseⓘ > Time controls to analyse",
+   "~[on] rapid",
+   1
+  ],
+  [
+   "What to sync and analyseⓘ > Time controls to analyse",
+   "~blitz",
+   1
+  ],
+  [
+   "What to sync and analyseⓘ > Time controls to analyse",
+   "~bullet",
+   1
+  ],
+  [
+   "What to sync and analyseⓘ > Time controls to analyse",
+   "~daily",
+   1
+  ],
+  [
+   "What to sync and analyseⓘ > Time controls to analyse",
+   "~rapid",
+   1
+  ]
+ ],
+ "methods": [
+  [
+   "Library",
+   "Fetch new games (this month, or the sync range below)"
+  ],
+  [
+   "Library",
+   "Re-fetch the last three months and refresh accuracy data"
+  ],
+  [
+   "What to sync and analyseⓘ",
+   "A range decides what is fetched and analysed from now on. Games already stored are never deleted."
+  ],
+  [
+   "What to sync and analyseⓘ",
+   "Every game is synced. Mixing speeds blurs the patterns (bullet blunders are mostly the clock), so rapid alone is the default."
+  ],
+  [
+   "Engine for your Chess.com games > The first pass over every position. Decides which moves get ",
+   "The first pass over every position. Decides which moves get flagged."
+  ],
+  [
+   "Engine for your Chess.com games > How far ahead each flagged move is searched. Each extra ply ",
+   "How far ahead each flagged move is searched. Each extra ply costs roughly 1.5–2× the time."
+  ],
+  [
+   "Engine for your Chess.com games > The engine's top N moves from each position. Your played mov",
+   "The engine's top N moves from each position. Your played move is always checked as well. N lines costs roughly N× one."
+  ],
+  [
+   "Engine for your Chess.com games > How many flagged moves get a written explanation. The rest a",
+   "How many flagged moves get a written explanation. The rest are kept engine-only."
+  ],
+  [
+   "Engine for practice games > The first pass over every position. Decides which moves get ",
+   "The first pass over every position. Decides which moves get flagged."
+  ],
+  [
+   "Engine for practice games > How far ahead each flagged move is searched. Each extra ply ",
+   "How far ahead each flagged move is searched. Each extra ply costs roughly 1.5–2× the time."
+  ],
+  [
+   "Engine for practice games > The engine's top N moves from each position. Your played mov",
+   "The engine's top N moves from each position. Your played move is always checked as well. N lines costs roughly N× one."
+  ],
+  [
+   "Engine for practice games > How many flagged moves get a written explanation. The rest a",
+   "How many flagged moves get a written explanation. The rest are kept engine-only."
+  ],
+  [
+   "AI modelsⓘ",
+   "Ollama on this machine by default. A cloud provider is set in application.yml under praxis-chess.ai, per feature."
+  ],
+  [
+   "Backups > 10/15/2026, 9:00:00 AM",
+   "praxis-20261014-090000.sql.gz"
+  ],
+  [
+   "Backups > 10/14/2026, 9:00:00 AM",
+   "praxis-20261013-090000.sql.gz"
+  ],
+  [
+   "Backups > 10/13/2026, 9:00:00 AM",
+   "praxis-20261012-090000.sql.gz"
+  ]
+ ]
+}

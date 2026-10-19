@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom'
+import { Link, NavLink, useParams } from 'react-router-dom'
+import { PatternReport } from './PatternReport'
+import { TrainingPlan } from './TrainingPlan'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PraxAnchor } from '../prax/PraxHost'
@@ -8,18 +10,27 @@ import {
 } from 'recharts'
 import { api } from '../api/client'
 import type { TimeBucket, TimeClassCount } from '../api/types'
+import { Disclose, dayMonth } from '../components/report/ReportParts'
 
+// Results colours only: pink is for what can be clicked, so an even win rate is neutral.
 const wrColor = (pct: number) =>
-  pct >= 55 ? 'var(--green)' : pct >= 45 ? 'var(--accent)' : 'var(--red)'
+  pct >= 55 ? 'var(--green)' : pct >= 45 ? 'var(--text-primary)' : 'var(--red)'
+/** Bars behind a neutral figure: a brighter neutral, never the accent. */
+const wrBar = (pct: number) =>
+  pct >= 55 ? 'var(--green)' : pct >= 45 ? 'var(--grey-1)' : 'var(--red)'
+
+/** The diagnosis's "no tactic" categories: counted, never shown as a tactic (as in the Pattern Report). */
+const NOT_A_TACTIC = new Set(['POSITIONAL', 'OTHER'])
 
 const motifLabel = (m: string) =>
   m.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')
 
-function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: string }) {
+/** A card's title and, at most, a few words on what it measures. */
+function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>{children}</div>
-      {hint && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', opacity: 0.75, marginTop: 2 }}>{hint}</div>}
+      <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', margin: 0 }}>{children}</h3>
+      {hint && <div data-reading="intro" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{hint}</div>}
     </div>
   )
 }
@@ -59,7 +70,7 @@ function WinRateBars({ data }: { data: TimeBucket[] }) {
         <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} domain={[0, 100]} />
         <Tooltip {...tooltipStyle} formatter={(value, _name, item) => [`${value}% · ${(item as { payload?: { games?: number } })?.payload?.games ?? 0}g`, 'Win rate']} cursor={{ fill: 'var(--surface-2)' }} />
         <Bar dataKey="win_pct" radius={[3, 3, 0, 0]}>
-          {rows.map((r, i) => <Cell key={i} fill={r.games === 0 ? 'var(--surface-2)' : wrColor(r.win_pct)} />)}
+          {rows.map((r, i) => <Cell key={i} fill={r.games === 0 ? 'var(--surface-2)' : wrBar(r.win_pct)} />)}
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -113,14 +124,54 @@ function TimeClassPicker({ selected, options, onPick }: {
   return (
     <div role="group" aria-label="Time control" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
       {options.map(o => chip(o.time_class,
-        `${o.time_class[0].toUpperCase()}${o.time_class.slice(1)} · ${o.games}`,
+        `${o.time_class[0].toUpperCase()}${o.time_class.slice(1)} · ${o.games}${o.analysed ? '' : ' · results only'}`,
         o.analysed ? undefined : 'Not analysed: results and win rates only (Settings → time controls)'))}
       {chip('all', 'All')}
     </div>
   )
 }
 
+const TABS = [
+  { key: '', label: 'Overview', to: '/insights' },
+  { key: 'patterns', label: 'Pattern Report', to: '/insights/patterns' },
+  { key: 'training', label: 'Training Plan', to: '/insights/training' },
+]
+
+/**
+ * Insights, with the Pattern Report and Training Plan as tabs (Phase 12, D5).
+ * The old /patterns and /training routes redirect here.
+ */
 export function Insights() {
+  const { tab = '' } = useParams()
+  const active = TABS.some(t => t.key === tab) ? tab : ''
+  return (
+    // Insights is the one page whose analytics span the full column, leaving no
+    // negative space for Prax. Capping the width opens the right-hand column the
+    // other pages already have — Prax occupies space rather than competing for it.
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 'min(100%, 860px)' }}>
+      <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Insights</h2>
+      {/* A group, not a second <nav>: the app shell owns the one navigation landmark. */}
+      <div role="group" aria-label="Insights sections" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid var(--hairline)', paddingBottom: 8 }}>
+        {TABS.map(t => (
+          <NavLink key={t.key} to={t.to} end aria-current={active === t.key ? 'page' : undefined}
+                   style={{
+                     padding: '5px 12px', borderRadius: 4, fontSize: '0.82rem', textDecoration: 'none',
+                     color: active === t.key ? 'var(--orchid)' : 'var(--text-secondary)',
+                     background: active === t.key ? 'var(--accent-wash)' : 'transparent',
+                     fontWeight: active === t.key ? 600 : 400,
+                   }}>
+            {t.label}
+          </NavLink>
+        ))}
+      </div>
+      {active === 'patterns' ? <PatternReport /> : active === 'training' ? <TrainingPlan /> : <InsightsOverview />}
+      {/* Right of the capped analytics column, clear of KPI cards and charts. */}
+      <PraxAnchor x={0.85} y={0.45} />
+    </div>
+  )
+}
+
+function InsightsOverview() {
   // Undefined until a chip is clicked: the server picks the analysed time class.
   const [timeClass, setTimeClass] = useState<string | undefined>()
   const { data, isLoading, error } = useQuery({
@@ -136,7 +187,9 @@ export function Insights() {
   const tm = data.time_management
   const cv = data.conversion
   const phaseTotal = data.phase_accuracy.opening + data.phase_accuracy.middlegame + data.phase_accuracy.endgame || 1
-  const maxMotif = Math.max(1, ...data.missed_tactics.map(m => m.count))
+  const tactics = data.missed_tactics.filter(m => !NOT_A_TACTIC.has(m.motif))
+  const notTactics = data.missed_tactics.filter(m => NOT_A_TACTIC.has(m.motif))
+  const maxMotif = Math.max(1, ...tactics.map(m => m.count))
   // Placed by when each game was played, so a gap of a week looks like one and
   // four games on one day sit together.
   const accSeries = data.accuracy_trend.map(p => ({
@@ -150,17 +203,7 @@ export function Insights() {
   const hasRating = accSeries.some(p => p.rating != null)
 
   return (
-    // Insights is the one page whose analytics span the full column, leaving no
-    // negative space for Prax. Capping the width opens the right-hand column the
-    // other pages already have — Prax occupies space rather than competing for it.
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 'min(100%, 860px)' }}>
-      <div>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Insights</h2>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-          Practical analytics derived from your analyzed games — where your rating actually leaks.
-        </p>
-      </div>
-
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <TimeClassPicker selected={data.time_class ?? null} options={data.time_classes ?? []} onPick={setTimeClass} />
 
       <MixedSettingsNotice />
@@ -178,7 +221,7 @@ export function Insights() {
         </div>
 
         <div className="card">
-          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: tm.time_trouble_rate >= 40 ? 'var(--red)' : 'var(--accent)' }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: tm.time_trouble_rate >= 40 ? 'var(--red)' : 'var(--text-primary)' }}>
             {tm.total_blunders > 0 ? `${tm.time_trouble_rate}%` : '—'}
           </div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>Blunders in time trouble</div>
@@ -191,22 +234,18 @@ export function Insights() {
           <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
             {tm.avg_move_seconds != null ? `${tm.avg_move_seconds}s` : '—'}
           </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>Avg time per move</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>across timed games</div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>Avg move time</div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>timed games</div>
         </div>
 
         <Link to="/drills" className="card" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent)' }}>♟ Drill</div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>Practice your own blunders</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--accent)', marginTop: 2 }}>Open trainer →</div>
+          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent)' }}>♟ Drill →</div>
         </Link>
       </div>
 
       {/* Row 2 — accuracy trend (full width) */}
       <div className="card">
-        <SectionTitle hint={hasRating
-          ? 'Per-game accuracy with a rolling average of up to 10 games (left axis), and your Elo in each game (right axis). The first nine points average fewer games. Dates are to scale.'
-          : 'Per-game accuracy with a rolling average of up to 10 games, the least noisy signal of real improvement. The first nine points average fewer games. Dates are to scale.'}>
+        <SectionTitle hint="First 9 points: fewer games">
           {hasRating ? 'Accuracy & Elo Trend' : 'Accuracy Trend'}
         </SectionTitle>
         {accSeries.length > 1 ? (
@@ -215,7 +254,7 @@ export function Insights() {
             <ComposedChart data={accSeries} margin={{ top: 4, right: hasRating ? -8 : 12, left: -20, bottom: 0 }}>
               {/* Each series fades from its own colour to nothing: overlapping translucent silhouettes. */}
               <defs>
-                {[['fill-per-game', 'var(--per-game)', 0.22], ['fill-avg', 'var(--accent)', 0.34], ['fill-elo', 'var(--rating)', 0.28]].map(([id, color, top]) => (
+                {[['fill-per-game', 'var(--per-game)', 0.22], ['fill-avg', 'var(--text-primary)', 0.18], ['fill-elo', 'var(--rating)', 0.28]].map(([id, color, top]) => (
                   <linearGradient key={id as string} id={id as string} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" style={{ stopColor: color as string, stopOpacity: top as number }} />
                     <stop offset="100%" style={{ stopColor: color as string, stopOpacity: 0 }} />
@@ -244,7 +283,7 @@ export function Insights() {
                   copies of card edges beside it. */}
               <Area yAxisId="acc" type="linear" dataKey="accuracy" stroke="var(--per-game)" strokeOpacity={0.7} strokeWidth={1}
                 fill="url(#fill-per-game)" dot={{ r: 1.6, fill: 'var(--per-game)', strokeWidth: 0 }} activeDot={{ r: 3 }} name="Game accuracy" isAnimationActive={false} />
-              <Area yAxisId="acc" type="linear" dataKey="moving_avg" stroke="var(--accent)" strokeWidth={2.5}
+              <Area yAxisId="acc" type="linear" dataKey="moving_avg" stroke="var(--text-primary)" strokeWidth={2.5}
                 fill="url(#fill-avg)" dot={false} activeDot={{ r: 3 }} name="Rolling avg (up to 10 games)" isAnimationActive={false} />
               {hasRating && (
                 <Area yAxisId="elo" type="linear" dataKey="rating" stroke="var(--rating)" strokeWidth={2}
@@ -254,12 +293,17 @@ export function Insights() {
           </ResponsiveContainer>
           </div>
         ) : <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Not enough analyzed games yet.</p>}
+        <Disclose>
+          {hasRating
+            ? 'Per-game accuracy with a rolling average of up to 10 games (left axis), and your Elo in each game (right axis). Dates are to scale.'
+            : 'Per-game accuracy with a rolling average of up to 10 games, the least noisy signal of real improvement. Dates are to scale.'}
+        </Disclose>
       </div>
 
       {/* Row 3 — opponent strength | phase leak | missed tactics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 16 }}>
         <div className="card">
-          <SectionTitle hint="Win rate vs opponents ±50 rating.">vs Opponent Strength</SectionTitle>
+          <SectionTitle hint="Win % · ±50 bands">vs Opponent Strength</SectionTitle>
           {data.opponent_strength.map(b => (
             <div key={b.bucket} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 4 }}>
@@ -270,19 +314,23 @@ export function Insights() {
                 </span>
               </div>
               <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${b.win_pct}%`, background: wrColor(b.win_pct), borderRadius: 4 }} />
+                <div style={{ height: '100%', width: `${b.win_pct}%`, background: wrBar(b.win_pct), borderRadius: 4 }} />
               </div>
             </div>
           ))}
         </div>
 
         <div className="card">
-          <SectionTitle hint="Where your flagged mistakes cluster by phase.">Mistakes by Phase</SectionTitle>
+          {/* phase_accuracy holds mistake COUNTS per phase (the field is misnamed): a share of
+              all flagged mistakes, not a rate. The rate per 100 moves is on the Pattern Report. */}
+          <SectionTitle hint={<>All flagged · <Link to="/insights/patterns#where-they-happen">per 100 moves →</Link></>}>
+            Mistakes by Phase
+          </SectionTitle>
           {[
-            { label: 'Opening', count: data.phase_accuracy.opening, color: 'var(--green)' },
-            { label: 'Middlegame', count: data.phase_accuracy.middlegame, color: 'var(--yellow)' },
-            { label: 'Endgame', count: data.phase_accuracy.endgame, color: 'var(--red)' },
-          ].map(({ label, count, color }) => {
+            { label: 'Opening', count: data.phase_accuracy.opening },
+            { label: 'Middlegame', count: data.phase_accuracy.middlegame },
+            { label: 'Endgame', count: data.phase_accuracy.endgame },
+          ].map(({ label, count }) => {
             const pct = Math.round((count / phaseTotal) * 100)
             return (
               <div key={label} style={{ marginBottom: 12 }}>
@@ -291,7 +339,7 @@ export function Insights() {
                   <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{count} <span style={{ fontWeight: 400, opacity: 0.7 }}>({pct}%)</span></span>
                 </div>
                 <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4 }} />
+                  <div style={{ height: '100%', width: `${pct}%`, background: 'var(--grey-1)', borderRadius: 4 }} />
                 </div>
               </div>
             )
@@ -299,29 +347,35 @@ export function Insights() {
         </div>
 
         <div className="card">
-          <SectionTitle hint="Tactical motifs you miss most often.">Missed Tactics</SectionTitle>
-          {data.missed_tactics.length > 0 ? data.missed_tactics.slice(0, 6).map(m => (
+          <SectionTitle>Missed Tactics</SectionTitle>
+          {tactics.length > 0 ? tactics.slice(0, 6).map(m => (
             <div key={m.motif} style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 4 }}>
                 <span>{motifLabel(m.motif)}</span>
                 <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{m.count}</span>
               </div>
               <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${(m.count / maxMotif) * 100}%`, background: 'var(--accent)', borderRadius: 4 }} />
+                <div style={{ height: '100%', width: `${(m.count / maxMotif) * 100}%`, background: 'var(--grey-1)', borderRadius: 4 }} />
               </div>
             </div>
           )) : <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No tactical motifs flagged yet.</p>}
+          {(tactics.length > 6 || notTactics.length > 0) && (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>
+              The rest: {[...tactics.slice(6), ...notTactics].map(m => `${motifLabel(m.motif).toLowerCase()} ${m.count}`).join(', ')}
+              {notTactics.length > 0 && ' (no tactic proven)'}.
+            </p>
+          )}
         </div>
       </div>
 
       {/* Row 4 — time of day | day of week */}
       <div className="stack-on-phone" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.4fr)', gap: 16 }}>
         <div className="card">
-          <SectionTitle hint="Win rate by part of day.">Time of Day</SectionTitle>
+          <SectionTitle hint="Win %">Time of Day</SectionTitle>
           <WinRateBars data={data.time_of_day} />
         </div>
         <div className="card">
-          <SectionTitle hint="Win rate by weekday.">Day of Week</SectionTitle>
+          <SectionTitle hint="Win %">Day of Week</SectionTitle>
           <WinRateBars data={data.day_of_week} />
         </div>
       </div>
@@ -329,7 +383,7 @@ export function Insights() {
       {/* Row 5 — tilt | conversion detail */}
       <div className="stack-on-phone" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.6fr)', gap: 16 }}>
         <div className="card">
-          <SectionTitle hint="Do you tilt after a loss? Compare the next game's win rate.">Resilience</SectionTitle>
+          <SectionTitle hint="Next game's win %">Resilience</SectionTitle>
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1, textAlign: 'center' }}>
               <div style={{ fontSize: '1.5rem', fontWeight: 700, color: wrColor(data.tilt.after_win_win_pct) }}>{data.tilt.after_win_win_pct}%</div>
@@ -345,13 +399,13 @@ export function Insights() {
           </div>
           {data.tilt.after_loss_win_pct < data.tilt.after_win_win_pct - 8 && (
             <div style={{ fontSize: '0.72rem', color: 'var(--red)', marginTop: 12, lineHeight: 1.4 }}>
-              ⚠ You perform notably worse after a loss — consider a short break before the next game.
+              ⚠ {Math.round((data.tilt.after_win_win_pct - data.tilt.after_loss_win_pct) * 10) / 10} points lower after a loss · rest first
             </div>
           )}
         </div>
 
         <div className="card">
-          <SectionTitle hint="Games where you reached ≥ +2.0 but didn't win.">Thrown-Away Wins</SectionTitle>
+          <SectionTitle hint="≥ +2.0, not won">Thrown-Away Wins</SectionTitle>
           {cv.blown_games.length > 0 ? (
             <div>
               {cv.blown_games.map(g => (
@@ -375,7 +429,7 @@ export function Insights() {
                     {/* Mate is stored as ±100 pawns; "+100" reads as a bug. */}
                     <span style={{ color: 'var(--green)', fontWeight: 600 }}>{g.max_advantage >= 99 ? 'mate' : `+${g.max_advantage}`}</span>
                     <span style={{ color: g.result === 'loss' ? 'var(--red)' : 'var(--text-muted)', textTransform: 'capitalize' }}>{g.result}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>{g.played_at ?? ''}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{g.played_at ? dayMonth(new Date(g.played_at)) : ''}</span>
                   </span>
                 </Link>
               ))}
@@ -386,7 +440,7 @@ export function Insights() {
 
       {/* Row 6 — openings table */}
       <div className="card">
-        <SectionTitle hint="Win rate and average accuracy per opening (most-played first).">Openings</SectionTitle>
+        <SectionTitle hint="Most-played first">Openings</SectionTitle>
         {data.openings.length > 0 ? (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
@@ -414,8 +468,6 @@ export function Insights() {
           </div>
         ) : <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No opening data yet.</p>}
       </div>
-      {/* Right of the capped analytics column, clear of KPI cards and charts. */}
-      <PraxAnchor x={0.85} y={0.45} />
     </div>
   )
 }

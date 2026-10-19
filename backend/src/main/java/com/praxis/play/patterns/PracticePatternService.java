@@ -9,6 +9,7 @@ import com.praxis.repository.MoveErrorRepository;
 import com.praxis.service.analysis.ParsedGame;
 import com.praxis.service.analysis.PgnParserService;
 import com.praxis.service.settings.PlayerIdentity;
+import com.praxis.service.diagnosis.VerifiedMistakes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -51,16 +52,19 @@ public class PracticePatternService {
     private final PgnParserService pgnParser;
     private final PlayerIdentity player;
     private final List<PatternDetector> detectors;
+    private final VerifiedMistakes verified;
 
     public PracticePatternService(PracticeGameRepository practiceGames, GameRepository games,
                                   MoveErrorRepository moveErrors, PgnParserService pgnParser,
-                                  PlayerIdentity player, List<PatternDetector> detectors) {
+                                  PlayerIdentity player, List<PatternDetector> detectors,
+                                  VerifiedMistakes verified) {
         this.practiceGames = practiceGames;
         this.games = games;
         this.moveErrors = moveErrors;
         this.pgnParser = pgnParser;
         this.player = player;
         this.detectors = detectors;
+        this.verified = verified;
     }
 
     @Transactional(readOnly = true)
@@ -131,7 +135,7 @@ public class PracticePatternService {
         if (parsed.moves().isEmpty()) return Optional.empty();
 
         return Optional.of(new AnalysedGame(
-                pg, game, parsed, moveErrors.findByGameId(game.getId())));
+                pg, game, parsed, moveErrors.findByGameId(game.getId()), verified.forGame(game.getId())));
     }
 
     private static String caveatForSmallSample(int n) {

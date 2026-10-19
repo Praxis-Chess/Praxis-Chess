@@ -7,8 +7,8 @@ import com.praxis.domain.enums.Severity;
 import com.praxis.dto.InsightsDto;
 import com.praxis.dto.InsightsDto.*;
 import com.praxis.repository.GameRepository;
-import com.praxis.repository.MoveErrorRepository;
 import com.praxis.service.settings.PlayerIdentity;
+import com.praxis.service.diagnosis.VerifiedMistakes;
 import com.praxis.service.settings.SettingsService;
 import org.springframework.stereotype.Service;
 
@@ -30,18 +30,18 @@ public class InsightsService {
     private static final int    MOVING_AVG_WINDOW    = 10;
 
     private final GameRepository gameRepository;
-    private final MoveErrorRepository moveErrorRepository;
     private final PlayerIdentity player;
     private final SettingsService settings;
+    private final VerifiedMistakes verified;
 
     public InsightsService(GameRepository gameRepository,
-                           MoveErrorRepository moveErrorRepository,
                            PlayerIdentity player,
-                           SettingsService settings) {
+                           SettingsService settings,
+                           VerifiedMistakes verified) {
         this.gameRepository = gameRepository;
-        this.moveErrorRepository = moveErrorRepository;
         this.player = player;
         this.settings = settings;
+        this.verified = verified;
     }
 
     public InsightsDto compute() {
@@ -75,9 +75,12 @@ public class InsightsService {
         List<Game> gamesDesc = timeClass == null ? library
                 : library.stream().filter(g -> timeClass.equals(g.getTimeClass())).toList();
         Set<UUID> ids = gamesDesc.stream().map(Game::getId).collect(Collectors.toSet());
-        List<MoveError> errors = moveErrorRepository.findAllByUsernameWithGame(username).stream()
-                .filter(e -> timeClass == null || ids.contains(e.getGame().getId()))
+        // Every current mistake with its verified diagnosis (Phase 12): motifs come
+        // from the rules on the evidence graph, not from the old model's labels.
+        List<VerifiedMistakes.Mistake> mistakes = verified.forUser(username).stream()
+                .filter(m -> timeClass == null || ids.contains(m.error().getGame().getId()))
                 .toList();
+        List<MoveError> errors = mistakes.stream().map(VerifiedMistakes.Mistake::error).toList();
 
         return new InsightsDto(
                 opponentStrength(gamesDesc),
@@ -87,7 +90,7 @@ public class InsightsService {
                 phaseAccuracy(errors),
                 timeManagement(gamesDesc, errors),
                 conversion(gamesDesc, errors),
-                missedTactics(errors),
+                missedTactics(mistakes),
                 tilt(gamesDesc),
                 openings(gamesDesc),
                 timeClass,
@@ -294,10 +297,11 @@ public class InsightsService {
 
     // --- Missed tactics ---
 
-    private List<MotifCount> missedTactics(List<MoveError> errors) {
-        Map<String, Long> counts = errors.stream()
-                .filter(e -> e.getTacticalMotif() != null)
-                .collect(Collectors.groupingBy(e -> e.getTacticalMotif().name(), Collectors.counting()));
+    /** Verified motifs over every diagnosed mistake; undiagnosed ones are not guessed at. */
+    private List<MotifCount> missedTactics(List<VerifiedMistakes.Mistake> mistakes) {
+        Map<String, Long> counts = mistakes.stream()
+                .filter(m -> m.motif() != null)
+                .collect(Collectors.groupingBy(VerifiedMistakes.Mistake::motif, Collectors.counting()));
         return counts.entrySet().stream()
                 .map(e -> new MotifCount(e.getKey(), e.getValue().intValue()))
                 .sorted(Comparator.comparingInt(MotifCount::count).reversed())

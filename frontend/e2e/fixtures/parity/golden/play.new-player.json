@@ -1,0 +1,20 @@
+{
+ "screen": "play",
+ "state": "new-player",
+ "path": "/play",
+ "metrics": {
+  "prose": 51,
+  "data": 0,
+  "paragraphs": [
+   "No analysed games yet, so this opponent is not shaped by your play. Sync and analyse some games and it will be."
+  ]
+ },
+ "pairs": [
+  [
+   "Which colour to play",
+   "~your weaker colour",
+   1
+  ]
+ ],
+ "methods": []
+}

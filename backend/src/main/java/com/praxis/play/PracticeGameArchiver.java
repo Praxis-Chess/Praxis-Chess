@@ -14,6 +14,7 @@ import com.praxis.play.repository.PracticeGameRepository;
 import com.praxis.repository.GameRepository;
 import com.praxis.service.analysis.AnalysisProfile;
 import com.praxis.service.practice.PracticeLedgerService;
+import com.praxis.service.diagnosis.DiagnosisService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -47,12 +48,14 @@ public class PracticeGameArchiver {
     private final PraxisClock clock;
     private final PracticeAnalysisProgress progress;
     private final SettingsService settings;
+    private final DiagnosisService diagnosis;
 
     public PracticeGameArchiver(PracticeGameRepository practiceGames, GameRepository games,
                                 GameAnalysisTransactionService analysis,
                                 PracticeLedgerService ledger, PraxisClock clock,
                                 PracticeAnalysisProgress progress,
-                                SettingsService settings) {
+                                SettingsService settings,
+                                DiagnosisService diagnosis) {
         this.practiceGames = practiceGames;
         this.games = games;
         this.analysis = analysis;
@@ -60,6 +63,7 @@ public class PracticeGameArchiver {
         this.clock = clock;
         this.progress = progress;
         this.settings = settings;
+        this.diagnosis = diagnosis;
     }
 
     /**
@@ -79,6 +83,16 @@ public class PracticeGameArchiver {
             analysis.analyzeOne(archived, active.profile(), active.id(),
                     progress.sinkFor(archived.getId()));
             log.info("[play] analysed practice game {}", archived.getId());
+            // Phase 12: practice mistakes get the same verified diagnosis as library
+            // ones (about half a second of engine time each), so practice patterns
+            // read verified motifs too. No commentary here: a model call per mistake
+            // would not fit the post-game report's budget.
+            try {
+                int n = diagnosis.buildForGame(archived.getId());
+                log.info("[play] diagnosed {} mistake(s) in practice game {}", n, archived.getId());
+            } catch (Exception e) {
+                log.warn("[play] diagnosis skipped for practice game {}: {}", archived.getId(), e.getMessage());
+            }
         } catch (Exception e) {
             // The game is already stored; only its analysis failed. The report
             // endpoint reports what it has rather than pretending the game

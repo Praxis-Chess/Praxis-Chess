@@ -176,6 +176,9 @@ button.secondary:hover:not(:disabled) {
   background-position: center center, center center;
   background-repeat: no-repeat;
 }
+/* A card that is an action (a session to start), not a document: no crosshair,
+   which otherwise reads as an unlabelled "+" button. */
+.card.plain::after { display: none; }
 .card.no-mark::after { display: none; }
 
 /* --- Hairline + dotted rules replace filled dividers --- */
@@ -298,4 +301,21 @@ tbody td { padding: 9px 10px; }
    inline style on each grid. Guarded by e2e/tests/layout-width.spec.ts. */
 @media (max-width: 760px) {
   .stack-on-phone { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+/* --- Disclosure: method and long text, one tap away (principle 12) --- */
+.disclose > summary {
+  cursor: pointer;
+  width: fit-content;
+  color: var(--orchid);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.disclose > summary::marker { color: var(--text-tertiary); }
+.disclose > summary:focus-visible { outline: 1px solid var(--orchid); outline-offset: 2px; }
+
+/* --- Shown only once a weighted grid has stacked (phones): the column a value belongs to --- */
+.only-stacked { display: none; }
+@media (max-width: 760px) {
+  .only-stacked { display: block; }
 }

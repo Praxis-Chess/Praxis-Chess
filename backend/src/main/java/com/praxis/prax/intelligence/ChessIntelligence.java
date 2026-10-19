@@ -6,6 +6,7 @@ import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
 import com.praxis.service.EcoTable;
+import com.praxis.service.diagnosis.VerifiedMistakes;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
@@ -26,12 +27,20 @@ public class ChessIntelligence {
     private final GameRepository gameRepository;
     private final MoveErrorRepository moveErrorRepository;
     private final EcoTable ecoTable;
+    private final VerifiedMistakes verified;
 
     public ChessIntelligence(GameRepository gameRepository, MoveErrorRepository moveErrorRepository,
-                             EcoTable ecoTable) {
+                             EcoTable ecoTable, VerifiedMistakes verified) {
         this.gameRepository = gameRepository;
         this.moveErrorRepository = moveErrorRepository;
         this.ecoTable = ecoTable;
+        this.verified = verified;
+    }
+
+    /** A mistake's verified motif (Phase 12), or null when it has no current diagnosis. */
+    private static String motif(Map<Integer, VerifiedMistakes.Diagnosis> diagnoses, MoveError e) {
+        VerifiedMistakes.Diagnosis d = diagnoses.get(e.getMoveNumber());
+        return d == null ? null : d.motif();
     }
 
     /**
@@ -278,22 +287,26 @@ public class ChessIntelligence {
 
         // Pair each error with its game id up front — reading e.getGame() later
         // would hit a lazy proxy with no session attached.
-        record Row(UUID gameId, MoveError err) {}
+        // The motif is the verified one (Phase 12), from the evidence graph and the
+        // rules, on every diagnosed mistake; never the old model's label.
+        record Row(UUID gameId, MoveError err, String motif) {}
         List<Row> rows = games.stream()
-                .flatMap(g -> moveErrorRepository.findByGameId(g.getId()).stream()
-                        .map(e -> new Row(g.getId(), e)))
+                .flatMap(g -> {
+                    var diagnoses = verified.forGame(g.getId());
+                    return moveErrorRepository.findByGameId(g.getId()).stream()
+                            .map(e -> new Row(g.getId(), e, motif(diagnoses, e)));
+                })
                 .toList();
 
         List<Row> errors = rows.stream()
                 .filter(r -> phase == null || (r.err().getGamePhase() != null
                         && phase.equalsIgnoreCase(r.err().getGamePhase().name())))
-                .filter(r -> motifFilter == null || (r.err().getTacticalMotif() != null
-                        && motifFilter.equalsIgnoreCase(r.err().getTacticalMotif().name())))
+                .filter(r -> motifFilter == null || (r.motif() != null && motifFilter.equalsIgnoreCase(r.motif())))
                 .toList();
 
         Map<String, List<Row>> byMotif = errors.stream()
-                .filter(r -> r.err().getTacticalMotif() != null)
-                .collect(Collectors.groupingBy(r -> r.err().getTacticalMotif().name()));
+                .filter(r -> r.motif() != null)
+                .collect(Collectors.groupingBy(Row::motif));
 
         return byMotif.entrySet().stream()
                 .map(e -> new MotifStat(
@@ -333,6 +346,7 @@ public class ChessIntelligence {
         return gameRepository.findById(UUID.fromString(gameId)).map(g -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("game", toSummary(g));
+            var diagnoses = verified.forGame(g.getId());
             // Bounded on purpose: a long game's full error list, each carrying a
             // ~60-character FEN, is enough to overflow a 4k context on its own.
             m.put("errors", moveErrorRepository.findByGameId(g.getId()).stream()
@@ -353,7 +367,7 @@ public class ChessIntelligence {
                     "movePlayed", String.valueOf(e.getMovePlayed()),
                     "betterMove", String.valueOf(e.getBetterMove()),
                     "severity", e.getSeverity() == null ? "" : e.getSeverity().name(),
-                    "motif", e.getTacticalMotif() == null ? "" : e.getTacticalMotif().name(),
+                    "motif", String.valueOf(Objects.requireNonNullElse(motif(diagnoses, e), "")),
                     "phase", e.getGamePhase() == null ? "" : e.getGamePhase().name(),
                     "fen", String.valueOf(e.getFenPosition()),
                     // These rows say WHAT went wrong, never why. Terse on purpose:
@@ -429,6 +443,7 @@ public class ChessIntelligence {
 
         // Fetch-joined: these rows are read outside a transaction and each one
         // needs its game for the date, opening and colour.
+        Map<UUID, Map<Integer, VerifiedMistakes.Diagnosis>> diagnosesByGame = new HashMap<>();
         return moveErrorRepository.findAllByUsernameWithGame(username).stream()
                 .filter(e -> sev == null || (e.getSeverity() != null && sev.equals(e.getSeverity().name())))
                 .filter(e -> ph == null || (e.getGamePhase() != null && ph.equals(e.getGamePhase().name())))
@@ -450,7 +465,8 @@ public class ChessIntelligence {
                     m.put("betterMove", e.getBetterMove());
                     m.put("severity", e.getSeverity() == null ? "" : e.getSeverity().name());
                     m.put("phase", e.getGamePhase() == null ? "" : e.getGamePhase().name());
-                    m.put("motif", e.getTacticalMotif() == null ? "" : e.getTacticalMotif().name());
+                    String motif = motif(diagnosesByGame.computeIfAbsent(g.getId(), verified::forGame), e);
+                    m.put("motif", motif == null ? "" : motif);
                     m.put("winPctDrop", e.getWinPctDrop());
                     m.put("fen", e.getFenPosition());
                     return m;

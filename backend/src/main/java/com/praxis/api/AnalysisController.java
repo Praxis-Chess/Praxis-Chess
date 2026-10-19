@@ -9,8 +9,6 @@ import com.praxis.dto.AnalysisProgressDto;
 import com.praxis.dto.MoveErrorDto;
 import com.praxis.pipeline.AnalysisPipelineOrchestrator;
 import com.praxis.pipeline.AnalysisProgressTracker;
-import com.praxis.repository.AttemptRepository;
-import com.praxis.repository.CardRepository;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
 import com.praxis.dto.BackupDto;
@@ -35,8 +33,6 @@ public class AnalysisController {
 
     private final MoveErrorRepository moveErrorRepository;
     private final GameRepository gameRepository;
-    private final CardRepository cardRepository;
-    private final AttemptRepository attemptRepository;
     private final AnalysisPipelineOrchestrator pipelineOrchestrator;
     private final PlayerIdentity player;
     private final AnalysisProgressTracker progressTracker;
@@ -47,8 +43,6 @@ public class AnalysisController {
 
     public AnalysisController(MoveErrorRepository moveErrorRepository,
                               GameRepository gameRepository,
-                              CardRepository cardRepository,
-                              AttemptRepository attemptRepository,
                               AnalysisPipelineOrchestrator pipelineOrchestrator,
                               PlayerIdentity player,
                               AnalysisProgressTracker progressTracker,
@@ -58,8 +52,6 @@ public class AnalysisController {
                               TransactionTemplate tx) {
         this.moveErrorRepository = moveErrorRepository;
         this.gameRepository = gameRepository;
-        this.cardRepository = cardRepository;
-        this.attemptRepository = attemptRepository;
         this.pipelineOrchestrator = pipelineOrchestrator;
         this.player = player;
         this.progressTracker = progressTracker;
@@ -133,7 +125,8 @@ public class AnalysisController {
     }
 
     /**
-     * Re-analysis deletes analyses and drill history, so a backup comes first.
+     * Re-analysis rewrites the analysis of many games at once, so a backup comes
+     * first, even though nothing is deleted any more (old rows are superseded).
      * 409 with {@code backup_failed} when none could be taken; the UI then
      * offers {@code skip_backup=true}. The wait happens outside the
      * transaction, so it holds no database connection.
@@ -168,26 +161,11 @@ public class AnalysisController {
                 .filter(settings::inAnalysisScope)
                 .filter(g -> !outdatedOnly || !sameRuler.contains(g.getAnalysisSettingsId()))
                 .toList();
-        // With a time-class filter the deck is wiped only for these games: a bullet
-        // game analysed before the filter keeps its cards.
-        boolean wholeLibrary = !outdatedOnly && !settings.hasAnalysisRange() && !settings.hasTimeClassFilter();
-
-        // Delete in FK order: attempts → cards → move_errors → reset game status.
-        // Cards hold a non-null FK to move_errors; attempts hold a non-null FK to cards.
-        // Skipping this order would cause a DataIntegrityViolationException.
-        if (wholeLibrary) {
-            attemptRepository.deleteByCardUsername(username);
-            cardRepository.deleteByUsername(username);
-        } else if (!games.isEmpty()) {
-            // Scoped to THESE games' cards. Wiping the whole deck to re-analyse one
-            // month would destroy drill history for games nobody asked to touch.
-            List<UUID> ids = games.stream().map(Game::getId).toList();
-            attemptRepository.deleteByGameIds(ids);
-            cardRepository.deleteByGameIds(ids);
-        }
-
+        // Nothing is deleted (Phase 12). Each game's analysis supersedes its old
+        // mistake rows inside its own transaction, and drill cards are re-linked to
+        // the new rows (GameAnalysisTransactionService); until then the previous
+        // analysis stays visible.
         for (Game game : games) {
-            moveErrorRepository.deleteByGameId(game.getId());
             game.setAnalysisStatus(AnalysisStatus.PENDING);
             game.setAnalyzedAt(null);
             gameRepository.save(game);

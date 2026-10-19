@@ -7,6 +7,7 @@ import com.praxis.domain.MoveError;
 import com.praxis.domain.enums.AnalysisState;
 import com.praxis.domain.enums.AnalysisStatus;
 import com.praxis.domain.enums.TacticalMotif;
+import com.praxis.repository.CardRepository;
 import com.praxis.repository.GameRepository;
 import com.praxis.repository.MoveErrorRepository;
 import com.praxis.service.EcoTable;
@@ -27,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -59,6 +61,7 @@ public class GameAnalysisTransactionService {
     private final PlayerIdentity player;
     private final EcoTable ecoTable;
     private final AnalysisTimingRecorder timingRecorder;
+    private final CardRepository cardRepository;
 
     public GameAnalysisTransactionService(PgnParserService pgnParserService,
                                           PositionEvaluator positionEvaluator,
@@ -69,7 +72,8 @@ public class GameAnalysisTransactionService {
                                           MoveErrorRepository moveErrorRepository,
                                           PlayerIdentity player,
                                           EcoTable ecoTable,
-                                          AnalysisTimingRecorder timingRecorder) {
+                                          AnalysisTimingRecorder timingRecorder,
+                                          CardRepository cardRepository) {
         this.pgnParserService = pgnParserService;
         this.positionEvaluator = positionEvaluator;
         this.candidateFilter = candidateFilter;
@@ -80,6 +84,7 @@ public class GameAnalysisTransactionService {
         this.player = player;
         this.ecoTable = ecoTable;
         this.timingRecorder = timingRecorder;
+        this.cardRepository = cardRepository;
     }
 
     /**
@@ -114,6 +119,7 @@ public class GameAnalysisTransactionService {
     private void analyzeInternal(Game game, AnalysisProfile profile, Long settingsId, AnalysisProgressSink progress) {
         log.debug("Analyzing game {} with the {} profile", game.getChessComId(), profile.name());
         long startedAt = System.currentTimeMillis();
+        UUID runId = UUID.randomUUID();
         game.setAnalysisStatus(AnalysisStatus.ANALYZING);
         gameRepository.save(game);
 
@@ -245,14 +251,31 @@ public class GameAnalysisTransactionService {
             ollamaResults = List.of();
         }
 
+        // A re-analysis keeps history: the previous run's rows are marked
+        // superseded (hidden everywhere, never deleted) in the same transaction
+        // that writes the new ones, so a failure part-way leaves the old analysis
+        // current. On a first analysis this changes nothing.
+        moveErrorRepository.supersedeByGameId(game.getId(), OffsetDateTime.now(ZoneOffset.UTC));
+
         // Persist all results in main thread (inside the REQUIRES_NEW transaction)
         for (int i = 0; i < enriched.size(); i++) {
             CandidateMove c = enriched.get(i);
             if (i < profile.maxOllamaCalls() && i < ollamaResults.size()) {
-                persistWithResult(game, c, playerColor, ollamaResults.get(i));
+                persistWithResult(game, c, playerColor, ollamaResults.get(i), runId);
             } else {
-                persistSkipped(game, c, playerColor);
+                persistSkipped(game, c, playerColor, runId);
             }
+        }
+
+        // Drill cards follow their move: re-linked to the new row at the same ply,
+        // with FSRS state and attempts intact; suspended (not deleted) when that
+        // move is no longer a mistake.
+        moveErrorRepository.flush();
+        int relinked = cardRepository.relinkToCurrent(game.getId());
+        int suspended = cardRepository.suspendOrphans(game.getId());
+        if (relinked + suspended > 0) {
+            log.info("Game {}: {} drill card(s) re-linked, {} suspended (move no longer a mistake)",
+                    game.getChessComId(), relinked, suspended);
         }
 
         game.setAnalysisStatus(AnalysisStatus.ANALYZED);
@@ -266,6 +289,7 @@ public class GameAnalysisTransactionService {
         try {
             timingRecorder.record(AnalysisTiming.builder()
                     .gameId(game.getId())
+                    .runId(runId)
                     .settingsId(settingsId)
                     .plies(parsedGame.moves().size())
                     .candidates(enriched.size())
@@ -290,7 +314,7 @@ public class GameAnalysisTransactionService {
 
     // --- Private helpers ---
 
-    private void persistWithResult(Game game, CandidateMove c, String playerColor, OllamaResult result) {
+    private void persistWithResult(Game game, CandidateMove c, String playerColor, OllamaResult result, UUID runId) {
         ParsedMove move = c.move();
         moveErrorRepository.save(MoveError.builder()
                 .game(game)
@@ -308,10 +332,11 @@ public class GameAnalysisTransactionService {
                 .explanation(result.explanation())
                 .tacticalMotif(result.motif())
                 .analysisState(result.state())
+                .analysisRunId(runId)
                 .build());
     }
 
-    private void persistSkipped(Game game, CandidateMove c, String playerColor) {
+    private void persistSkipped(Game game, CandidateMove c, String playerColor, UUID runId) {
         ParsedMove move = c.move();
         moveErrorRepository.save(MoveError.builder()
                 .game(game)
@@ -327,6 +352,7 @@ public class GameAnalysisTransactionService {
                 .evalAfter(c.evalAfter())
                 .winPctDrop(computeWinPctDrop(c, playerColor))
                 .analysisState(AnalysisState.SKIPPED)
+                .analysisRunId(runId)
                 .build());
     }
 

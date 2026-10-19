@@ -1,0 +1,60 @@
+{
+ "screen": "drills",
+ "state": "plan-session",
+ "path": "/drills?positions=7c3c9a2e-1111-4a22-8b33-445566778899:36,7c3c9a2e-1111-4a22-8b33-445566778899:27&session=2&plan=t1",
+ "metrics": {
+  "prose": 43,
+  "data": 5,
+  "paragraphs": [
+   "In this position you played Rxf8. There was something better — drag a piece to play the engine's move."
+  ]
+ },
+ "pairs": [
+  [
+   "",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "",
+   "@/insights/training",
+   1
+  ],
+  [
+   "",
+   "~blunder",
+   1
+  ],
+  [
+   "",
+   "~fork",
+   1
+  ],
+  [
+   "",
+   "~middlegame",
+   1
+  ],
+  [
+   "",
+   "0",
+   1
+  ],
+  [
+   "",
+   "1",
+   1
+  ],
+  [
+   "",
+   "2",
+   2
+  ],
+  [
+   "",
+   "Rxf8",
+   1
+  ]
+ ],
+ "methods": []
+}

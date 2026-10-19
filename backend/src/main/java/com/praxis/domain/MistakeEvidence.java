@@ -12,12 +12,14 @@ import java.util.UUID;
  *
  * <p><b>Keyed on the position, not on {@code move_errors}.</b> The plan called for
  * a foreign key to {@link MoveError}; this deliberately has none. Re-analysing a
- * game deletes its {@code move_errors} rows and writes new ones with new IDs, so
- * a foreign key would either block re-analysis or cascade-delete these rows —
- * including hand labels that took real time to make. A label is about a position
- * and a move, and (game, ply) identifies those across any number of
- * re-analyses. {@code moveErrorId} is kept as a plain, unconstrained reference to
- * whichever row it was built from.
+ * game writes new {@code move_errors} rows with new IDs (the old ones are kept,
+ * superseded), and a label is about a position and a move: (game, ply)
+ * identifies those across any number of re-analyses. {@code moveErrorId} is a
+ * plain, unconstrained reference, refreshed to the current row after each
+ * analysis ({@code MistakeEvidenceRepository.relinkToCurrentMistakes}).
+ *
+ * <p>Updated in place (a rebuild, new commentary, a relabel), but never without
+ * first copying the old row to {@link MistakeEvidenceHistory}.
  *
  * <p>Every taxonomy value is a plain string column, never a Java enum, because
  * Hibernate would turn an enum into a CHECK constraint that {@code ddl-auto:

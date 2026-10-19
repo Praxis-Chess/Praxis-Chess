@@ -17,6 +17,9 @@ test.describe('Settings → Backups', () => {
     await expect(card).toContainText('3 snapshots')
     await expect(card).toContainText('4.5 MB')
     await expect(card).toContainText('test restore passed 2 days ago')
+    // The summary above is always visible; the list is one tap away.
+    await expect(card.getByRole('row')).toHaveCount(0)
+    await card.getByText(/^Snapshots \(3\)/).click()
     await expect(card.getByRole('row')).toHaveCount(4)
     await expect(card.getByRole('cell', { name: 'before re-analysis' })).toBeVisible()
     await expect(card.getByText('✓ passed')).toHaveCount(1)

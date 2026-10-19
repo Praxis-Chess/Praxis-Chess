@@ -1,3 +1,49 @@
+# Praxis Chess v1.4.0 — checked reports, two models, nothing deleted
+
+Every pattern, drill and report now comes from the verified diagnosis of every
+mistake, and the numbers on them are computed in code.
+
+- **Pattern Report and Training Plan, rebuilt.** Both are tabs in Insights,
+  every figure and sentence computed in code: your costliest habit; what goes
+  wrong and which tactics caught you, as two lists with your own positions;
+  mistakes per 100 of your moves by phase and move number; openings against
+  your own average. The plan is a week of three sessions of your own positions,
+  each started with one click. `/patterns` and `/training` redirect.
+  Model-written paragraphs are optional and off: a checker can hold them to
+  the numbers but not to their claims.
+- **Verified everywhere.** Insights, drill sessions and cards, free drills,
+  Prax's mistake analytics and practice patterns read the rules' verified
+  diagnosis instead of the old per-move model's labels, which covered about a
+  third of mistakes and were never checked. Practice games are diagnosed when
+  they are saved.
+- **Two models.** `qwen3:4b-instruct` runs Ask Prax (and the optional report prose);
+  the trained `praxis-grid-2b-r3` writes checked commentary. `qwen2.5:7b` is
+  retired: in a blind comparison on real data both passed the checker every
+  time, the 4B on the first try every time (the 7B 1 in 5), in 6 s instead of
+  40 s, and was preferred in 4 of 5 pairs. The default download drops from
+  ~8.5 GB to ~3.8 GB.
+- **Per-move explanations off.** Recorded as a new settings version; it does
+  not make analysed games "outdated". The old text stays in the database and
+  is no longer shown.
+- **Re-analysis keeps history.** Old mistake rows are kept as superseded,
+  drill cards follow their move with their review history (or are paused when
+  the move is no longer a mistake), and every earlier version of a diagnosis is
+  archived.
+- **Automatic backups.** A snapshot a day when something changed, one before
+  every re-analysis, a weekly test restore, never deleted. Settings → Backups,
+  `docker/backup/restore.sh`.
+- **Smaller fixes.** Today's focus states real counts; the setup checklist
+  folds into Settings → Library and only blockers reach Today; the Insights
+  accuracy chart has real dates; report move ranges are full moves.
+
+**Upgrading.** Docker: `git pull`, then `docker compose -f docker/compose.yaml
+up -d --build` (or pull the new images). From source: set
+`report-model: qwen3:4b-instruct` under `praxis-chess.ollama` in
+`application.yml` if yours names `qwen2.5:7b`, then restart. The database
+updates itself on start; nothing is deleted.
+
+---
+
 # Praxis Chess v1.3.0 — install with Docker
 
 Praxis now installs with Docker alone: no Java, Node, Stockfish or Ollama to
