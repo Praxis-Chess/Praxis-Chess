@@ -32,9 +32,25 @@ mistake, and the numbers on them are computed in code.
 - **Automatic backups.** A snapshot a day when something changed, one before
   every re-analysis, a weekly test restore, never deleted. Settings → Backups,
   `docker/backup/restore.sh`.
+- **Less to read, nothing lost.** The Pattern Report, Training Plan, Insights,
+  Settings and Today show about 40% fewer words. Sentences that repeated a
+  number on screen are gone; how a figure is measured sits behind "How this is
+  measured"; caveats stay visible. A test checks that every number, move and
+  date shown before is still on screen or one tap away.
+- **Works by tap.** A move opens its board, opening and date on tap, with
+  links to the game and to a drill of that position. Help that was hover-only
+  in Settings opens on tap too. One solid button per screen marks the next step.
+- **From report to practice and back.** Each cause offers "Drill these
+  positions"; a game opened from a move selects it and offers "Drill this
+  position"; a finished session leads to the next one or to Progress; review
+  cards link to their game. The plan shows each focus since the plan was made
+  (silent until there has been enough play) and how reviews of its positions
+  went. Every answer in a plan session is now kept per position.
 - **Smaller fixes.** Today's focus states real counts; the setup checklist
   folds into Settings → Library and only blockers reach Today; the Insights
-  accuracy chart has real dates; report move ranges are full moves.
+  accuracy chart has real dates; report move ranges are full moves; engine
+  moves are shown in SAN; dates read "6 Sep"; Play names the most frequent
+  proven tactic instead of "positional".
 
 **Upgrading.** Docker: `git pull`, then `docker compose -f docker/compose.yaml
 up -d --build` (or pull the new images). From source: set
