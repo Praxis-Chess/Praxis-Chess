@@ -134,7 +134,7 @@ test.describe('Why? panel', () => {
  * the LLM wrote up — and the LLM's text, where one exists, follows as commentary.
  */
 test.describe('Mistake card (Phase 9)', () => {
-  test('leads with the verified diagnosis, and keeps the AI text as commentary', async ({ page, api }) => {
+  test('leads with the verified diagnosis; the old AI text is never shown (Phase 12)', async ({ page, api }) => {
     api.json(/^\/api\/analysis\/[0-9a-f-]+$/, [data.scholarsMistakeVerified])
     await page.goto(`/games/${data.WHY_GAME_ID}`)
 
@@ -143,8 +143,8 @@ test.describe('Mistake card (Phase 9)', () => {
     await expect(verified).toContainText('Got mated')
     await expect(verified).toContainText('Ignored a threat')
     await expect(verified).toContainText('Qxf7# was already threatened')
-    await expect(page.getByText('AI commentary:').first()).toBeVisible()
-    await expect(page.getByText('Nf6 leaves f7 to the queen.').first()).toBeVisible()
+    await expect(page.getByText('AI commentary:')).toHaveCount(0)
+    await expect(page.getByText('Nf6 leaves f7 to the queen.')).toHaveCount(0)
   })
 
   test('a verified mistake is never shown as "not written up"', async ({ page, api }) => {
@@ -172,12 +172,12 @@ test.describe('Mistake card (Phase 9)', () => {
     await expect(page.getByText('Nf6 leaves f7 to the queen.')).toHaveCount(0)
   })
 
-  test('without a verified diagnosis, the card is as before', async ({ page, api }) => {
+  test('without a verified diagnosis, the card says so and shows nothing unchecked', async ({ page, api }) => {
     api.json(/^\/api\/analysis\/[0-9a-f-]+$/, [data.scholarsMistake])
     await page.goto(`/games/${data.WHY_GAME_ID}`)
 
     await expect(page.getByLabel('Verified diagnosis')).toHaveCount(0)
-    await expect(page.getByText('Nf6 leaves f7 to the queen.').first()).toBeVisible()
-    await expect(page.getByText('AI commentary:')).toHaveCount(0)
+    await expect(page.getByText('Not diagnosed yet: open Why? to check this move.').first()).toBeVisible()
+    await expect(page.getByText('Nf6 leaves f7 to the queen.')).toHaveCount(0)
   })
 })

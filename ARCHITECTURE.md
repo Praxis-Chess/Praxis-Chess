@@ -18,27 +18,28 @@
 7. [Analysis Pipeline](#analysis-pipeline)
 8. [AI Reasoning Flow](#ai-reasoning-flow)
 9. [Pattern Aggregation](#pattern-aggregation)
-10. [Prax — The Reasoning Layer](#prax--the-reasoning-layer)
-11. [The Grounding Invariant](#the-grounding-invariant)
-12. [Web Research](#web-research)
-13. [Ask Prax — The Workspace](#ask-prax--the-workspace)
-14. [Play & Improve](#play--improve)
-15. [Evidence Graph and Verified Diagnosis](#evidence-graph-and-verified-diagnosis)
-16. [Practice Streaks](#practice-streaks)
-17. [Backups](#backups)
-18. [Testing Strategy](#testing-strategy)
-19. [Schema Repair and Backfills](#schema-repair-and-backfills)
-20. [Prax — Presence & Voice](#prax--presence--voice)
-21. [Frontend Architecture](#frontend-architecture)
-22. [Backend Architecture](#backend-architecture)
-23. [Progress Tracking](#progress-tracking)
-24. [Key Design Decisions](#key-design-decisions)
-25. [REST API Reference](#rest-api-reference)
-26. [Non-Functional Considerations](#non-functional-considerations)
-27. [Future Considerations](#future-considerations)
-28. [Hardware Reality](#hardware-reality)
-29. [Docker Install](#docker-install)
-30. [How It All Connects (High Level)](#how-it-all-connects-high-level)
+10. [History kept](#history-kept)
+11. [Prax — The Reasoning Layer](#prax--the-reasoning-layer)
+12. [The Grounding Invariant](#the-grounding-invariant)
+13. [Web Research](#web-research)
+14. [Ask Prax — The Workspace](#ask-prax--the-workspace)
+15. [Play & Improve](#play--improve)
+16. [Evidence Graph and Verified Diagnosis](#evidence-graph-and-verified-diagnosis)
+17. [Practice Streaks](#practice-streaks)
+18. [Backups](#backups)
+19. [Testing Strategy](#testing-strategy)
+20. [Schema Repair and Backfills](#schema-repair-and-backfills)
+21. [Prax — Presence & Voice](#prax--presence--voice)
+22. [Frontend Architecture](#frontend-architecture)
+23. [Backend Architecture](#backend-architecture)
+24. [Progress Tracking](#progress-tracking)
+25. [Key Design Decisions](#key-design-decisions)
+26. [REST API Reference](#rest-api-reference)
+27. [Non-Functional Considerations](#non-functional-considerations)
+28. [Future Considerations](#future-considerations)
+29. [Hardware Reality](#hardware-reality)
+30. [Docker Install](#docker-install)
+31. [How It All Connects (High Level)](#how-it-all-connects-high-level)
 
 ---
 
@@ -108,8 +109,7 @@ to the React frontend via a Spring Boot REST API.
 | Chess engine | Stockfish | AVX2 binary |
 | Chess parsing (BE) | chesslib | 1.3.3 |
 | Local LLM runtime | Ollama | latest |
-| Analysis model | `qwen2.5:7b` (move + report) | 7B params |
-| Reasoning model | `qwen3:4b-instruct` (Prax agent, tool calling) | 4B params |
+| Reasoning model | `qwen3:4b-instruct` (Prax agent, tool calling; checked report prose since v1.4) | 4B params |
 | Commentary model | `praxis-grid-2b-r3`: our Qwen3.5-2B LoRA, optional ([Hugging Face](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF)) | 2B params |
 | Cloud models | Any OpenAI-compatible provider, per feature, off by default | — |
 | Text-to-speech | Kokoro-82M ONNX, CPU-only, FastAPI sidecar | 82M params |
@@ -157,7 +157,8 @@ graph TB
     subgraph Local["Local AI"]
         SF[Stockfish\nAVX2 binary]
         OL[Ollama\n:11434]
-        QW[qwen2.5:7b]
+        QW[qwen3:4b-instruct
+praxis-grid-2b-r3]
     end
 
     subgraph External
@@ -418,7 +419,7 @@ flowchart TD
 
     OLLAMA_LOOP -- "top 3 → MultiPV + Ollama" --> MULTIPV[Stockfish depth-18\nMultiPV 3\nGet top engine lines]
     MULTIPV --> PROMPT[Build prompt:\nFEN + move + better_move +\neval delta + engine lines]
-    PROMPT --> LLM[POST to Ollama\nqwen2.5:7b\noverlapped via BlockingQueue]
+    PROMPT --> LLM[POST to Ollama\nmove-model, when explanations are on\n0 per game by default since v1.4]
     LLM --> PARSE_JSON[Parse JSON response:\nexplanation, tactical_motif]
     PARSE_JSON --> SAVE_ERR[Save MoveError\nstate=EXPLAINED]
 
@@ -465,129 +466,119 @@ A settings change is a new `AnalysisSettings` row, and every game records the ro
 it was analysed under, so games analysed with different settings are never
 compared silently.
 
-### Why only 3 Ollama calls per game?
+### Per-move explanations (off since v1.4)
 
-Each Ollama call takes 7–16 seconds. With 74 games × 3 calls = 222 Ollama calls ≈ 35–50 minutes total.
-The remaining mistakes are saved engine-only (`SKIPPED`), so counts stay complete
-without multiplying inference time. Every mistake, explained or not, still gets the
-verified diagnosis.
+Until v1.3 a language model wrote an explanation and a tactic label for the top
+three mistakes of each game (`SKIPPED` for the rest). Those labels were never
+checked and covered about a third of the library, yet every report read them.
+Since Phase 12 "written explanations per game" is 0 by default, recorded as a
+new settings version (`library-v1`, `practice-v1`). It is not part of the
+engine ruler (`AnalysisSettings.sameEngineAs`), so switching it changes no
+game's "current" status. The old text stays in `move_errors.explanation` and is
+never sent to the page. Every mistake is explained by its verified diagnosis.
 
 ---
 
 ## AI Reasoning Flow
 
-Three separate AI calls happen across the full pipeline, each using `qwen2.5:7b` via Ollama.
+Two models, each with one job (Phase 12, decided by the step-7 comparison in
+`technical-docs/phase12/compare/RESULT.md`):
 
-### Call 1 — Per-Move Analysis (×3 per game)
+| Model | Job | Checked by |
+|---|---|---|
+| `qwen3:4b-instruct` | Ask Prax; a few paragraphs around the Pattern Report and Training Plan | Prax: citation rules. Reports: `ProseChecker` |
+| `praxis-grid-2b-r3` | Commentary on one diagnosed mistake | `DiagnosisVerifier`; failed answers are never shown |
 
-**Input prompt:**
-```
-You are a chess coach. Explain concisely why the played move is worse than the engine's move.
-Do NOT suggest moves — the engine move is already determined.
-
-Position (FEN): rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
-Move played: Nc6  (eval: +0.15 → -0.45, lost 0.60 pawns)
-Engine best:  d5
-Engine top lines:
-  1. d5 e5d5 d8d5 b1c3
-  2. Nf6 d2d4 e5d4 f3d4
-  3. b8c6 d2d4 c6d4 f3d4
-Phase: OPENING | Move #4 | Player: black
-
-Respond ONLY with JSON:
-{
-  "explanation": "<one sentence: why the played move is bad>",
-  "tactical_motif": "FORK" | "PIN" | "SKEWER" | "BACK_RANK" | "DISCOVERED_ATTACK" | "HANGING_PIECE" | "POSITIONAL" | "OTHER"
-}
-```
-
-**Output (parsed into MoveError):**
-```json
-{
-  "explanation": "Nc6 allows White to seize central control; the engine's d5 immediately contests the center.",
-  "tactical_motif": "POSITIONAL"
-}
-```
-
-Severity (`BLUNDER` / `MISTAKE`) and `better_move` (UCI) are set by Stockfish/Java — the LLM only supplies the human-readable *why*.
+Neither model decides a number, a weakness, an order or a drill. Those are
+computed in code, from every current mistake with its verified diagnosis
+(`VerifiedMistakes`, matched on game and ply).
 
 ```mermaid
 flowchart LR
-    FEN[FEN position\nbefore move] --> PT[PromptTemplates\n.moveAnalysis]
-    MOVE[SAN move\nplayer color\ngame phase\nmove number] --> PT
-    PT --> OL[Ollama\nqwen2.5:7b]
-    OL --> JSON[Raw JSON string]
-    JSON --> STRIP[Strip markdown fences\nif present]
-    STRIP --> PARSE[Jackson ObjectMapper\ndeserialize]
-    PARSE --> RES[OllamaResult\nexplanation tacticalMotif\nanalysisState]
-```
-
-**JSON mode enforcement:** `OllamaAnalysisClient` sends `"format": "json"` in every
-request body, activating Ollama's grammar-constrained JSON mode. This forces the model
-to produce syntactically valid JSON. The fence-stripping fallback handles the edge case
-where the model prepends ` ```json ` despite the format constraint.
-
----
-
-### Call 2 — Pattern Report (×1 after all games analyzed)
-
-Aggregated statistics across all games are compiled programmatically, then sent to the LLM
-to produce a natural language coaching summary.
-
-**What gets aggregated before the LLM call:**
-
-```mermaid
-flowchart TD
-    ERRORS[All MoveErrors\nacross all analyzed games] --> MR[Move range distribution\n1-10, 11-20, 21-30, 31+]
-    ERRORS --> PH[Phase breakdown\nOpening, Middlegame, Endgame]
-    ERRORS --> MF[Motif frequency map\nFORK:12, PIN:8, etc.]
-    ERRORS --> OA[Opening accuracy map\nC41:errors, B07:errors, etc.]
-    MR & PH & MF & OA --> PROMPT[PromptTemplates\n.patternReport]
-    PROMPT --> OL[Ollama\nqwen2.5:7b]
-    OL --> PR[PatternReportResult\nprimary_weakness\nsecondary_weakness\ncritical_move_range\ndominant_motif\nopening_assessment]
-    PR --> DB[(PlayerPattern\nsaved to DB)]
-```
-
-**Example output from the LLM:**
-```json
-{
-  "primary_weakness": "You consistently blunder in endgames after move 30 under time pressure.",
-  "secondary_weakness": "Hanging pieces in the middlegame are your most frequent tactical oversight.",
-  "tertiary_weakness": "Your opening play in B-series defenses leads to early positional concessions.",
-  "critical_move_range": "moves 21-30",
-  "dominant_motif": "HANGING_PIECE",
-  "opening_assessment": "Strong in C41 Philidor but frequently misplays B07 Pirc structures."
-}
-```
-
----
-
-### Call 3 — Training Plan (×1 on demand)
-
-Generated when the user visits the Training Plan page and triggers generation.
-
-```mermaid
-flowchart TD
-    PAT[PlayerPattern JSON\nweaknesses + motifs] --> TP[PromptTemplates\n.trainingPlan]
-    OS[Opening stats JSON\nwin rates per ECO] --> TP
-    TP --> OL[Ollama\nqwen2.5:7b]
-    OL --> PLAN[TrainingPlan JSON\n3 priorities with focus+action+reason\nopenings to drill\ntactical patterns to study]
-    PLAN --> DB[(TrainingPlan\nsaved to DB)]
+    ME[Current mistakes\nmove_errors, superseded hidden] --> VM[VerifiedMistakes\n+ verified diagnosis by game, ply]
+    EV[mistake_evidence\nrules + verifier] --> VM
+    VM --> RF[ReportFactsBuilder\nfigures, ranked weaknesses, examples]
+    RF --> TB[TrainingPlanBuilder\npriorities, drills, schedule]
+    RF --> RW[ReportWriter\nqwen3:4b-instruct writes prose]
+    TB --> RW
+    RW --> PC{ProseChecker\nnumbers, tactics, clock, results}
+    PC -->|pass| SAVE[(player_patterns / training_plans\nfacts + checked prose)]
+    PC -->|fail: one retry, then| FACTS[(facts only, with a note)]
 ```
 
 ---
 
 ## Pattern Aggregation
 
-After all games are analyzed, `PatternAggregator.recompute()` runs in the same async thread:
+`PatternAggregator.recompute()` runs after each analysis run and on "Rebuild
+the report" (`POST /api/patterns/recompute`):
 
-1. Loads all `MoveError` records for the user's analyzed games
-2. Computes statistical distributions (move range, phase, motif) purely in Java
-3. Calls Ollama once with the aggregated data
-4. Saves `PlayerPattern` to DB (replaces any prior pattern for this user)
+1. **Facts** (`ReportFactsBuilder`, pure and unit-tested). Two axes, ranked
+   separately because one mistake can have both: causes (verified mechanism, or
+   time trouble) and tactics (the one the opponent had after the move, or the
+   player's piece left hanging; named only when proven; "positional"/"other"
+   are one count, `noNamedTactic`). Each top list is ranked by **winning chances
+   lost in total** (the sum of `win_pct_drop`), so "costliest" means what it
+   says, and every position is kept. One threshold for everything,
+   `MIN_SAMPLE = 10`: fewer mistakes behind a weakness and it is not ranked;
+   behind a rate, the clock or an opening, and it is marked as too few or left
+   out, and a rate with too few can never be the worst.
+   Where mistakes happen is a **rate per 100 of the player's moves** by phase
+   and full-move range: the player's moves are counted from each game's PGN with
+   the same phase rule as a flagged move (`MistakeCandidateFilter.phaseOf`).
+   Openings are listed only at least a fifth above the player's own serious
+   mistakes per game. Clock figures are shown only with 20 or more mistakes
+   behind them.
+2. **Prose** (`ReportWriter`), **off by default** (`praxis-chess.reports.prose`).
+   On real reports the checker passed sentences that joined figures from
+   different rows and stated causes nothing measured: it verifies numbers, not
+   claims. The page's sentences are written in code; with prose on, a summary
+   appears labelled as AI-written.
+3. **Check** (`ProseChecker`). Every number must be one the facts state. A
+   tactic name needs that tactic in the facts, time trouble needs a clock,
+   and nothing may be said about results or rating. "You made a fork" is
+   rejected: a tactic in these facts is one that caught the player or that
+   they missed. One retry lists the failures; a second failure stores the
+   report without prose (`prose_status = rejected`), and the page shows the
+   figures with a note. A wrong report is never shown.
+4. **Save.** Every recompute adds a `player_patterns` row with `facts_json`,
+   `prose_json`, `prose_status`, `prose_model`, attempts and time; earlier
+   reports stay. The legacy columns are filled from the facts so older readers
+   (Dashboard) keep working.
 
-The pattern is the foundation for both the Dashboard's "Mistakes by Phase" bars and the
-"Today's Focus" banner, and feeds directly into the Training Plan generation.
+The Training Plan (`TrainingPlanService`) uses the same facts:
+`TrainingPlanBuilder` takes the top causes as priorities and the top tactic as
+the pattern to learn, and fills a week of three sessions with six of the
+player's own positions each (4+2, 4+2, 3+3 from fixed sources, costliest first,
+never a position twice), each with a one-line goal. A tactic is added only
+when at most half its positions are already under the priorities. Each session
+opens the Drills page on exactly its positions
+(`GET /api/drills?positions=gameId:ply,…`), and a finished session is recorded
+on the plan (`POST /api/training-plan/{id}/sessions/{n}`, `progress_json`).
+
+Both live as tabs inside Insights (`/insights/patterns`, `/insights/training`;
+the old `/patterns` and `/training` redirect). `POST /api/patterns/compare` runs
+the same facts through several models for measurement; it saves nothing.
+
+---
+
+## History kept
+
+Re-analysis deletes nothing (Phase 12):
+
+- **Mistakes.** The run's `GameAnalysisTransactionService` marks the game's
+  current `move_errors` rows `superseded_at` and writes new ones with an
+  `analysis_run_id` (also on `analysis_timing.run_id`), in one transaction. A
+  `@SQLRestriction` on `MoveError` hides superseded rows from every query;
+  native SQL still reads them.
+- **Drill history.** Cards are re-linked to the new row at the same ply, FSRS
+  state and attempts intact; a card whose move is no longer a mistake is
+  suspended, not deleted (`CardRepository.relinkToCurrent`, `suspendOrphans`).
+- **Diagnoses.** Before a rebuild, a commentary replacement or a relabel
+  overwrites a `mistake_evidence` row, the old row is copied, whole, as JSON
+  into `mistake_evidence_history` (append-only). `move_error_id` is refreshed
+  to the current row after each analysis and once at startup (`SchemaRepair`).
+- **Reports and plans** already added a row per recompute.
 
 ---
 
@@ -1286,7 +1277,8 @@ through a small shared volume.
 
 **Daily, but only when something changed.** Every hour the service checks; when
 the last check is 24 hours old it dumps the database and hashes the dump minus
-its header comments and PostgreSQL 17.6's random `estrict` key. Equal to the
+its header comments and PostgreSQL 17.6's random `
+estrict` key. Equal to the
 newest snapshot's hash, the dump is discarded and only the check is recorded.
 The checklist therefore measures freshness by the last check, not the last
 file: a week with no new games has one snapshot and is fully backed up.
@@ -1726,9 +1718,10 @@ natural language explanation (`analysis_state = SKIPPED`).
 
 ### 3. Single-threaded analysis executor
 
-Ollama's `qwen2.5:7b` loads 2.4 GB into non-pageable host RAM and 4.0 GB into VRAM.
-Running two Ollama calls in parallel would require 8 GB VRAM (unavailable on RTX 3050)
-and could exhaust system RAM. One thread serializes all AI work safely.
+Written when `qwen2.5:7b` did the per-move work: it loaded 2.4 GB into non-pageable
+host RAM and 4.0 GB into VRAM, and two calls in parallel would have needed 8 GB of VRAM
+(an RTX 3050 has 4). The 4B models of v1.4 fit better, but one GPU is still one lane,
+so the executor stays single-threaded.
 
 ### 4. No Flyway — `ddl-auto: update`
 
@@ -2170,10 +2163,11 @@ flowchart TD
     CC -->|store raw games| DB[(PostgreSQL)]
 
     DB -->|"② Re-Analyze All"| SF[Stockfish\nevaluate every position\nfind score drops]
-    SF -->|top mistake candidates| OL[Ollama — qwen2.5:7b\nexplain why it was a mistake\nwhat to play instead]
-    OL -->|save MoveErrors| DB
+    SF -->|save every mistake| DB
+    DB -->|"after each game"| VD[Verified diagnosis\nevidence graph + rules + verifier]
+    VD --> DB
 
-    DB -->|"after all games done"| PA[Pattern Aggregator\ngroup by phase · motif · move range\nask LLM for systemic weaknesses]
+    DB -->|"after all games done"| PA[Pattern Report\nfacts computed in code\nprose checked against them]
     PA -->|save PlayerPattern| DB
 
     DB -->|"③ Explore"| DASH[Dashboard\nrating · win rates · openings]

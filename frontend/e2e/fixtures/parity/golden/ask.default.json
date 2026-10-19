@@ -1,0 +1,14 @@
+{
+ "screen": "ask",
+ "state": "default",
+ "path": "/ask",
+ "metrics": {
+  "prose": 55,
+  "data": 0,
+  "paragraphs": [
+   "Ask about your own chess and Prax answers from your analysed games. Ask about chess in general and it cites where the answer came from."
+  ]
+ },
+ "pairs": [],
+ "methods": []
+}

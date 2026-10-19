@@ -20,8 +20,8 @@
 name: praxis
 
 x-models: &models
-  PRAXIS_MOVE_MODEL: ${PRAXIS_MOVE_MODEL:-qwen2.5:7b}
-  PRAXIS_REPORT_MODEL: ${PRAXIS_REPORT_MODEL:-qwen2.5:7b}
+  PRAXIS_MOVE_MODEL: ${PRAXIS_MOVE_MODEL:-qwen3:4b-instruct}
+  PRAXIS_REPORT_MODEL: ${PRAXIS_REPORT_MODEL:-qwen3:4b-instruct}
   PRAXIS_REASONING_MODEL: ${PRAXIS_REASONING_MODEL:-qwen3:4b-instruct}
   # No colon on purpose: unset means the default, empty means "off".
   PRAXIS_COMMENTARY_MODEL: ${PRAXIS_COMMENTARY_MODEL-praxis-grid-2b-r3}

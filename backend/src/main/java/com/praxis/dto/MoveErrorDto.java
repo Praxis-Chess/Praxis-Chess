@@ -45,12 +45,18 @@ public record MoveErrorDto(
         return from(e, null);
     }
 
+    /**
+     * Phase 12 (D2): the old per-move model's motif and explanation are kept in
+     * the database and never shown. The motif here is the verified one; the
+     * explanation lives in {@link Verified}.
+     */
     public static MoveErrorDto from(MoveError e, MistakeEvidence evidence) {
+        boolean current = com.praxis.service.diagnosis.VerifiedMistakes.of(evidence) != null;
         return new MoveErrorDto(
                 e.getId(), e.getMoveNumber(), e.getMovePlayed(), e.getBetterMove(),
                 e.getFenPosition(), e.getSeverity() != null ? e.getSeverity().name() : null,
-                e.getTacticalMotif() != null ? e.getTacticalMotif().name() : null,
-                e.getExplanation(),
+                current ? evidence.getRuleMotif() : null,
+                null,
                 e.getGamePhase() != null ? e.getGamePhase().name() : null,
                 e.getClockRemaining(),
                 e.getAnalysisState() != null ? e.getAnalysisState().name() : null,

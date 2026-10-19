@@ -1,5 +1,6 @@
 import type { Page, Request, Route } from '@playwright/test'
 import * as data from './data'
+import * as reports from './reports'
 
 export interface Reply {
   status?: number
@@ -137,6 +138,8 @@ export class ApiMock {
     this.json('/api/progress', data.progress)
     this.json('/api/patterns', null)
     this.json('/api/training-plan', null)
+    this.json(/^\/api\/training-plan\/[^/]+\/since$/, reports.sinceTooSoon)
+    this.json(/^\/api\/training-plan\/[^/]+\/recall$/, reports.recall)
     this.json(/^\/api\/drills/, [])
     // Phase 9's whole-library diagnosis: nothing left to do, nothing running.
     this.json('/api/diagnosis/library', data.libraryIdle)

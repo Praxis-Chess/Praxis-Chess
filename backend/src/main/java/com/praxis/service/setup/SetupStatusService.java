@@ -12,6 +12,8 @@ import com.praxis.dto.SetupDto.Status;
 import com.praxis.service.analysis.StockfishService;
 import com.praxis.service.backup.BackupService;
 import com.praxis.service.settings.PlayerIdentity;
+import com.praxis.service.settings.SettingsService;
+import com.praxis.domain.AnalysisSettings;
 import com.praxis.service.voice.TtsClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +65,7 @@ public class SetupStatusService {
     private final ModelRouter router;
     private final TtsClient tts;
     private final BackupService backups;
+    private final SettingsService settings;
     private final ObjectMapper json = new ObjectMapper();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
     private final Path setupDir;
@@ -71,7 +74,8 @@ public class SetupStatusService {
     private volatile long optionalAt;
 
     public SetupStatusService(DataSource dataSource, AppProperties props, StockfishService stockfish,
-                              PlayerIdentity player, ModelRouter router, TtsClient tts, BackupService backups) {
+                              PlayerIdentity player, ModelRouter router, TtsClient tts, BackupService backups,
+                              SettingsService settings) {
         this.dataSource = dataSource;
         this.props = props;
         this.stockfish = stockfish;
@@ -79,6 +83,7 @@ public class SetupStatusService {
         this.router = router;
         this.tts = tts;
         this.backups = backups;
+        this.settings = settings;
         String dir = System.getenv("PRAXIS_SETUP_DIR");
         this.setupDir = dir == null || dir.isBlank() ? null : Path.of(dir);
     }
@@ -221,6 +226,9 @@ public class SetupStatusService {
                 Feature.REPORTS, "Pattern report, training plan",
                 Feature.PRAX, "Ask Prax");
         for (Feature f : List.of(Feature.EXPLANATIONS, Feature.REPORTS, Feature.PRAX)) {
+            // Phase 12: per-move explanations are off by default; their model is
+            // needed only while a settings version still asks for some.
+            if (f == Feature.EXPLANATIONS && !explanationsOn()) continue;
             ModelRouter.Route r = router.forFeature(f);
             if (r.cloud() || r.model() == null || r.model().isBlank()) continue;
             m.merge(r.model(), roles.get(f), (a, b) -> a + ", " + b.toLowerCase(Locale.ROOT));
@@ -230,6 +238,18 @@ public class SetupStatusService {
             m.merge(commentary, "Checked commentary (trained for Praxis)", (a, b) -> a + ", " + b);
         }
         return m;
+    }
+
+    private boolean explanationsOn() {
+        try {
+            for (String kind : List.of(AnalysisSettings.LIBRARY, AnalysisSettings.PRACTICE)) {
+                Integer n = settings.active(kind).settings().getMaxExplanations();
+                if (n == null || n > 0) return true;
+            }
+            return false;
+        } catch (Exception e) {
+            return true;   // unknown: list it rather than hide a model that may be needed
+        }
     }
 
     private Map<String, JsonNode> downloadProgress() {

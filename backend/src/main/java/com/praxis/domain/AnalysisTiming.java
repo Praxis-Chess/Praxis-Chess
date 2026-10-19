@@ -38,6 +38,14 @@ public class AnalysisTiming {
     @Column(name = "game_id", nullable = false)
     private UUID gameId;
 
+    /**
+     * The run's identity, also written on every move_errors row it produced
+     * ({@code analysis_run_id}): "which run, with which settings, wrote this
+     * mistake" has an answer even after later re-analyses.
+     */
+    @Column(name = "run_id")
+    private UUID runId;
+
     /** The {@link AnalysisSettings} row the run used. */
     @Column(name = "settings_id")
     private Long settingsId;

@@ -1,0 +1,836 @@
+{
+ "screen": "pattern-report",
+ "state": "long-names",
+ "path": "/insights/patterns",
+ "metrics": {
+  "prose": 325,
+  "data": 91,
+  "paragraphs": [
+   "It cost you more winning chances than any other cause: 32 of 145 (22%) · 19 blunders · −27% winning chance each.",
+   "Across all causes, your serious mistakes are most frequent in the middlegame: 17.6 per 100 moves there, against 13.6 over all your moves.",
+   "Ranked by the winning chances each cause cost you in total, not by how often it happened.",
+   "The tactic your opponent had after your move, or a piece of yours left undefended. It is named only when the board proves it: no tactic was proven in 96 of your 145 serious mistakes.",
+   "1 of these 14 are also under “Ignoring your opponent's threat”: the same mistakes, seen as a tactic.",
+   "Serious mistakes per 100 of your moves. The line is your overall rate, 13.6; amber is above it. Fewer than 10 mistakes behind a figure: faded, and never called the worst.",
+   "Clock data exists for only 4 of 145 serious mistakes, fewer than 10: nothing to say about time trouble."
+  ]
+ },
+ "pairs": [
+  [
+   "",
+   "~analyzed",
+   1
+  ],
+  [
+   "",
+   "10/16/2026",
+   1
+  ],
+  [
+   "",
+   "31",
+   1
+  ],
+  [
+   "Insights sections",
+   "@/insights",
+   1
+  ],
+  [
+   "Insights sections",
+   "@/insights/patterns",
+   1
+  ],
+  [
+   "Insights sections",
+   "@/insights/training",
+   1
+  ],
+  [
+   "Openings above your average",
+   "4.7",
+   1
+  ],
+  [
+   "Openings above your average > French Defense, Winawer Variation",
+   "×1.28",
+   1
+  ],
+  [
+   "Openings above your average > French Defense, Winawer Variation",
+   "~french defense, winawer variation",
+   1
+  ],
+  [
+   "Openings above your average > French Defense, Winawer Variation",
+   "5",
+   1
+  ],
+  [
+   "Openings above your average > French Defense, Winawer Variation",
+   "6.0",
+   1
+  ],
+  [
+   "Openings above your average > Opening",
+   "~opening",
+   1
+  ],
+  [
+   "Summary",
+   "~blunders",
+   1
+  ],
+  [
+   "Summary",
+   "~middlegame",
+   1
+  ],
+  [
+   "Summary",
+   "−27%",
+   1
+  ],
+  [
+   "Summary",
+   "100",
+   1
+  ],
+  [
+   "Summary",
+   "13.6",
+   1
+  ],
+  [
+   "Summary",
+   "145",
+   1
+  ],
+  [
+   "Summary",
+   "17.6",
+   1
+  ],
+  [
+   "Summary",
+   "19",
+   1
+  ],
+  [
+   "Summary",
+   "22%",
+   1
+  ],
+  [
+   "Summary",
+   "32",
+   1
+  ],
+  [
+   "Tactics your opponent got",
+   "~pins",
+   1
+  ],
+  [
+   "Tactics your opponent got",
+   "~the rest",
+   1
+  ],
+  [
+   "Tactics your opponent got",
+   "145",
+   1
+  ],
+  [
+   "Tactics your opponent got",
+   "5",
+   1
+  ],
+  [
+   "Tactics your opponent got",
+   "96",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks",
+   "~blunders",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks",
+   "~forks",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks",
+   "~ignoring your opponent's threat",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks",
+   "−30%",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks",
+   "1",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks",
+   "10%",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks",
+   "11",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks",
+   "14",
+   2
+  ],
+  [
+   "Tactics your opponent got > Forks",
+   "145",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 23.Qxc6",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 23.Qxc6",
+   "~scandinavian defense",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 23.Qxc6",
+   "~sep",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 23.Qxc6",
+   "−34%",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 23.Qxc6",
+   "23.Qxc6",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 23.Qxc6",
+   "6",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 25.g5",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 25.g5",
+   "~scandinavian defense",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 25.g5",
+   "~sep",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 25.g5",
+   "−34%",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 25.g5",
+   "25.g5",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > 25.g5",
+   "6",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > popover 23.Qxc6",
+   "~white",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > popover 23.Qxc6",
+   "~white to move",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > popover 25.g5",
+   "~white",
+   1
+  ],
+  [
+   "Tactics your opponent got > Forks > popover 25.g5",
+   "~white to move",
+   1
+  ],
+  [
+   "What goes wrong",
+   "~no cause found",
+   1
+  ],
+  [
+   "What goes wrong",
+   "~the rest",
+   1
+  ],
+  [
+   "What goes wrong",
+   "~unclear",
+   1
+  ],
+  [
+   "What goes wrong",
+   "17",
+   1
+  ],
+  [
+   "What goes wrong",
+   "40",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat",
+   "~blunders",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat",
+   "~ignoring your opponent's threat",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat",
+   "−27%",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat",
+   "1",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat",
+   "145",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat",
+   "19",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat",
+   "22%",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat",
+   "32",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 11.Nf3",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 11.Nf3",
+   "~french defense, winawer variation",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 11.Nf3",
+   "~sep",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 11.Nf3",
+   "−34%",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 11.Nf3",
+   "11.Nf3",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 11.Nf3",
+   "6",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 12.Bd3",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 12.Bd3",
+   "~french defense, winawer variation",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 12.Bd3",
+   "~sep",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 12.Bd3",
+   "−34%",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 12.Bd3",
+   "12.Bd3",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 12.Bd3",
+   "6",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 17...g6",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 17...g6",
+   "~french defense, winawer variation",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 17...g6",
+   "~sep",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 17...g6",
+   "−34%",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 17...g6",
+   "17...g6",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 17...g6",
+   "6",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 23.Qxc6",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 23.Qxc6",
+   "~french defense, winawer variation",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 23.Qxc6",
+   "~sep",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 23.Qxc6",
+   "−34%",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 23.Qxc6",
+   "23.Qxc6",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 23.Qxc6",
+   "6",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 30...Qe4",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 30...Qe4",
+   "~french defense, winawer variation",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 30...Qe4",
+   "~sep",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 30...Qe4",
+   "−34%",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 30...Qe4",
+   "30...Qe4",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > 30...Qe4",
+   "6",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > popover 11.Nf3",
+   "~white",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > popover 11.Nf3",
+   "~white to move",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > popover 12.Bd3",
+   "~white",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > popover 12.Bd3",
+   "~white to move",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > popover 17...g6",
+   "~white",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > popover 17...g6",
+   "~white to move",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > popover 23.Qxc6",
+   "~white",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > popover 23.Qxc6",
+   "~white to move",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > popover 30...Qe4",
+   "~white",
+   1
+  ],
+  [
+   "What goes wrong > Ignoring your opponent's threat > popover 30...Qe4",
+   "~white to move",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances",
+   "~blunders",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances",
+   "~missing your own chances",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances",
+   "−19%",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances",
+   "145",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances",
+   "15%",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances",
+   "2",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances",
+   "22",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances",
+   "9",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 14.exd5",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 14.exd5",
+   "~french defense, winawer variation",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 14.exd5",
+   "~sep",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 14.exd5",
+   "−34%",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 14.exd5",
+   "14.exd5",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 14.exd5",
+   "6",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 18...Rxf8",
+   "@/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 18...Rxf8",
+   "~french defense, winawer variation",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 18...Rxf8",
+   "~sep",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 18...Rxf8",
+   "−34%",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 18...Rxf8",
+   "18...Rxf8",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > 18...Rxf8",
+   "6",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > popover 14.exd5",
+   "~white",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > popover 14.exd5",
+   "~white to move",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > popover 18...Rxf8",
+   "~white",
+   1
+  ],
+  [
+   "What goes wrong > Missing your own chances > popover 18...Rxf8",
+   "~white to move",
+   1
+  ],
+  [
+   "Where they happen",
+   "10",
+   2
+  ],
+  [
+   "Where they happen",
+   "100",
+   1
+  ],
+  [
+   "Where they happen",
+   "13.6",
+   1
+  ],
+  [
+   "Where they happen",
+   "145",
+   1
+  ],
+  [
+   "Where they happen",
+   "4",
+   1
+  ],
+  [
+   "Where they happen > endgame",
+   "~endgame",
+   1
+  ],
+  [
+   "Where they happen > endgame",
+   "~few",
+   1
+  ],
+  [
+   "Where they happen > endgame",
+   "149",
+   1
+  ],
+  [
+   "Where they happen > endgame",
+   "6.0",
+   1
+  ],
+  [
+   "Where they happen > endgame",
+   "9",
+   1
+  ],
+  [
+   "Where they happen > middlegame",
+   "~middlegame",
+   1
+  ],
+  [
+   "Where they happen > middlegame",
+   "17.6",
+   1
+  ],
+  [
+   "Where they happen > middlegame",
+   "547",
+   1
+  ],
+  [
+   "Where they happen > middlegame",
+   "96",
+   1
+  ],
+  [
+   "Where they happen > moves 1-10",
+   "1-10",
+   1
+  ],
+  [
+   "Where they happen > moves 1-10",
+   "10.0",
+   1
+  ],
+  [
+   "Where they happen > moves 1-10",
+   "31",
+   1
+  ],
+  [
+   "Where they happen > moves 1-10",
+   "310",
+   1
+  ],
+  [
+   "Where they happen > moves 11-20",
+   "11-20",
+   1
+  ],
+  [
+   "Where they happen > moves 11-20",
+   "17.8",
+   1
+  ],
+  [
+   "Where they happen > moves 11-20",
+   "297",
+   1
+  ],
+  [
+   "Where they happen > moves 11-20",
+   "53",
+   1
+  ],
+  [
+   "Where they happen > moves 21-30",
+   "17.4",
+   1
+  ],
+  [
+   "Where they happen > moves 21-30",
+   "201",
+   1
+  ],
+  [
+   "Where they happen > moves 21-30",
+   "21-30",
+   1
+  ],
+  [
+   "Where they happen > moves 21-30",
+   "35",
+   1
+  ],
+  [
+   "Where they happen > moves 31+",
+   "10.0",
+   1
+  ],
+  [
+   "Where they happen > moves 31+",
+   "26",
+   1
+  ],
+  [
+   "Where they happen > moves 31+",
+   "260",
+   1
+  ],
+  [
+   "Where they happen > moves 31+",
+   "31+",
+   1
+  ],
+  [
+   "Where they happen > opening",
+   "~opening",
+   1
+  ],
+  [
+   "Where they happen > opening",
+   "10.8",
+   1
+  ],
+  [
+   "Where they happen > opening",
+   "372",
+   1
+  ],
+  [
+   "Where they happen > opening",
+   "40",
+   1
+  ]
+ ],
+ "methods": []
+}

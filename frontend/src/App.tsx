@@ -9,8 +9,6 @@ import { Dashboard } from './pages/Dashboard'
 import { GameList } from './pages/GameList'
 import { GameAnalysis } from './pages/GameAnalysis'
 import { GameReview } from './pages/GameReview'
-import { PatternReport } from './pages/PatternReport'
-import { TrainingPlan } from './pages/TrainingPlan'
 import { Insights } from './pages/Insights'
 import { PlayImprove } from './pages/PlayImprove'
 import { AskPrax } from './pages/AskPrax'
@@ -57,10 +55,12 @@ export default function App() {
             {/* Phase 3: hand labels that validate the rules. Measurement, not a feature. */}
             <Route path="labels" element={<RuleValidation />} />
             <Route path="insights" element={<Insights />} />
+            <Route path="insights/:tab" element={<Insights />} />
             <Route path="settings" element={<Settings />} />
             <Route path="drills" element={<Drills />} />
-            <Route path="patterns" element={<PatternReport />} />
-            <Route path="training" element={<TrainingPlan />} />
+            {/* Phase 12: the Pattern Report and Training Plan are tabs inside Insights. */}
+            <Route path="patterns" element={<Navigate to="/insights/patterns" replace />} />
+            <Route path="training" element={<Navigate to="/insights/training" replace />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

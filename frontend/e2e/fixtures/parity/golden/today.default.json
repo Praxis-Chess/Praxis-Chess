@@ -1,0 +1,147 @@
+{
+ "screen": "today",
+ "state": "default",
+ "path": "/",
+ "metrics": {
+  "prose": 48,
+  "data": 7,
+  "paragraphs": []
+ },
+ "pairs": [
+  [
+   "",
+   "~fri",
+   1
+  ],
+  [
+   "",
+   "~mon",
+   1
+  ],
+  [
+   "",
+   "~recorded today",
+   1
+  ],
+  [
+   "",
+   "~sat",
+   1
+  ],
+  [
+   "",
+   "~sun",
+   1
+  ],
+  [
+   "",
+   "~thu",
+   1
+  ],
+  [
+   "",
+   "~tue",
+   1
+  ],
+  [
+   "",
+   "~wed",
+   1
+  ],
+  [
+   "",
+   "12",
+   1
+  ],
+  [
+   "",
+   "146",
+   1
+  ],
+  [
+   "",
+   "38",
+   1
+  ],
+  [
+   "",
+   "5",
+   1
+  ],
+  [
+   "",
+   "96",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "~12",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "~blunders",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "~blunders in middlegame",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "~middlegame",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "101",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "154",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "8",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "97",
+   1
+  ]
+ ],
+ "methods": [
+  [
+   "",
+   "2026-08-17 — examined"
+  ],
+  [
+   "",
+   "2026-08-18 — examined"
+  ],
+  [
+   "",
+   "2026-08-19 — examined"
+  ],
+  [
+   "",
+   "2026-08-20 — examined"
+  ],
+  [
+   "",
+   "2026-08-21 — examined"
+  ],
+  [
+   "",
+   "2026-08-22 — upcoming"
+  ],
+  [
+   "",
+   "2026-08-23 — upcoming"
+  ]
+ ]
+}

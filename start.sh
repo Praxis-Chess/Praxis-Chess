@@ -26,8 +26,8 @@ if ! command -v ollama &>/dev/null; then
   echo "[ERROR] Ollama not found. Install from https://ollama.com then re-run this script."
   exit 1
 fi
-echo "[2/3] Pulling Ollama model qwen2.5:7b (skips if already downloaded)..."
-ollama pull qwen2.5:7b
+echo "[2/3] Pulling Ollama model qwen3:4b-instruct (skips if already downloaded)..."
+ollama pull qwen3:4b-instruct
 echo ""
 
 # Step 3 — Launch app

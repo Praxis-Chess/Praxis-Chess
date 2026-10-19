@@ -32,14 +32,16 @@ test.describe('Full analysis of a practice game', () => {
     await expect(review.summary).toContainText('1 mistake')
   })
 
-  test('explains a flagged move and names the engine’s choice', async ({ page }) => {
+  test('names the engine’s choice, and never shows the old model’s unchecked text', async ({ page }) => {
     const review = new GameReviewPage(page)
     await review.open(data.PRACTICE_GAME_ID)
 
     await review.move('Nc6?').click()
 
-    await expect(review.main).toContainText('blocks the c-pawn')
     await expect(review.main).toContainText('d7d5')
+    // Phase 12 (D2): the old per-move text is kept in the database, never shown.
+    await expect(review.main).not.toContainText('blocks the c-pawn')
+    await expect(review.main).toContainText('Not diagnosed yet')
   })
 
   /**

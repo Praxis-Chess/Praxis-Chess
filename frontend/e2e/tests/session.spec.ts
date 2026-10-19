@@ -63,7 +63,8 @@ test.describe('Drill session', () => {
     await page.goto(`/session/${SESSION}`)
     await page.getByRole('button', { name: 'Show answer' }).click()
 
-    await expect(page.getByText('d2d3')).toBeVisible()
+    // The engine's move in SAN, like every other move a player reads (principle 7).
+    await expect(page.getByText('d3', { exact: true })).toBeVisible()
     await expect(page.getByText('The knight had nothing to attack there.')).toBeVisible()
     for (const r of ['Again', 'Hard', 'Good', 'Easy']) {
       await expect(page.getByRole('button', { name: r })).toBeVisible()

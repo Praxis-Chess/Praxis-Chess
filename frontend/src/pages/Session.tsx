@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Chessboard } from 'react-chessboard'
 import { Chess, type Square } from 'chess.js'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { Card, AttemptRating, Session as SessionType } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
+import { uciToSan } from '../components/san'
 import { praxBus, PraxAnchor } from '../prax/PraxHost'
 
 type Stage = 'solving' | 'rating' | 'done'
@@ -224,7 +225,12 @@ function CardView({ card, sessionId, onRated }: {
             ) : (
               <div style={{ marginBottom: 8 }}>
                 <span style={{ fontWeight: 700, color: 'var(--accent)' }}>Best: </span>
-                <span style={{ fontFamily: 'monospace' }}>{card.better_move}</span>
+                <span style={{ fontFamily: 'monospace' }}>{uciToSan(card.fen_position, card.better_move)}</span>
+              </div>
+            )}
+            {card.game_id && (
+              <div style={{ marginBottom: 12 }}>
+                <Link to={`/games/${card.game_id}`} style={{ fontSize: '0.8rem' }}>Open the game →</Link>
               </div>
             )}
             {card.explanation && (
@@ -290,12 +296,16 @@ export function Session() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center',
                     justifyContent: 'center', minHeight: '60vh', gap: 20 }}>
-        <div style={{ fontSize: '3rem' }}>🎉</div>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 700 }}>Session complete</h2>
+        <h2 role="status" style={{ fontSize: '1.4rem', fontWeight: 700 }}>Session complete</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          {session.cards_completed} card{session.cards_completed !== 1 ? 's' : ''} reviewed.
+          {session.cards_completed} card{session.cards_completed !== 1 ? 's' : ''} reviewed
+          {session.cards_solved != null && <> · {session.cards_solved} solved first time</>}
         </p>
-        <button onClick={() => navigate('/')}>Back to Today</button>
+        {/* Not a dead end: the next question is whether it is working (F4). */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="solid" onClick={() => navigate('/progress')}>See progress</button>
+          <button className="secondary" onClick={() => navigate('/')}>Back to Today</button>
+        </div>
       </div>
     )
   }

@@ -17,8 +17,8 @@ export function BackupFailedNotice({ error, onProceed, onCancel, busy }: {
       background: 'rgba(229, 176, 75, 0.08)', display: 'flex', flexDirection: 'column', gap: 8,
     }}>
       <span style={muted}>
-        {error.message} Nothing has been changed. Re-analysis replaces analyses and drill cards, so a backup is
-        taken first.
+        {error.message} Nothing has been changed. Re-analysis rewrites the analysis of many games, so a backup
+        is taken first.
       </span>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button className="secondary" onClick={onProceed} disabled={busy}>Re-analyse without a backup</button>

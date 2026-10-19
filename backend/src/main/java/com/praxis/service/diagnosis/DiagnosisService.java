@@ -184,6 +184,7 @@ public class DiagnosisService {
                     failed++;
                     continue;
                 }
+                evidence.archive(e.getId(), "rebuild");
                 applyGraph(e, graph.get().graph());
                 evidence.save(e);
                 built++;
@@ -246,7 +247,8 @@ public class DiagnosisService {
 
         MistakeEvidence row;
         if (current.isPresent()) {
-            row = current.get();   // stale: rebuilt in place, label kept
+            row = current.get();   // stale: rebuilt in place, label kept, old version archived
+            evidence.archive(row.getId(), "rebuild");
             applyGraph(row, g);
         } else {
             row = toEntity(m.getGame().getUsername(), m, g);
@@ -268,6 +270,9 @@ public class DiagnosisService {
      * @return how many mistakes now have a current diagnosis
      */
     public int buildForGame(UUID gameId) {
+        // A re-analysis wrote new mistake rows: existing diagnoses at the same
+        // plies now point at the current ones.
+        evidence.relinkToCurrentMistakes(gameId);
         int current = 0;
         for (MoveError m : moveErrors.findByGameIdWithGame(gameId)) {
             try {
@@ -309,6 +314,7 @@ public class DiagnosisService {
         var result = commentary.write(GraphJson.readGraph(e.getGraphJson()));
         if (result.isEmpty()) return false;
         var r = result.get();
+        if (e.getCommentary() != null) evidence.archive(e.getId(), "commentary");
         e.setCommentary(r.explanation());
         e.setCommentaryModel(r.model());
         e.setCommentaryVerified(r.verified());
@@ -438,6 +444,7 @@ public class DiagnosisService {
         }
         MistakeEvidence e = evidence.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("no evidence " + id));
+        if (e.getLabelledAt() != null) evidence.archive(e.getId(), "relabel");
         e.setHumanConsequence(consequence);
         e.setHumanMechanism(mechanism);
         e.setHumanNote(note == null || note.isBlank() ? null : note.trim());

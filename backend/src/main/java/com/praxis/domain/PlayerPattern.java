@@ -83,4 +83,31 @@ public class PlayerPattern {
 
     @Column(name = "opening_assessment", columnDefinition = "TEXT")
     private String openingAssessment;
+
+    // ── Phase 12: facts computed in code, prose checked against them ────────
+
+    /** Every figure the page shows, as computed (ReportFacts / PlanFacts JSON). */
+    @Column(name = "facts_json", columnDefinition = "TEXT")
+    private String factsJson;
+
+    /** The model's paragraphs, only when they passed the number checker. */
+    @Column(name = "prose_json", columnDefinition = "TEXT")
+    private String proseJson;
+
+    /** checked, rejected or unavailable (ReportWriter.Prose). */
+    @Column(name = "prose_status", length = 16)
+    private String proseStatus;
+
+    @Column(name = "prose_model", length = 64)
+    private String proseModel;
+
+    /** What the last rejected answer got wrong; the step-7 measurement. */
+    @Column(name = "prose_violations", columnDefinition = "TEXT")
+    private String proseViolations;
+
+    @Column(name = "prose_attempts")
+    private Integer proseAttempts;
+
+    @Column(name = "prose_millis")
+    private Long proseMillis;
 }

@@ -62,9 +62,9 @@ server:
 praxis-chess:
   ollama:
     base-url: ${PRAXIS_OLLAMA_URL:http://ollama:11434}
-    model: ${PRAXIS_MOVE_MODEL:qwen2.5:7b}
-    move-model: ${PRAXIS_MOVE_MODEL:qwen2.5:7b}
-    report-model: ${PRAXIS_REPORT_MODEL:qwen2.5:7b}
+    model: ${PRAXIS_MOVE_MODEL:qwen3:4b-instruct}
+    move-model: ${PRAXIS_MOVE_MODEL:qwen3:4b-instruct}
+    report-model: ${PRAXIS_REPORT_MODEL:qwen3:4b-instruct}
     reasoning-model: ${PRAXIS_REASONING_MODEL:qwen3:4b-instruct}
     # The trained model; the "models" service builds it from Hugging Face.
     # Empty turns checked commentary off.
@@ -83,6 +83,9 @@ praxis-chess:
     # the backup service. "Back up now" leaves its request in the shared volume.
     dir: /backups
     requests-dir: /backup-requests
+  reports:
+    # Paragraphs written by the report model around the computed figures.
+    prose: ${PRAXIS_REPORT_PROSE:false}
   practice:
     # Containers run in UTC; "today" for streaks should be the player's day.
     timezone: ${TZ:}

@@ -1,0 +1,28 @@
+{
+ "screen": "training-plan",
+ "state": "old-shape",
+ "path": "/insights/training",
+ "metrics": {
+  "prose": 34,
+  "data": 0,
+  "paragraphs": []
+ },
+ "pairs": [
+  [
+   "Insights sections",
+   "@/insights",
+   1
+  ],
+  [
+   "Insights sections",
+   "@/insights/patterns",
+   1
+  ],
+  [
+   "Insights sections",
+   "@/insights/training",
+   1
+  ]
+ ],
+ "methods": []
+}

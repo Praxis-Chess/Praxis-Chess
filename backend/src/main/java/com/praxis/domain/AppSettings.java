@@ -60,4 +60,12 @@ public class AppSettings {
      */
     @Column(name = "chess_com_username", length = 64)
     private String chessComUsername;
+
+    /**
+     * Phase 12: when per-move written explanations were switched off (a new
+     * settings version with 0). Set once, so a later choice to turn them back on
+     * in Settings is never undone at startup.
+     */
+    @Column(name = "explanations_retired_at")
+    private java.time.OffsetDateTime explanationsRetiredAt;
 }

@@ -79,7 +79,7 @@ class EngineRulerTest {
     }
 
     @Test
-    @DisplayName("every engine field counts, not just depth")
+    @DisplayName("every engine field counts, not just depth; written explanations do not")
     void everyFieldCounts() {
         AnalysisSettings base = version(1, "library-v0", 18);
 
@@ -97,13 +97,17 @@ class EngineRulerTest {
         assertThat(serviceOver(List.of(slowerSweep, base)).engineEquivalentIds(AnalysisSettings.LIBRARY))
                 .containsExactly(2L);
 
-        // "Every flagged move" is stored as null, and null is not 3.
-        AnalysisSettings everyMove = AnalysisSettings.builder()
-                .id(2L).kind(AnalysisSettings.LIBRARY).label("library-v1")
-                .sweepMoveTimeMs(100).multiPvDepth(18).multiPvLines(3).maxExplanations(null)
-                .active(true).build();
-        assertThat(serviceOver(List.of(everyMove, base)).engineEquivalentIds(AnalysisSettings.LIBRARY))
-                .containsExactly(2L);
+        // Phase 12: written explanations are not part of the ruler. Turning them
+        // off (or to "every move", stored as null) measures nothing differently,
+        // so it must not make every game outdated.
+        for (Integer explanations : new Integer[]{null, 0}) {
+            AnalysisSettings otherExplanations = AnalysisSettings.builder()
+                    .id(2L).kind(AnalysisSettings.LIBRARY).label("library-v1")
+                    .sweepMoveTimeMs(100).multiPvDepth(18).multiPvLines(3).maxExplanations(explanations)
+                    .active(true).build();
+            assertThat(serviceOver(List.of(otherExplanations, base)).engineEquivalentIds(AnalysisSettings.LIBRARY))
+                    .containsExactlyInAnyOrder(1L, 2L);
+        }
     }
 
     @Test

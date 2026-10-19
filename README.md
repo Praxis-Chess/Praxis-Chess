@@ -30,11 +30,11 @@ Turns analysis into practice. Every blunder with a known engine best move become
 
 Cross-game aggregation. Instead of per-game feedback, this tells you what _keeps_ happening: which move range you blunder in most, which tactical motifs catch you repeatedly, and where your opening preparation breaks down.
 
-> **Status:** reachable at `/patterns` but not in the navigation. Its motif labels come from the local LLM's explanations, which are not verified and exist only for the explained mistakes. Phase 12 rebuilds it, and the Training Plan, on the verified diagnoses.
+A tab in **Insights** since v1.4, computed in code from the verified diagnosis of every mistake: your costliest habit, what goes wrong and which tactics caught you (two separate lists, each with your own positions), where mistakes happen per 100 of your moves, and openings clearly worse than your own average.
 
 ### Training Plan
 
-The AI reads your Pattern Report and generates a prioritized, concrete improvement list — specific openings to drill, tactical patterns to study, positional habits to fix. Regenerates on demand. Reachable at `/training`; out of the navigation until Phase 12, for the same reason as the Pattern Report.
+A tab in **Insights** since v1.4: a week of three short sessions, each six of your own positions chosen from your top causes and the tactic that catches you most, started with one click.
 
 ### Ask Prax
 
@@ -88,8 +88,7 @@ Local text-to-speech (Kokoro-82M, CPU-only) is built end-to-end but **not curren
 | --------------- | -------------------------------------- | ----------------- |
 | Backend         | Java + Spring Boot                     | Java 21+ (developed on 26), SB 3.5.3 |
 | Chess engine    | Stockfish (AVX2 binary)                | —                 |
-| Analysis LLM    | Ollama + `qwen2.5:7b`                  | —                 |
-| Reasoning LLM   | Ollama + `qwen3:4b-instruct`           | tool calling      |
+| Reasoning LLM   | Ollama + `qwen3:4b-instruct`: Ask Prax, and the checked prose of reports | tool calling |
 | Commentary LLM  | Ollama + `praxis-grid-2b-r3`: Qwen3.5-2B + LoRA, trained for Praxis ([Hugging Face](https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF)) | optional |
 | Text-to-speech  | Kokoro-82M ONNX (CPU, FastAPI sidecar) | optional          |
 | Database        | PostgreSQL (Docker)                    | 17                |
@@ -115,8 +114,7 @@ flowchart TD
     CC -->|store raw games| DB[(PostgreSQL)]
 
     DB -->|"② Re-Analyze All"| SF[Stockfish\nevaluate every position\nflag drops in winning chances]
-    SF -->|top mistake candidates| OL[Ollama — qwen2.5:7b\nexplain why it was a mistake\nwhat to play instead]
-    OL -->|save MoveErrors| DB
+    SF -->|save every mistake| DB
     DB -->|"after each game"| EG[Evidence graph + rules\nchecked by the verifier\n✓ Verified diagnosis]
     EG -->|optional| TC[Trained 2B model\nchecked commentary]
     EG --> DB
@@ -147,27 +145,16 @@ Analysis runs in five stages, entirely on your machine. The numbers below are th
 Every position is evaluated at `movetime 100` with Stockfish. A move is flagged when it drops the player's winning chances (the same win-percentage curve as the accuracy figure): **5 points** is an inaccuracy, **10** a mistake, **20** a blunder. There is no per-game cap and no opening skip: every flagged move is stored. Severity is computed in Java — never by the LLM.
 
 **Stage 2 — Deep MultiPV enrichment per candidate**
-Each candidate gets a depth-18 Stockfish search with `MultiPV 3`, capturing the engine's top 3 continuation lines. This determines the `better_move` (UCI format) and engine lines fed into the LLM prompt.
+Each candidate gets a depth-18 Stockfish search with `MultiPV 3`, capturing the engine's top 3 continuation lines. This determines the `better_move` (UCI format).
 
-**Stage 3 — Ollama explains (overlapped with Stage 2)**
-The top 3 mistakes per game are explained by `qwen2.5:7b`; the rest are stored engine-only. The prompt includes the FEN, the move played, Stockfish's best reply, the eval delta in pawns, and the engine's top lines. The LLM's job is limited to explaining *why* — severity and the better move are already determined by Stockfish.
-
-Stages 2 and 3 run in parallel via a `LinkedBlockingQueue`: the main thread runs Stockfish MultiPV on candidate N+1 while a consumer thread calls Ollama for candidate N.
-
-```json
-{
-  "explanation": "Allows Bxf7+ winning the exchange; the engine's Nd5 maintains central control.",
-  "tactical_motif": "HANGING_PIECE"
-}
-```
+**Stage 3 — No per-move model (since v1.4)**
+Earlier versions had a language model write an explanation and a tactic label for the top few mistakes of each game. Those labels were unchecked and covered about a third of the library, so this stage is off by default: "Written explanations per game" is 0 in Settings, and every mistake is explained by Stage 4 instead. The old explanations are kept in the database and no longer shown.
 
 **Stage 4 — Verified diagnosis (after each game commits)**
 Every stored mistake gets an evidence graph from a deterministic Stockfish search (one thread, hash cleared, depth 14): the critical reply, what it wins, the threat that existed before the move, whether the reply still works after the best move, and how deep the engine had to look. Hand-written rules name the consequence and the cause, and a verifier checks every claim against the graph and the board. If the trained commentary model is installed (step 3b), it writes a commentary from the same graph, and it is shown only when every claim passes. See [ARCHITECTURE.md](ARCHITECTURE.md#evidence-graph-and-verified-diagnosis).
 
-**Stage 5 — Pattern aggregation**
-After all games are analyzed, error statistics (by phase, move range, motif, opening, time pressure) are compiled and sent to the LLM once to identify systemic weaknesses across your full game library.
-
-Ollama is called with `"format": "json"` (grammar-constrained mode) — output is always parseable, never a wall of text.
+**Stage 5 — Pattern Report and Training Plan**
+Code computes every figure and writes every sentence from the verified diagnoses of all mistakes: causes and tactics (ranked separately, blunders count double), mistakes per 100 moves by phase and move range, openings against your own average, and the clock when there is enough clock data. The plan is decided in code too: three sessions of your own positions. Model-written paragraphs are optional (`praxis-chess.reports.prose`, off): the checker that holds them to the numbers cannot check their claims.
 
 ---
 
@@ -213,9 +200,9 @@ docker compose -f docker/compose.yaml up -d --build
 Open **http://localhost:8086**, go to **Settings → Player** and enter your
 Chess.com username. That's the whole setup.
 
-- **First start** downloads the AI models: about **8.5 GB** (qwen2.5:7b,
-  qwen3:4b-instruct and the trained commentary model, built from its Hugging
-  Face release and checked against its SHA-256). The setup checklist on the
+- **First start** downloads the AI models: about **3.8 GB** (qwen3:4b-instruct
+  and the trained commentary model, built from its Hugging Face release and
+  checked against its SHA-256). The setup checklist on the
   Today page shows the progress. Syncing and engine analysis work while it
   runs.
 - **NVIDIA GPU** (Linux, or Windows with the WSL 2 engine): add
@@ -224,8 +211,9 @@ Chess.com username. That's the whole setup.
 - **Mac:** Docker on macOS can't use the GPU. Install [Ollama](https://ollama.com)
   natively and add `-f docker/compose.host-ollama.yaml`; the same file reuses
   models you already have on any OS.
-- **Smaller download:** a light set (~3.8 GB) and other options are in
-  [`docker/.env.example`](docker/.env.example) — copy it to `docker/.env`.
+- **Other models:** a larger report writer, no commentary model, and other
+  options are in [`docker/.env.example`](docker/.env.example) — copy it to
+  `docker/.env`.
 - **Backups are automatic:** a daily snapshot into `backups/` (skipped when
   nothing changed), one before every re-analysis, and a weekly test restore.
   None is ever deleted. Settings → Backups lists them; restoring is
@@ -312,11 +300,7 @@ cd backend/infra/dev-postgresql
 docker compose up -d
 ```
 
-### 3. Pull the LLM models
-
-```bash
-ollama pull qwen2.5:7b
-```
+### 3. Pull the LLM model
 
 ```bash
 ollama pull qwen3:4b-instruct
@@ -367,7 +351,8 @@ spring:
 praxis-chess:
   ollama:
     base-url: http://localhost:11434
-    model: qwen2.5:7b
+    model: qwen3:4b-instruct
+    report-model: qwen3:4b-instruct
     # Prax chat agent — kept separate so a batch run and a live
     # conversation never compete for VRAM. Must support tool calling.
     reasoning-model: qwen3:4b-instruct
@@ -494,13 +479,14 @@ praxis-chess/
 - [x] Per-speed analysis scope; Insights by speed, with rating per speed
 - [x] Model providers behind one port: Ollama by default, any OpenAI-compatible provider per feature
 - [x] Our own trained model for checked commentary (Qwen3.5-2B LoRA), [released on Hugging Face](https://huggingface.co/collections/praxis-chess/praxis-chess-lora-v1)
+- [x] Patterns, drills, Insights, Prax and practice patterns on the verified diagnoses; reports computed in code with checked prose; two models; the per-move LLM switched off; re-analysis keeps history (v1.4)
+- [x] Automatic backups: daily when changed, never deleted, weekly test restore (v1.4)
 - [ ] **Speech** — mount the trigger surface; the stack behind it already works
 - [ ] Voice input — mic capture for Ask Prax
 - [ ] Generate drill cards when analysis finishes, not only when a session starts
 - [ ] Backend tests in CI (the workflow is currently Playwright-only)
 - [ ] True HYBRID answers that merge player data and web material honestly
 - [ ] Knowledge retrieval for general chess principles — *declined pending usage evidence*
-- [ ] **Phase 12** — patterns, drills, Insights and Today built on the verified diagnoses; the per-move LLM switched off
 - [ ] A rating tool for Prax
 
 ---

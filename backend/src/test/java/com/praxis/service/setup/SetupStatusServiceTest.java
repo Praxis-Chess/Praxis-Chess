@@ -8,6 +8,8 @@ import com.praxis.dto.SetupDto.State;
 import com.praxis.dto.SetupDto.Status;
 import com.praxis.service.analysis.StockfishService;
 import com.praxis.service.backup.BackupService;
+import com.praxis.service.settings.SettingsService;
+import com.praxis.domain.AnalysisSettings;
 import com.praxis.service.settings.PlayerIdentity;
 import com.praxis.service.voice.TtsClient;
 import org.junit.jupiter.api.DisplayName;
@@ -57,7 +59,14 @@ class SetupStatusServiceTest {
         BackupService backups = mock(BackupService.class);
         when(backups.check()).thenReturn(new Check("backups", "Backups", State.WARN, "No backups yet", "docker compose up -d backup"));
 
-        return new SetupStatusService(ds, props, engine, player, router, mock(TtsClient.class), backups);
+        // Explanations still on (3 per game), as on an install before Phase 12.
+        SettingsService settings = mock(SettingsService.class);
+        var v0 = AnalysisSettings.builder().kind(AnalysisSettings.LIBRARY).label("library-v0")
+                .sweepMoveTimeMs(100).multiPvDepth(18).multiPvLines(3).maxExplanations(3).active(true).build();
+        when(settings.active(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new SettingsService.Active(v0, v0.toProfile()));
+
+        return new SetupStatusService(ds, props, engine, player, router, mock(TtsClient.class), backups, settings);
     }
 
     private static Check check(Status s, String key) {

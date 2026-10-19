@@ -5,6 +5,7 @@ import type { DailyStat } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { monthsFrom } from '../components/practiceDates'
 import { PraxAnchor } from '../prax/PraxHost'
+import { Disclose } from '../components/report/ReportParts'
 
 function pct(n: number, d: number) {
   return d === 0 ? 0 : Math.round((n / d) * 100)
@@ -40,9 +41,6 @@ function PracticeHistory() {
           {data.total_days_practiced} days examined · longest {data.longest_streak}
         </span>
       </div>
-      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0 0 16px' }}>
-        Every day you examined your chess. Gaps are shown, not hidden.
-      </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7, maxHeight: 320, overflowY: 'auto' }}>
         {months.map(mo => (
@@ -61,8 +59,8 @@ function PracticeHistory() {
                   title={`${d.date} — ${d.future ? 'upcoming' : d.practiced ? 'examined' : 'no activity'}`}
                   style={{
                     width: 7, height: 7, borderRadius: 2, flexShrink: 0,
-                    background: d.practiced ? 'var(--orchid)' : 'var(--surface-2, #1B1920)',
-                    outline: d.isToday ? '1px solid var(--orchid)' : 'none',
+                    background: d.practiced ? 'var(--gain)' : 'var(--surface-2, #1B1920)',
+                    outline: d.isToday ? '1px solid var(--text-primary)' : 'none',
                     outlineOffset: 1,
                     opacity: d.future ? 0.25 : 1,
                   }}
@@ -78,6 +76,18 @@ function PracticeHistory() {
             </span>
           </div>
         ))}
+      </div>
+      {/* Which day each square is was hover-only: the dates, one tap away. */}
+      <div style={{ marginTop: 12 }}>
+        <Disclose summary="Days examined">
+          Every day you examined your chess; gaps are shown, not hidden.
+          <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+            {months.map(mo => {
+              const days = mo.days.filter(d => d.practiced).map(d => d.date)
+              return days.length > 0 && <li key={mo.key}><span>{mo.label}</span>: <span className="mono">{days.join(', ')}</span></li>
+            })}
+          </ul>
+        </Disclose>
       </div>
     </div>
   )
@@ -161,9 +171,6 @@ export function Progress() {
         <h1 style={{ fontSize: '1.35rem', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>
           Progress
         </h1>
-        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-          Deck health · recall rate · phase trends
-        </p>
       </div>
 
       {/* Deck summary */}
@@ -204,7 +211,7 @@ export function Progress() {
       {history.length > 0 && (
         <div className="card" style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Phase recall — last session</div>
+            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Phase recall · last session</div>
           </div>
           <PhaseBreakdown stat={history[history.length - 1]} />
         </div>

@@ -83,29 +83,29 @@ public class OpponentProfileService {
 
         List<String> why = new java.util.ArrayList<>();
 
+        // Each line is "Label: facts" (the page shows the label as a label): the
+        // numbers stay, the sentence around them goes.
         if (weakOpening != null) {
             why.add(String.format(
-                    "You score %.0f%% accuracy in the %s across %d games — your weakest opening with "
-                            + "enough games to judge. This opponent will steer toward it.",
-                    weakOpening.avgAccuracy() == null ? 0.0 : weakOpening.avgAccuracy(),
-                    displayName(weakOpening), weakOpening.games()));
+                    "Steers toward: %s · %.0f%% accuracy in %d games, your weakest opening with enough games to judge",
+                    displayName(weakOpening),
+                    weakOpening.avgAccuracy() == null ? 0.0 : weakOpening.avgAccuracy(), weakOpening.games()));
         } else {
-            why.add("No single opening has enough games yet to target, so the opening is left open.");
+            why.add("Steers toward: no opening yet, none has enough games to judge");
         }
 
         if (weakPhase != null) {
-            why.add(String.format("Most of your blunders land in the %s (%d of them).",
+            why.add(String.format("Most blunders: %s · %d of them",
                     weakPhase.phase().toLowerCase(), weakPhase.blunders()));
         }
         if (topMotif != null) {
-            why.add(String.format("Your most frequent mistake pattern is %s, %d times.",
-                    humanMotif(topMotif.motif()), topMotif.count()));
+            why.add(String.format("Most frequent tactic: %s · %d times",
+                    humanMotif(topMotif.motif()).toLowerCase(), topMotif.count()));
         }
 
         why.add(avgAccuracy == null
-                ? String.format("Strength is set to %d of 20.", skill)
-                : String.format("Strength is set to %d of 20, calibrated to your %.0f%% average accuracy — "
-                        + "a game you can lose, not one you cannot win.", skill, avgAccuracy));
+                ? String.format("Strength: %d of 20", skill)
+                : String.format("Strength: %d of 20 · calibrated to your %.0f%% average accuracy", skill, avgAccuracy));
 
         String weakness = weakOpening != null ? "opening:" + weakOpening.eco()
                 : weakPhase != null ? "phase:" + weakPhase.phase()
@@ -158,9 +158,14 @@ public class OpponentProfileService {
                 .orElse(null);
     }
 
+    /** "No tactic found" categories: counted elsewhere, never named as a pattern (as in the Pattern Report). */
+    static final java.util.Set<String> NOT_A_TACTIC = java.util.Set.of("POSITIONAL", "OTHER");
+
+    /** The most frequent tactic the board proved; positional and other mean none was. */
     private MotifStat topMotif(String username) {
-        List<MotifStat> motifs = intel.mistakePatterns(username, null, null, null, 1);
-        return motifs.isEmpty() ? null : motifs.get(0);
+        return intel.mistakePatterns(username, null, null, null, 10).stream()
+                .filter(m -> m.motif() != null && !NOT_A_TACTIC.contains(m.motif()))
+                .findFirst().orElse(null);
     }
 
     private static String displayName(OpeningStat o) {

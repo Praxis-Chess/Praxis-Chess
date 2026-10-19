@@ -1,0 +1,112 @@
+{
+ "screen": "play",
+ "state": "one-game",
+ "path": "/play",
+ "metrics": {
+  "prose": 141,
+  "data": 11,
+  "paragraphs": [
+   "Every one of these games is the Center Game, because your opponent is built to play your weakest opening. Some of what follows may be specific to that opening rather than a habit you carry everywhere.",
+   "Only 1 analysed practice game so far. Here is what they show, but 5 are needed before calling anything a tendency.",
+   "Not measured — Time and decision-making — practice games are untimed, so no clock is recorded and none can be reconstructed."
+  ]
+ },
+ "pairs": [
+  [
+   "",
+   "~accuracy",
+   2
+  ],
+  [
+   "",
+   "~analysed",
+   2
+  ],
+  [
+   "",
+   "~blunders",
+   1
+  ],
+  [
+   "",
+   "~center game",
+   1
+  ],
+  [
+   "",
+   "~hanging piece",
+   1
+  ],
+  [
+   "",
+   "~middlegame",
+   1
+  ],
+  [
+   "",
+   "~nimzovich-larsen attack",
+   1
+  ],
+  [
+   "",
+   "~opening",
+   1
+  ],
+  [
+   "",
+   "1",
+   2
+  ],
+  [
+   "",
+   "10/1/2026",
+   1
+  ],
+  [
+   "",
+   "12",
+   1
+  ],
+  [
+   "",
+   "20",
+   1
+  ],
+  [
+   "",
+   "49%",
+   1
+  ],
+  [
+   "",
+   "5",
+   1
+  ],
+  [
+   "",
+   "63",
+   1
+  ],
+  [
+   "",
+   "68%",
+   1
+  ],
+  [
+   "",
+   "9",
+   1
+  ],
+  [
+   "",
+   "97",
+   1
+  ],
+  [
+   "Which colour to play",
+   "~your weaker colour",
+   1
+  ]
+ ],
+ "methods": []
+}

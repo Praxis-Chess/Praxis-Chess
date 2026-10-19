@@ -71,7 +71,7 @@ class OpeningFilterTest {
 
         Mockito.when(games.findByUsernameOrderByPlayedAtDesc(USER)).thenReturn(library);
 
-        intel = new ChessIntelligence(games, errors, eco);
+        intel = new ChessIntelligence(games, errors, eco, Mockito.mock(com.praxis.service.diagnosis.VerifiedMistakes.class));
     }
 
     @Nested

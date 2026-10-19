@@ -593,10 +593,6 @@ function AnswerMeta({ answer }: { answer: Answer }) {
 function EmptyState({ onPick }: { onPick: (q: string) => void }) {
   return (
     <div style={{ maxWidth: 520 }}>
-      <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-        Ask about your own chess and Prax answers from your analysed games. Ask about
-        chess in general and it cites where the answer came from.
-      </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
         {SUGGESTIONS.map(s => (
           <button key={s} onClick={() => onPick(s)} style={{ ...ghostBtn, fontSize: '0.78rem' }}>

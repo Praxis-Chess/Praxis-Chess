@@ -1,0 +1,637 @@
+<title>Praxis Chess Design System</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: the app's own instrument panel. A sticky index on the left, one reading column, frames from the real app. */
+:root {
+  color-scheme: dark;
+  /* The product is dark only, so this page commits to the same single look. */
+  --canvas: #121110;
+  --canvas-deep: #0C0B0A;
+  --surface-1: rgba(255,255,255,.035);
+  --surface-2: rgba(255,255,255,.06);
+  --hairline: rgba(255,255,255,.08);
+  --hairline-lit: rgba(231,166,214,.28);
+  --text-primary: #F2EDEA;
+  --text-secondary: #A29B96;
+  --text-tertiary: #6D6662;
+  --orchid: #E7A6D6;
+  --mauve-deep: #B0679F;
+  --accent-wash: rgba(231,166,214,.12);
+  --gain: #B9D96C;
+  --warn: #E5B04B;
+  --loss: #E2664A;
+  --neutral: #8A847E;
+  --orange: #D98A54;
+  --rating: #7DB9E8;
+  --per-game: #9D8CF0;
+  --grey-1: #7A736E;
+  --grey-2: #635C58;
+  --grey-3: #423C39;
+  --board-light: #E3DBD1;
+  --board-dark: #4A4340;
+  --on-orchid: #1A1418;
+  --shadow: rgba(0,0,0,.45);
+  --font-display: 'Inter Tight', 'Archivo', 'Segoe UI Variable Display', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'Cascadia Code', Consolas, ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--text-primary);
+  font: 14px/1.55 var(--font-display);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--orchid); text-decoration: none; font-weight: 600; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--orchid); outline-offset: 2px; border-radius: 2px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+code { font-family: var(--font-mono); font-size: .86em; color: var(--text-primary); background: var(--surface-2); padding: 1px 5px; border-radius: 2px; }
+.micro { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .14em; color: var(--text-tertiary); font-weight: 500; }
+.muted { color: var(--text-secondary); }
+
+/* nav bar, as in the app */
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: var(--canvas-deep); border-bottom: 1px solid var(--hairline);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.bar-in { max-width: 1240px; margin: 0 auto; height: 52px; display: flex; align-items: center; gap: 18px; }
+.logo { width: 22px; height: 26px; flex: none; }
+.bar-title { font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
+.bar-meta { margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+.wrap {
+  max-width: 1240px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+  display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 48px;
+}
+.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 76px); align-self: start; display: flex; flex-direction: column; gap: 2px; }
+.toc a { color: var(--text-secondary); font-weight: 500; font-size: .84rem; padding: 5px 10px; border-left: 1px solid var(--hairline); }
+.toc a:hover { color: var(--text-primary); text-decoration: none; border-left-color: var(--orchid); }
+.toc .micro { padding: 0 10px 8px; }
+main { min-width: 0; display: flex; flex-direction: column; gap: 72px; }
+
+/* card with the crosshair mark */
+.card {
+  position: relative; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 4px;
+  padding: 20px; box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+.card::after { content: '+'; position: absolute; top: 6px; right: 9px; font: 11px/1 var(--font-mono); color: var(--text-tertiary); }
+.card.plain::after { content: none; }
+
+h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; text-wrap: balance; }
+.hero { display: flex; flex-direction: column; gap: 18px; }
+.hero h1 { font-size: clamp(2rem, 4.6vw, 3.2rem); font-weight: 700; line-height: 1.04; letter-spacing: -.035em; max-width: 18ch; }
+.hero h1 em { font-style: normal; color: var(--orchid); }
+.lede { font-size: 1.1rem; max-width: 62ch; color: var(--text-secondary); margin: 0; }
+.lede strong { color: var(--text-primary); font-weight: 600; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px 28px; padding-top: 16px; border-top: 1px solid var(--hairline); }
+.facts div { display: flex; flex-direction: column; gap: 2px; }
+.facts b { font-family: var(--font-mono); font-weight: 500; font-size: .86rem; }
+
+section { display: flex; flex-direction: column; gap: 22px; scroll-margin-top: 80px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; padding-top: 20px; border-top: 1px solid var(--hairline); }
+.sec-head h2 { font-size: 1.5rem; }
+.sec-head p { margin: 0; max-width: 66ch; color: var(--text-secondary); }
+
+/* principles */
+.principles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 0 32px; counter-reset: p; }
+.principles li { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 4px 6px; padding: 14px 0; border-bottom: 1px solid var(--hairline); counter-increment: p; }
+.principles li::before { content: counter(p, decimal-leading-zero); font: 500 .74rem/1.9 var(--font-mono); color: var(--text-tertiary); grid-row: span 2; }
+.principles h3 { font-size: .95rem; }
+.principles p { margin: 0; color: var(--text-secondary); font-size: .84rem; }
+.inline-sample { font-family: var(--font-mono); font-size: .76rem; color: var(--text-primary); }
+
+/* swatches */
+.swatch-group { display: flex; flex-direction: column; gap: 10px; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 12px; }
+.sw { display: flex; flex-direction: column; border: 1px solid var(--hairline); border-radius: 4px; overflow: hidden; background: var(--surface-1); }
+.chip-c { height: 64px; border-bottom: 1px solid var(--hairline); position: relative; }
+.chip-c.on-canvas { background: var(--canvas); }
+.chip-c.on-canvas > span { position: absolute; inset: 10px; border-radius: 3px; }
+.sw-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 2px; }
+.sw-name { font: 500 .78rem var(--font-mono); }
+.sw-val { font: .72rem var(--font-mono); color: var(--text-tertiary); }
+.sw-use { font-size: .78rem; color: var(--text-secondary); margin-top: 4px; }
+
+/* type */
+.type-rows { display: flex; flex-direction: column; }
+.type-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 20px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--hairline); }
+.type-row .spec { display: flex; flex-direction: column; gap: 2px; }
+.type-row .spec span:last-child { font: .7rem var(--font-mono); color: var(--text-tertiary); }
+.note { border-left: 2px solid var(--warn); padding: 10px 14px; background: var(--surface-1); color: var(--text-secondary); font-size: .86rem; max-width: 72ch; }
+.note strong { color: var(--text-primary); }
+
+/* components, live */
+.comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.comp { display: flex; flex-direction: column; gap: 14px; }
+.comp-label { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.comp-label h3 { font-size: .95rem; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { font: 600 .82rem var(--font-display); letter-spacing: -.01em; padding: 7px 15px; border-radius: 3px; border: 1px solid var(--hairline-lit); background: transparent; color: var(--orchid); cursor: pointer; }
+.btn:hover { background: var(--accent-wash); }
+.btn.solid { background: var(--orchid); color: var(--on-orchid); border-color: var(--orchid); }
+.btn.solid:hover { background: var(--mauve-deep); border-color: var(--mauve-deep); }
+.btn.secondary { color: var(--text-primary); border-color: var(--hairline); }
+.btn.secondary:hover { background: var(--surface-2); }
+.badge { font: 600 .65rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; padding: 2px 7px; border-radius: 2px; border: 1px solid currentColor; }
+.b-blunder { color: var(--loss); } .b-mistake { color: var(--warn); } .b-inacc { color: var(--orange); }
+.b-win { color: var(--gain); } .b-draw { color: var(--neutral); } .b-pending { color: var(--text-tertiary); } .b-an { color: var(--orchid); }
+.focus-chip { font-size: .7rem; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--hairline-lit); color: var(--text-secondary); }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.tile { padding: 14px 8px 12px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
+.tile b { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.tile span { font-size: .74rem; color: var(--text-secondary); }
+.bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.bars li { display: grid; grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr) 7.5rem; gap: 12px; align-items: center; font-size: .8rem; }
+.track { position: relative; height: 8px; background: var(--hairline); border-radius: 3px; }
+.fill { height: 100%; border-radius: 3px; background: var(--text-tertiary); }
+.fill.above { background: var(--warn); }
+.tick { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text-primary); opacity: .8; }
+.bars .v { font: .74rem var(--font-mono); color: var(--text-secondary); text-align: right; white-space: nowrap; }
+.bars li.few { opacity: .5; }
+.pos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.pos li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: .8rem; }
+.pos a { font-variant-numeric: tabular-nums; position: relative; }
+.pos .ctx { font-size: .75rem; color: var(--text-secondary); }
+.pop { position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); z-index: 5; background: var(--canvas); border: 1px solid var(--hairline-lit); border-radius: 4px; padding: 6px; box-shadow: 0 8px 24px var(--shadow); pointer-events: none; display: none; }
+.pos a:hover .pop, .pos a:focus .pop { display: block; }
+.mini-board { display: grid; grid-template-columns: repeat(8, 12px); grid-template-rows: repeat(8, 12px); }
+.mini-board i { background: var(--board-light); }
+.mini-board i.d { background: var(--board-dark); }
+.pop small { display: block; font-size: .68rem; color: var(--text-secondary); margin-top: 4px; font-weight: 400; }
+.check { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; font-size: .84rem; }
+.check li { display: grid; grid-template-columns: 1.1rem minmax(0, 1fr); gap: 6px; }
+.check b { font-weight: 600; }
+.ok { color: var(--gain); } .bad { color: var(--loss); } .wait { color: var(--warn); }
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+th { text-align: left; font: 500 10px var(--font-mono); text-transform: uppercase; letter-spacing: .14em; color: var(--text-tertiary); padding: 6px 8px; }
+td { padding: 7px 8px; border-top: 1px solid var(--hairline); vertical-align: top; }
+td.n, th.n { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--hairline); padding-bottom: 8px; }
+.tabs span { padding: 5px 12px; border-radius: 3px; color: var(--text-secondary); font-size: .84rem; }
+.tabs span.on { background: var(--accent-wash); color: var(--orchid); font-weight: 600; }
+
+/* storyboard */
+.journey { display: flex; flex-direction: column; gap: 16px; }
+.journey-head { display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+.journey-head .letter { font: 600 .8rem var(--font-mono); color: var(--on-orchid); background: var(--orchid); border-radius: 2px; padding: 1px 7px; }
+.journey-head h3 { font-size: 1.15rem; }
+.frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 20px; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.shot { all: unset; cursor: zoom-in; display: block; border: 1px solid var(--hairline); border-radius: 4px; overflow: hidden; background: var(--canvas-deep); aspect-ratio: 16 / 10; max-width: 100%; }
+.shot:focus-visible { outline: 2px solid var(--orchid); outline-offset: 2px; }
+.shot.tall { aspect-ratio: 9 / 16; max-width: 220px; }
+.shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; transition: transform .4s ease; }
+.shot:hover img { transform: scale(1.015); }
+figcaption { display: flex; flex-direction: column; gap: 4px; }
+.step { display: flex; gap: 10px; align-items: baseline; }
+.step .num { font: 500 .74rem var(--font-mono); color: var(--text-tertiary); }
+.step h4 { font-size: .92rem; }
+.route { font: .72rem var(--font-mono); color: var(--text-tertiary); }
+figcaption p { margin: 0; font-size: .82rem; color: var(--text-secondary); }
+.arrow { color: var(--text-tertiary); }
+.phones { display: flex; gap: 20px; flex-wrap: wrap; }
+.phones figure { width: 220px; max-width: 100%; }
+
+/* drift */
+.drift { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.drift li { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--hairline); }
+.drift .tag { font: 500 10px var(--font-mono); text-transform: uppercase; letter-spacing: .12em; color: var(--warn); padding-top: 3px; }
+.drift b { font-weight: 600; }
+.drift p { margin: 2px 0 0; color: var(--text-secondary); font-size: .84rem; }
+
+dialog { border: 1px solid var(--hairline-lit); border-radius: 4px; background: var(--canvas-deep); color: var(--text-primary); padding: 0; max-width: min(1200px, 94vw); max-height: 92vh; overflow: auto; }
+dialog::backdrop { background: rgba(0,0,0,.75); }
+dialog img { display: block; width: 100%; height: auto; }
+.dlg-bar { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; background: var(--canvas-deep); border-bottom: 1px solid var(--hairline); }
+
+footer { color: var(--text-tertiary); font-size: .78rem; border-top: 1px solid var(--hairline); padding-top: 16px; }
+
+@media (max-width: 900px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 32px; padding-block: 28px 60px; }
+  .toc { position: static; flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .toc .micro { display: none; }
+  .toc a { border: 1px solid var(--hairline); border-radius: 3px; padding: 4px 9px; }
+  .bar-meta { display: none; }
+}
+@media (max-width: 560px) {
+  .type-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .drift li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bars li { grid-template-columns: minmax(0, 5rem) minmax(0, 1fr) 6.6rem; gap: 8px; }
+  .pop { left: 0; top: auto; bottom: calc(100% + 8px); transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .shot img { transition: none; } }
+</style>
+
+<header class="bar">
+  <div class="bar-in">
+    <svg class="logo" viewBox="0 0 22 26" aria-hidden="true"><circle cx="11" cy="6" r="5" fill="var(--orchid)"/><rect x="1" y="12" width="20" height="4" rx="1" fill="var(--orchid)"/><path d="M11 17 L16 24 H6 Z" fill="var(--orchid)"/></svg>
+    <span class="bar-title">Praxis Chess</span>
+    <span class="micro">Design system</span>
+    <span class="bar-meta micro">feat/phase-12 · 16 Oct 2026 · source frontend/src/index.css</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="toc" aria-label="Contents">
+    <span class="micro">Contents</span>
+    <a href="#principles">Principles</a>
+    <a href="#colour">Colour</a>
+    <a href="#type">Type</a>
+    <a href="#shape">Shape &amp; layout</a>
+    <a href="#components">Components</a>
+    <a href="#storyboard">Storyboard</a>
+    <a href="#screens">Screen index</a>
+    <a href="#drift">Known drift</a>
+  </nav>
+
+  <main>
+    <div class="hero">
+      <span class="micro">Hand-off for designers, developers and AI agents</span>
+      <h1>A chess coach that looks like an <em>instrument</em>, not a game lobby.</h1>
+      <p class="lede">Praxis Chess is a self-hosted coach for one player. It syncs their Chess.com games, checks every move with Stockfish, diagnoses each serious mistake, and turns the mistakes into drills, a pattern report and a weekly plan. <strong>This page covers how it looks, the rules behind the look, and the path a player takes through it.</strong> Every screenshot is the real app rendered with synthetic test data.</p>
+      <div class="facts">
+        <div><span class="micro">Theme</span><b>Dark only</b></div>
+        <div><span class="micro">Stack</span><b>React · TanStack Query · Recharts</b></div>
+        <div><span class="micro">Board</span><b>react-chessboard 4.6.1</b></div>
+        <div><span class="micro">Screens</span><b>14 routes · 16 frames</b></div>
+        <div><span class="micro">Audience</span><b>One club player, 800–1800 Elo</b></div>
+      </div>
+    </div>
+
+    <section id="principles">
+      <div class="sec-head">
+        <span class="micro">01 · Rules</span>
+        <h2>Principles</h2>
+        <p>These are applied in code review, and the Phase 12 Playwright tests assert several of them by name. When a design choice is in doubt, these decide it.</p>
+      </div>
+      <ol class="principles">
+        <li><h3>Instrument-panel minimalism</h3><p>A warm near-black canvas with translucent panels, hairlines and a crosshair mark on each card. The only decoration is a 3% grain overlay and Prax.</p></li>
+        <li><h3>One meaning per colour</h3><p>Pink marks only what can be clicked. Amber means above your own average. Green, amber and red carry results and severity. Everything else is grey.</p></li>
+        <li><h3>Truthful labels</h3><p>"Costliest" means total winning chances lost. A rate is per 100 of your moves. "Rolling avg (up to 10 games)" says that the first points average fewer games.</p></li>
+        <li><h3>Compared to what</h3><p>Every figure sits next to its baseline: your overall rate or your average per game. Bars carry a baseline tick.</p></li>
+        <li><h3>One threshold</h3><p>Ten. Below it, a figure is faded and marked "few", and it is never ranked or called the worst.</p></li>
+        <li><h3>Account for the whole</h3><p>Ranked lists end with "The rest: …". When the same mistakes appear in two lists, the overlap is stated.</p></li>
+        <li><h3>One format per fact</h3><p><span class="inline-sample">32 of 145 (22%) · 19 blunders · −27% winning chance each</span>. Rates have one decimal. Dates read <span class="inline-sample">6 Sep</span>.</p></li>
+        <li><h3>Say each fact once</h3><p>Open with one sentence of takeaway, then give the evidence. Each section explains itself once, briefly.</p></li>
+        <li><h3>Recognition over recall</h3><p>A move is shown with its opening, date and loss. Hover or focus shows the board.</p></li>
+        <li><h3>Feedback and state</h3><p>Plans show their dates, what is done and what is next. The next action is the only solid pink button on the screen.</p></li>
+        <li><h3>Verified or silent</h3><p>The language model never states a number the engine didn't measure. Report prose is off by default, and "✓ Verified" appears only when the board proves the claim.</p></li>
+      </ol>
+    </section>
+
+    <section id="colour">
+      <div class="sec-head">
+        <span class="micro">02 · Tokens</span>
+        <h2>Colour</h2>
+        <p>All tokens are on <code>:root</code> in <code>index.css</code>. Legacy aliases (<code>--bg</code>, <code>--text</code>, <code>--accent</code>, <code>--green</code>, <code>--red</code>, <code>--yellow</code>) point to the same values. Translucent surfaces are shown over the canvas, where they are used.</p>
+      </div>
+
+      <div class="swatch-group">
+        <span class="micro">Ground and surfaces</span>
+        <div class="swatches">
+          <div class="sw"><div class="chip-c" style="background:var(--canvas)"></div><div class="sw-body"><span class="sw-name">--canvas</span><span class="sw-val">#121110</span><span class="sw-use">Page background: a warm near-black</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:var(--canvas-deep)"></div><div class="sw-body"><span class="sw-name">--canvas-deep</span><span class="sw-val">#0C0B0A</span><span class="sw-use">Nav bar, deepest wells</span></div></div>
+          <div class="sw"><div class="chip-c on-canvas"><span style="background:var(--surface-1);border:1px solid var(--hairline)"></span></div><div class="sw-body"><span class="sw-name">--surface-1</span><span class="sw-val">white 3.5%</span><span class="sw-use">Card fill, blurred 18px</span></div></div>
+          <div class="sw"><div class="chip-c on-canvas"><span style="background:var(--surface-2);border:1px solid var(--hairline)"></span></div><div class="sw-body"><span class="sw-name">--surface-2</span><span class="sw-val">white 6%</span><span class="sw-use">Inputs, hovered rows</span></div></div>
+          <div class="sw"><div class="chip-c on-canvas"><span style="border:1px solid var(--hairline)"></span></div><div class="sw-body"><span class="sw-name">--hairline</span><span class="sw-val">white 8%</span><span class="sw-use">Every border and divider</span></div></div>
+          <div class="sw"><div class="chip-c on-canvas"><span style="border:1px solid var(--hairline-lit)"></span></div><div class="sw-body"><span class="sw-name">--hairline-lit</span><span class="sw-val">orchid 28%</span><span class="sw-use">Border of anything interactive</span></div></div>
+        </div>
+      </div>
+
+      <div class="swatch-group">
+        <span class="micro">Text and accent</span>
+        <div class="swatches">
+          <div class="sw"><div class="chip-c" style="background:var(--text-primary)"></div><div class="sw-body"><span class="sw-name">--text-primary</span><span class="sw-val">#F2EDEA</span><span class="sw-use">Headings, values</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:var(--text-secondary)"></div><div class="sw-body"><span class="sw-name">--text-secondary</span><span class="sw-val">#A29B96</span><span class="sw-use">Supporting text, stat lines</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:var(--text-tertiary)"></div><div class="sw-body"><span class="sw-name">--text-tertiary</span><span class="sw-val">#6D6662</span><span class="sw-use">Micro-labels, rank markers</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:var(--orchid)"></div><div class="sw-body"><span class="sw-name">--orchid</span><span class="sw-val">#E7A6D6</span><span class="sw-use">Links, primary button, active nav. Interactive only.</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:var(--mauve-deep)"></div><div class="sw-body"><span class="sw-name">--mauve-deep</span><span class="sw-val">#B0679F</span><span class="sw-use">Hovered solid button, gradient end</span></div></div>
+          <div class="sw"><div class="chip-c on-canvas"><span style="background:var(--accent-wash)"></span></div><div class="sw-body"><span class="sw-name">--accent-wash</span><span class="sw-val">orchid 12%</span><span class="sw-use">Active tab pill, selected row</span></div></div>
+        </div>
+      </div>
+
+      <div class="swatch-group">
+        <span class="micro">Results and severity</span>
+        <div class="swatches">
+          <div class="sw"><div class="chip-c" style="background:var(--gain)"></div><div class="sw-body"><span class="sw-name">--gain</span><span class="sw-val">#B9D96C</span><span class="sw-use">Win, verified, done</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:var(--warn)"></div><div class="sw-body"><span class="sw-name">--warn</span><span class="sw-val">#E5B04B</span><span class="sw-use">Mistake; above your average</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:var(--orange)"></div><div class="sw-body"><span class="sw-name">--orange</span><span class="sw-val">#D98A54</span><span class="sw-use">Inaccuracy</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:var(--loss)"></div><div class="sw-body"><span class="sw-name">--loss</span><span class="sw-val">#E2664A</span><span class="sw-use">Blunder, loss, error text</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:var(--neutral)"></div><div class="sw-body"><span class="sw-name">--neutral</span><span class="sw-val">#8A847E</span><span class="sw-use">Draw, unknown</span></div></div>
+        </div>
+      </div>
+
+      <div class="swatch-group">
+        <span class="micro">Charts, greys and board</span>
+        <div class="swatches">
+          <div class="sw"><div class="chip-c" style="background:var(--rating)"></div><div class="sw-body"><span class="sw-name">--rating</span><span class="sw-val">#7DB9E8</span><span class="sw-use">Elo line only</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:var(--per-game)"></div><div class="sw-body"><span class="sw-name">--per-game</span><span class="sw-val">#9D8CF0</span><span class="sw-use">Per-game accuracy line</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:linear-gradient(90deg,var(--grey-1) 0 33.3%,var(--grey-2) 33.3% 66.6%,var(--grey-3) 66.6%)"></div><div class="sw-body"><span class="sw-name">--grey-1 / 2 / 3</span><span class="sw-val">#7A736E · #635C58 · #423C39</span><span class="sw-use">Neutral bars, empty tracks, disabled</span></div></div>
+          <div class="sw"><div class="chip-c" style="background:repeating-conic-gradient(var(--board-light) 0 25%, var(--board-dark) 0 50%) 0 0 / 32px 32px"></div><div class="sw-body"><span class="sw-name">--board-light / dark</span><span class="sw-val">#E3DBD1 · #4A4340</span><span class="sw-use">Bone and warm graphite squares</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="type">
+      <div class="sec-head">
+        <span class="micro">03 · Type</span>
+        <h2>Typography</h2>
+        <p>There are two families. The display sans covers everything; the mono covers numbers, moves, model names, tables and micro-labels. Numbers are always tabular.</p>
+      </div>
+      <div class="type-rows">
+        <div class="type-row"><div class="spec"><span class="micro">Page title</span><span>1.35rem · 700 · −0.02em</span></div><h2 style="font-size:1.35rem;font-weight:700">Training Plan</h2></div>
+        <div class="type-row"><div class="spec"><span class="micro">Today's focus</span><span>~1.6rem · 700</span></div><div style="font-size:1.6rem;font-weight:700;letter-spacing:-.02em;line-height:1.2">You lose material in the middlegame more than anywhere else</div></div>
+        <div class="type-row"><div class="spec"><span class="micro">Takeaway</span><span>1.1rem · 400 + strong</span></div><div style="font-size:1.1rem">Your costliest habit: <strong>ignoring your opponent's threat</strong>.</div></div>
+        <div class="type-row"><div class="spec"><span class="micro">Section title</span><span>1.08rem · 700 · rule above</span></div><div style="font-size:1.08rem;font-weight:700;letter-spacing:-.02em">What goes wrong</div></div>
+        <div class="type-row"><div class="spec"><span class="micro">Item title</span><span>0.9rem · 600</span></div><div style="font-size:.9rem;font-weight:600">Missing your own chances</div></div>
+        <div class="type-row"><div class="spec"><span class="micro">Body</span><span>14px · 400 · lh 1.5</span></div><div>Before each move, name what your opponent's last move threatens.</div></div>
+        <div class="type-row"><div class="spec"><span class="micro">Stat line</span><span>0.78rem · secondary</span></div><div class="muted" style="font-size:.78rem">22 of 145 (15%) · 9 blunders · −19% winning chance each</div></div>
+        <div class="type-row"><div class="spec"><span class="micro">Mono data</span><span>JetBrains Mono · tabular</span></div><div class="mono" style="font-size:.86rem">17.6 · 96 of 547 &nbsp; 23.Qxc6 &nbsp; qwen3:4b-instruct</div></div>
+        <div class="type-row"><div class="spec"><span class="micro">Micro-label</span><span>10px · mono · .14em · caps</span></div><div class="micro">Session 1 · 3 positions</div></div>
+      </div>
+      <p class="note"><strong>Neither family is loaded in the app.</strong> <code>index.css</code> names Inter Tight and JetBrains Mono, but there is no <code>@font-face</code> and no font link, so each machine renders the first family it has installed. The screenshots show Segoe UI and Cascadia Code, the Windows fallbacks. This page loads the intended faces. To pin the look in the app, self-host both families.</p>
+    </section>
+
+    <section id="shape">
+      <div class="sec-head">
+        <span class="micro">04 · Space</span>
+        <h2>Shape, depth and layout</h2>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Property</th><th>Rule</th></tr></thead>
+          <tbody>
+            <tr><td>Spacing</td><td>Flex or grid with <code>gap</code>. Page sections 26px apart, items in a section 14–18px apart, lines inside an item 4–6px apart. Cards have 20px of padding, or 16px in dense grids.</td></tr>
+            <tr><td>Radii</td><td>Cards and inputs 4px, buttons 3px, badges 2px, chips 10px. Nothing is fully round except the week dots.</td></tr>
+            <tr><td>Depth</td><td>Translucency plus <code>backdrop-filter: blur(18px) saturate(115%)</code>. The only shadows are an inset highlight on cards and the opaque board popover.</td></tr>
+            <tr><td>Card mark</td><td>A small <code>+</code> crosshair at the top right, drawn by <code>::after</code>. <code>.card.plain</code> drops it for repeated items.</td></tr>
+            <tr><td>Frame</td><td>A sticky 52px nav: logo, then Today, Progress, Library, Play, Ask Prax, Insights, and a Settings gear on the right. A <code>SyncStatusBanner</code> strip sits below it. <code>main</code> has a max-width of 1280px, 24px of padding, and a right gutter where Prax lives.</td></tr>
+            <tr><td>Reading width</td><td>Content columns are capped at about 860–960px. Session cards use <code>repeat(auto-fit, minmax(min(100%, 250px), 1fr))</code>.</td></tr>
+            <tr><td>Phone</td><td><code>.stack-on-phone</code> puts grids into one column below 760px. A narrow Playwright project runs every spec at phone width.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="components">
+      <div class="sec-head">
+        <span class="micro">05 · Parts</span>
+        <h2>Components</h2>
+        <p>Each sample is rebuilt here from the app's own CSS values. Hover a move in "Position links" to see the board popover.</p>
+      </div>
+      <div class="comp-grid">
+        <div class="card comp">
+          <div class="comp-label"><h3>Buttons</h3><span class="micro">button · .solid · .secondary</span></div>
+          <div class="row">
+            <button class="btn solid" type="button">Start session 2</button>
+            <button class="btn" type="button">Start a game</button>
+            <button class="btn secondary" type="button">Do it again</button>
+          </div>
+          <p class="muted" style="margin:0;font-size:.8rem">Ghost is the default. Use one solid button per view, for the next action.</p>
+        </div>
+
+        <div class="card comp">
+          <div class="comp-label"><h3>Badges</h3><span class="micro">.badge.*</span></div>
+          <div class="row">
+            <span class="badge b-blunder">Blunder</span><span class="badge b-mistake">Mistake</span><span class="badge b-inacc">Inaccuracy</span>
+            <span class="badge b-win">Win</span><span class="badge b-draw">Draw</span><span class="badge b-an">Analyzing</span><span class="badge b-pending">Pending</span>
+          </div>
+          <div class="row"><span class="micro">Focus chips</span><span class="focus-chip">Ignoring your opponent's threat</span><span class="focus-chip">Forks</span></div>
+        </div>
+
+        <div class="card comp">
+          <div class="comp-label"><h3>Stat tiles</h3><span class="micro">Today · Progress</span></div>
+          <div class="tiles">
+            <div class="card tile"><b style="color:var(--orchid)">146</b><span>Due today</span></div>
+            <div class="card tile"><b style="color:var(--warn)">12</b><span>Learning</span></div>
+            <div class="card tile"><b style="color:var(--gain)">96</b><span>Review</span></div>
+            <div class="card tile"><b style="color:var(--text-secondary)">38</b><span>New</span></div>
+          </div>
+        </div>
+
+        <div class="card comp">
+          <div class="comp-label"><h3>Tabs</h3><span class="micro">Insights · role="group"</span></div>
+          <div class="tabs"><span>Overview</span><span class="on">Pattern Report</span><span>Training Plan</span></div>
+          <p class="muted" style="margin:0;font-size:.8rem">Sub-tabs are a <code>role="group"</code>, so the page keeps a single navigation landmark.</p>
+        </div>
+
+        <div class="card comp" style="grid-column:1 / -1">
+          <div class="comp-label"><h3>Comparison bars</h3><span class="micro">ReportParts.Bars</span></div>
+          <p class="muted" style="margin:0;font-size:.8rem">Serious mistakes per 100 of your moves. The tick is your overall rate, 13.6, and amber is above it. A row with fewer than 10 mistakes behind it is faded.</p>
+          <ul class="bars" aria-label="Rates by phase">
+            <li><span>opening</span><div class="track"><div class="fill" style="width:61%"></div><div class="tick" style="left:77%"></div></div><span class="v">10.8 · 40 of 372</span></li>
+            <li><span>middlegame</span><div class="track"><div class="fill above" style="width:100%"></div><div class="tick" style="left:77%"></div></div><span class="v">17.6 · 96 of 547</span></li>
+            <li class="few"><span>endgame</span><div class="track"><div class="fill" style="width:34%"></div><div class="tick" style="left:77%"></div></div><span class="v">6.0 · 9 of 149 · few</span></li>
+          </ul>
+        </div>
+
+        <div class="card comp">
+          <div class="comp-label"><h3>Position links</h3><span class="micro">ReportParts.Positions</span></div>
+          <ul class="pos">
+            <li><a href="#components">23.Qxc6<span class="pop" aria-hidden="true"><span class="mini-board" id="mb"></span><small>White to move</small></span></a><span class="ctx">Scandinavian Defense · 6 Sep · −34%</span></li>
+            <li><a href="#components">17...g6</a><span class="ctx">Scandinavian Defense · 6 Sep · −34%</span></li>
+            <li><a href="#components" style="font-size:.78rem">Show all 5</a></li>
+          </ul>
+          <p class="muted" style="margin:0;font-size:.8rem">In the app, the popover is portalled to <code>body</code>, because a card's <code>backdrop-filter</code> creates a stacking context that would paint later cards over it.</p>
+        </div>
+
+        <div class="card comp">
+          <div class="comp-label"><h3>Setup checklist</h3><span class="micro">SetupChecklist.tsx</span></div>
+          <ul class="check">
+            <li><span class="ok">✓</span><span><b>Database</b> <span class="muted">PostgreSQL reachable</span></span></li>
+            <li><span class="bad">✕</span><span><b>Chess.com username</b> <span class="muted">Not set yet</span><br><a href="#components" style="font-size:.78rem">Enter it in Settings →</a></span></li>
+            <li><span class="wait">!</span><span><b>AI models</b> <span class="muted">Downloading 2 model(s)</span></span></li>
+          </ul>
+          <p class="muted" style="margin:0;font-size:.8rem">Shown inline under Sync Now in Settings. Today shows it only when something blocks.</p>
+        </div>
+
+        <div class="card comp" style="grid-column:1 / -1">
+          <div class="comp-label"><h3>Tables</h3><span class="micro">hairline rows · no zebra stripes</span></div>
+          <div class="tbl-wrap">
+            <table>
+              <caption class="muted" style="text-align:left;padding-bottom:6px;font-size:.8rem">Your average: <span class="mono">4.7</span> serious mistakes per game.</caption>
+              <thead><tr><th>Opening</th><th class="n">Games</th><th class="n">Per game</th><th class="n">vs average</th></tr></thead>
+              <tbody><tr><td>Center Game</td><td class="n">5</td><td class="n">6.0</td><td class="n" style="color:var(--warn)">×1.28</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card comp" style="grid-column:1 / -1">
+          <div class="comp-label"><h3>Prax, charts and states</h3><span class="micro">src/prax · Recharts</span></div>
+          <div class="tbl-wrap">
+            <table>
+              <tbody>
+                <tr><td style="width:9rem">Prax</td><td>A WebGL point cloud in the right gutter (<code>PraxAnchor</code>). Its states include dormant, aware and insight, and it respects reduced motion. It doesn't render in the headless screenshots. The bottom-left "prax · aware · ambient" pill exists in development only.</td></tr>
+                <tr><td>Charts</td><td>Recharts with a dotted grid, mono axis text and no animation (<code>isAnimationActive={false}</code>). The time axis uses real dates. Accuracy sits on the left axis and Elo on the right.</td></tr>
+                <tr><td>Loading</td><td>A spinner and a sentence: "Loading the report…"</td></tr>
+                <tr><td>Empty</td><td>One sentence that says why and what to do, plus the one action: "Make my plan".</td></tr>
+                <tr><td>Error</td><td><code>role="alert"</code> in <span style="color:var(--loss)">--loss</span>, saying what to do: "There is nothing to plan from yet: analyze some games first."</td></tr>
+                <tr><td>Done</td><td><span style="color:var(--gain)">✓ Done 17 Oct · 2 of 3 solved</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="storyboard">
+      <div class="sec-head">
+        <span class="micro">06 · Flow</span>
+        <h2>Storyboard</h2>
+        <p>Five journeys, in the order a new player meets them. Frames are numbered in the order they happen. Select a frame to see it full size.</p>
+      </div>
+
+      <div class="journey">
+        <div class="journey-head"><span class="letter">A</span><h3>First run to first insight</h3></div>
+        <div class="frames">
+          <figure><button class="shot" type="button" data-src="screens/02-today-first-run.jpg" data-cap="Today, first run"><img src="screens/02-today-first-run.jpg" alt="Today on first run, with the setup checklist and model download progress" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">1</span><h4>Install and open</h4></div><span class="route">/ · setup incomplete</span><p>"Finish setting up Praxis": the username is missing and the models are downloading. Syncing and engine analysis already work; only the AI features wait.</p></figcaption></figure>
+          <figure><button class="shot" type="button" data-src="screens/14-settings.jpg" data-cap="Settings"><img src="screens/14-settings.jpg" alt="Settings page: player, library, coverage, engine settings, AI models, backups" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">2</span><h4>Enter a username, then Sync Now</h4></div><span class="route">/settings</span><p>Under the button, "Setup · 5 ready · 2 off" expands into the checklist. Coverage, engine settings, AI models, Backups and Estimated time follow.</p></figcaption></figure>
+          <figure><button class="shot" type="button" data-src="screens/04-library.jpg" data-cap="Library"><img src="screens/04-library.jpg" alt="Library: games list grouped with Needs analysis first" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">3</span><h4>Games arrive</h4></div><span class="route">/library</span><p>The sync banner shows progress. "Needs analysis" comes first, and each game shows its result in colour and its accuracy.</p></figcaption></figure>
+          <figure><button class="shot" type="button" data-src="screens/01-today.jpg" data-cap="Today"><img src="screens/01-today.jpg" alt="Today: card tiles, week dots and Today's focus" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">4</span><h4>Today has one focus</h4></div><span class="route">/</span><p>Due, learning, review and new cards, then the practice week. The focus card has a headline built from real counts and one action: Start session.</p></figcaption></figure>
+        </div>
+      </div>
+
+      <div class="journey">
+        <div class="journey-head"><span class="letter">B</span><h3>Understand the weakness</h3></div>
+        <div class="frames">
+          <figure><button class="shot" type="button" data-src="screens/09-insights.jpg" data-cap="Insights: Overview"><img src="screens/09-insights.jpg" alt="Insights overview: tiles, accuracy and Elo trend, breakdown cards" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">5</span><h4>Insights: Overview</h4></div><span class="route">/insights</span><p>A speed filter, then four tiles and the accuracy and Elo trend on real dates. Opponent strength, phase, tactics, time, resilience and openings follow.</p></figcaption></figure>
+          <figure><button class="shot" type="button" data-src="screens/10-pattern-report.jpg" data-cap="Pattern Report"><img src="screens/10-pattern-report.jpg" alt="Pattern Report: costliest habit, causes, tactics, rates and openings" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">6</span><h4>Pattern Report</h4></div><span class="route">/insights/patterns</span><p>A one-sentence takeaway, then causes ranked by winning chances lost, the tactics with their stated overlap, rates against your own baseline, and openings above your average.</p></figcaption></figure>
+          <figure><button class="shot" type="button" data-src="screens/05-game-analysis.jpg" data-cap="Game Analysis"><img src="screens/05-game-analysis.jpg" alt="Game analysis: board and a verified blunder card" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">7</span><h4>Open the game</h4></div><span class="route">/games/:id</span><p>Clicking a move opens its game. The board sits beside the mistake card: <span class="mono">3.Nf6??</span>, a BLUNDER badge, the engine's best move, ✓ Verified, motif tags and one checked sentence.</p></figcaption></figure>
+        </div>
+      </div>
+
+      <div class="journey">
+        <div class="journey-head"><span class="letter">C</span><h3>Train it</h3></div>
+        <div class="frames">
+          <figure><button class="shot" type="button" data-src="screens/11-training-plan.jpg" data-cap="Training Plan"><img src="screens/11-training-plan.jpg" alt="Training plan: this week, two session cards, focus list" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">8</span><h4>This week's plan</h4></div><span class="route">/insights/training</span><p>The dates, then "1 of 2 done. Next: session 2." Each session card has a goal, focus chips and its positions. The next session has the only solid button.</p></figcaption></figure>
+          <figure><button class="shot" type="button" data-src="screens/13-drill-session.jpg" data-cap="Drill session"><img src="screens/13-drill-session.jpg" alt="Drill session: board with find the best move prompt" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">9</span><h4>Solve your own positions</h4></div><span class="route">/session/:id · /drills?positions=…</span><p>A focused page: progress, Exit, a severity badge with its motif, and "Find the best move for white". Finishing marks the plan session done.</p></figcaption></figure>
+          <figure><button class="shot" type="button" data-src="screens/03-progress.jpg" data-cap="Progress"><img src="screens/03-progress.jpg" alt="Progress: deck tiles, recall, phase recall, practice history" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">10</span><h4>See it stick</h4></div><span class="route">/progress</span><p>Deck health, 7-day recall, recall by phase, and practice history as a dot grid that shows the gaps too.</p></figcaption></figure>
+          <figure><button class="shot" type="button" data-src="screens/12-drills.jpg" data-cap="Drills, empty"><img src="screens/12-drills.jpg" alt="Drills empty state" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">–</span><h4>Drills, empty state</h4></div><span class="route">/drills</span><p>One sentence that says why the page is empty and what fills it.</p></figcaption></figure>
+        </div>
+      </div>
+
+      <div class="journey">
+        <div class="journey-head"><span class="letter">D</span><h3>Play and check</h3></div>
+        <div class="frames">
+          <figure><button class="shot" type="button" data-src="screens/06-play.jpg" data-cap="Play &amp; Improve"><img src="screens/06-play.jpg" alt="Play and improve: opponent explanation and start button" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">11</span><h4>An opponent built from your games</h4></div><span class="route">/play</span><p>"Your opponent" shows the opening it steers toward and its strength, calibrated to your accuracy. Then Start a game and a colour choice.</p></figcaption></figure>
+          <figure><button class="shot" type="button" data-src="screens/07-practice-review.jpg" data-cap="Practice review"><img src="screens/07-practice-review.jpg" alt="Practice review: board stepper and move list" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">12</span><h4>The same measurements, after</h4></div><span class="route">/play/review/:id</span><p>"2 of your moves, in order. 1 mistake · 80% accuracy." Step through the moves with the board, next to the full move list.</p></figcaption></figure>
+        </div>
+      </div>
+
+      <div class="journey">
+        <div class="journey-head"><span class="letter">E</span><h3>Ask</h3></div>
+        <div class="frames">
+          <figure><button class="shot" type="button" data-src="screens/08-ask-prax.jpg" data-cap="Ask Prax"><img src="screens/08-ask-prax.jpg" alt="Ask Prax: starter questions and input" loading="lazy"></button>
+            <figcaption><div class="step"><span class="num">13</span><h4>Ask Prax</h4></div><span class="route">/ask</span><p>"Everything here is measured from your games, or cited to a source." Starter questions, History, and an input pinned to the bottom.</p></figcaption></figure>
+        </div>
+      </div>
+
+      <div class="journey">
+        <div class="journey-head"><span class="letter">F</span><h3>At phone width</h3></div>
+        <div class="phones">
+          <figure><button class="shot tall" type="button" data-src="screens/15-phone-today.jpg" data-cap="Today at 390px"><img src="screens/15-phone-today.jpg" alt="Today on a phone" loading="lazy"></button>
+            <figcaption><span class="route">/ · 390 × 844</span><p>Tiles wrap into two columns. The nav is cut off at the right edge.</p></figcaption></figure>
+          <figure><button class="shot tall" type="button" data-src="screens/16-phone-training-plan.jpg" data-cap="Training Plan at 390px"><img src="screens/16-phone-training-plan.jpg" alt="Training plan on a phone" loading="lazy"></button>
+            <figcaption><span class="route">/insights/training · 390 × 844</span><p>Session cards stack into one column, with the context under each move.</p></figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="screens">
+      <div class="sec-head">
+        <span class="micro">07 · Index</span>
+        <h2>Screen index</h2>
+        <p>Not captured: <code>/dashboard</code> and <code>/games</code> (legacy), plus <code>/evidence/:id</code> and <code>/labels</code> (measurement tools for the developer).</p>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Screen</th><th>Route</th><th>Frame</th></tr></thead>
+          <tbody>
+            <tr><td>Today</td><td class="mono">/</td><td>4 · first run 1</td></tr>
+            <tr><td>Progress</td><td class="mono">/progress</td><td>10</td></tr>
+            <tr><td>Library (Games, Drills)</td><td class="mono">/library</td><td>3</td></tr>
+            <tr><td>Game Analysis</td><td class="mono">/games/:id</td><td>7</td></tr>
+            <tr><td>Play &amp; Improve</td><td class="mono">/play</td><td>11</td></tr>
+            <tr><td>Practice review</td><td class="mono">/play/review/:id</td><td>12</td></tr>
+            <tr><td>Ask Prax</td><td class="mono">/ask</td><td>13</td></tr>
+            <tr><td>Insights: Overview</td><td class="mono">/insights</td><td>5</td></tr>
+            <tr><td>Pattern Report</td><td class="mono">/insights/patterns (/patterns redirects)</td><td>6</td></tr>
+            <tr><td>Training Plan</td><td class="mono">/insights/training (/training redirects)</td><td>8</td></tr>
+            <tr><td>Drills</td><td class="mono">/drills</td><td>empty state</td></tr>
+            <tr><td>Drill session</td><td class="mono">/session/:id · /drills?positions=…&amp;session=n&amp;plan=id</td><td>9</td></tr>
+            <tr><td>Settings</td><td class="mono">/settings</td><td>2</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="drift">
+      <div class="sec-head">
+        <span class="micro">08 · To fix</span>
+        <h2>Known drift</h2>
+        <p>Found while capturing these screens. Each item breaks one of the principles above, so fix it or record the decision to keep it.</p>
+      </div>
+      <ol class="drift">
+        <li><span class="tag">Colour</span><div><b>The Insights Overview uses pink for data.</b><p>The Missed Tactics bars and the Monday bar are orchid, but pink is reserved for what can be clicked. Use neutral, or amber against a baseline, as the Pattern Report does.</p></div></li>
+        <li><span class="tag">Colour</span><div><b>Amber has two meanings.</b><p>It is the mistake severity and also "above your average". Either give one of them another colour, or document the double use.</p></div></li>
+        <li><span class="tag">Board</span><div><b>The report popover board is blue.</b><p>It uses <code>#3d5a80</code> / <code>#98c1d9</code>, while every other board is bone and graphite. Switch it to <code>--board-light</code> / <code>--board-dark</code>.</p></div></li>
+        <li><span class="tag">Truth</span><div><b>"Positional" is listed as a missed tactic.</b><p>It shows 154 on the Overview, built from old motif data. The Pattern Report no longer counts OTHER or POSITIONAL as tactics.</p></div></li>
+        <li><span class="tag">Phone</span><div><b>The nav overflows at 390px.</b><p>Six links don't fit and "Insights" is cut off. A wrapped row, a scroll hint or a menu would fix it.</p></div></li>
+        <li><span class="tag">Type</span><div><b>Fonts aren't loaded.</b><p>The look depends on what each machine has installed. Self-host Inter Tight and JetBrains Mono.</p></div></li>
+        <li><span class="tag">Copy</span><div><b>Em-dash copy remains.</b><p>It's in the setup checklist ("Database — PostgreSQL reachable"), the Play subtitle and "Phase recall — last session". That wording was replaced elsewhere.</p></div></li>
+        <li><span class="tag">Settings</span><div><b>"Written explanations per game" is still shown.</b><p>Per-move explanations are retired. Hide the field or mark it off.</p></div></li>
+        <li><span class="tag">Pattern</span><div><b>There are two tab styles.</b><p>Library uses an underline and Insights uses a pill. Pick one.</p></div></li>
+      </ol>
+    </section>
+
+    <footer>Source of truth: <code>frontend/src/index.css</code>. The same content lives in the repository as <code>docs/design/DESIGN_SYSTEM.md</code>, with the frames in <code>docs/design/screens/</code>. Screens use synthetic data only.</footer>
+  </main>
+</div>
+
+<dialog id="lb" aria-label="Screenshot">
+  <div class="dlg-bar"><span id="lb-cap" class="micro"></span><button class="btn secondary" type="button" id="lb-close">Close</button></div>
+  <img id="lb-img" alt="">
+</dialog>
+
+<script>
+(function () {
+  // A tiny board for the popover sample: the light/dark pattern only.
+  var mb = document.getElementById('mb');
+  if (mb) for (var r = 0; r < 8; r++) for (var c = 0; c < 8; c++) {
+    var i = document.createElement('i'); if ((r + c) % 2) i.className = 'd'; mb.appendChild(i);
+  }
+  var dlg = document.getElementById('lb'), img = document.getElementById('lb-img'), cap = document.getElementById('lb-cap');
+  document.querySelectorAll('.shot').forEach(function (b) {
+    b.addEventListener('click', function () {
+      img.src = b.getAttribute('data-src'); img.alt = b.querySelector('img').alt; cap.textContent = b.getAttribute('data-cap');
+      if (dlg.showModal) dlg.showModal();
+    });
+  });
+  document.getElementById('lb-close').addEventListener('click', function () { dlg.close(); });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+})();
+</script>

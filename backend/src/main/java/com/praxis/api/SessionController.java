@@ -7,6 +7,7 @@ import com.praxis.dto.CardDto;
 import com.praxis.dto.SessionDto;
 import com.praxis.repository.CardRepository;
 import com.praxis.repository.DrillSessionRepository;
+import com.praxis.repository.MistakeEvidenceRepository;
 import com.praxis.service.CardGeneratorService;
 import com.praxis.service.drills.SessionEngineService;
 import com.praxis.service.settings.PlayerIdentity;
@@ -33,17 +34,23 @@ public class SessionController {
     private final CardRepository cardRepository;
     private final DrillSessionRepository sessionRepository;
     private final PlayerIdentity player;
+    private final MistakeEvidenceRepository evidenceRepository;
+    private final com.praxis.repository.AttemptRepository attemptRepository;
 
     public SessionController(SessionEngineService sessionEngine,
                              CardGeneratorService cardGenerator,
                              CardRepository cardRepository,
                              DrillSessionRepository sessionRepository,
-                             PlayerIdentity player) {
+                             PlayerIdentity player,
+                             MistakeEvidenceRepository evidenceRepository,
+                             com.praxis.repository.AttemptRepository attemptRepository) {
+        this.attemptRepository = attemptRepository;
         this.sessionEngine = sessionEngine;
         this.cardGenerator = cardGenerator;
         this.cardRepository = cardRepository;
         this.sessionRepository = sessionRepository;
         this.player = player;
+        this.evidenceRepository = evidenceRepository;
     }
 
     /** Start or resume a session. Generates new cards first if the deck is thin. */
@@ -58,8 +65,17 @@ public class SessionController {
     @GetMapping("/{id}")
     public ResponseEntity<SessionDto> getSession(@PathVariable UUID id) {
         return sessionRepository.findById(id)
-                .map(s -> ResponseEntity.ok(SessionDto.from(s)))
+                .map(s -> ResponseEntity.ok(SessionDto.from(s, solvedFirstTime(id))))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    /** Cards whose first attempt in this session was correct: what "solved" means on the result. */
+    private int solvedFirstTime(UUID sessionId) {
+        var first = new java.util.LinkedHashMap<UUID, Boolean>();
+        for (var a : attemptRepository.findBySessionIdOrderByCreatedAtAsc(sessionId)) {
+            if (a.getCard() != null) first.putIfAbsent(a.getCard().getId(), a.isCorrect());
+        }
+        return (int) first.values().stream().filter(Boolean::booleanValue).count();
     }
 
     /**
@@ -78,7 +94,10 @@ public class SessionController {
         UUID cardId = queue.get(idx);
         Card card = cardRepository.findByIdWithDetails(cardId).orElse(null);
         if (card == null) return ResponseEntity.noContent().build();
-        return ResponseEntity.ok(CardDto.from(card));
+        var e = card.getSourceError();
+        var evidence = e == null || e.getGame() == null ? null
+                : evidenceRepository.findByGameIdAndMoveNumber(e.getGame().getId(), e.getMoveNumber()).orElse(null);
+        return ResponseEntity.ok(CardDto.from(card, evidence));
     }
 
     /** Record an attempt and advance the card's FSRS state. */
@@ -89,6 +108,6 @@ public class SessionController {
                 req.correct(), req.rating(), req.responseMs());
         DrillSession updated = sessionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + id));
-        return ResponseEntity.ok(SessionDto.from(updated));
+        return ResponseEntity.ok(SessionDto.from(updated, solvedFirstTime(id)));
     }
 }

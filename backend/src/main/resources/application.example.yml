@@ -53,9 +53,13 @@ server:
 praxis-chess:
   ollama:
     base-url: http://localhost:11434
-    model: qwen2.5:7b          # fallback if move-model / report-model not set
-    move-model: qwen2.5:7b    # per-move explanations (×N per game) — try qwen3:4b for 3× speedup
-    report-model: qwen2.5:7b  # pattern report + training plan (×2 total, quality matters)
+    # Two models since Phase 12: qwen3:4b-instruct writes the report prose and
+    # runs Prax (below); the trained 2B writes the checked commentary. Code
+    # computes every figure and a checker holds the prose to it, so a larger
+    # writer is optional. qwen2.5:7b (or a cloud model) still works here.
+    model: qwen3:4b-instruct          # fallback if move-model / report-model not set
+    move-model: qwen3:4b-instruct     # per-move explanations: off by default (Settings, 0 per game)
+    report-model: qwen3:4b-instruct   # paragraphs around the Pattern Report and Training Plan
     # The trained model that writes the checked "AI commentary" on each mistake.
     # Get it from Hugging Face (README, step 3b):
     #   hf download praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF --revision v1.0 --local-dir praxis-2b
@@ -113,6 +117,12 @@ praxis-chess:
   backup:
     dir: ""
     requests-dir: ""   # empty: <dir>/.requests
+
+  # The Pattern Report and Training Plan are computed in code. With prose on, the
+  # report model also writes a few paragraphs around them, held to the numbers by
+  # a checker. Off by default: the checker verifies numbers, not claims.
+  reports:
+    prose: false
 
   # Web research for Prax. The ONLY part of this application that reaches
   # outside your machine, so it is off until you turn it on.

@@ -7,11 +7,23 @@ import com.praxis.domain.enums.TacticalMotif;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+/**
+ * One flagged move of one analysis run.
+ *
+ * <p><b>History is kept (Phase 12).</b> Re-analysing a game no longer deletes its
+ * rows: they get {@code superseded_at} and the new run writes fresh ones. The
+ * restriction below hides superseded rows from every query, so every screen sees
+ * only the current analysis; the old rows stay in the table for recovery and later
+ * analysis (read them with native SQL). Drill cards are re-linked to the new row
+ * at the same ply, never deleted (GameAnalysisTransactionService).
+ */
 @Entity
+@SQLRestriction("superseded_at IS NULL")
 @Table(name = "move_errors", indexes = {
     @Index(name = "idx_move_errors_game_id", columnList = "game_id"),
     @Index(name = "idx_move_errors_severity", columnList = "severity"),
@@ -84,4 +96,12 @@ public class MoveError {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
+
+    /** When a re-analysis replaced this row; null while it is the current one. */
+    @Column(name = "superseded_at")
+    private OffsetDateTime supersededAt;
+
+    /** The analysis run that wrote this row: {@code analysis_timing.run_id}. Null for rows from before Phase 12. */
+    @Column(name = "analysis_run_id")
+    private UUID analysisRunId;
 }

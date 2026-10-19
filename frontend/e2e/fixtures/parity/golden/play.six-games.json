@@ -1,0 +1,162 @@
+{
+ "screen": "play",
+ "state": "six-games",
+ "path": "/play",
+ "metrics": {
+  "prose": 238,
+  "data": 22,
+  "paragraphs": [
+   "Every one of these games is the Nimzovich-Larsen Attack, because your opponent is built to play your weakest opening. Some of what follows may be specific to that opening rather than a habit you carry everywhere.",
+   "You castled after move 10 in 4 of 6 games, and never castled in 1 of them.",
+   "Why it costs you: A tactic you miss once is bad luck; the same one repeatedly is a shape you are not seeing."
+  ]
+ },
+ "pairs": [
+  [
+   "",
+   "~accuracy",
+   2
+  ],
+  [
+   "",
+   "~analysed",
+   2
+  ],
+  [
+   "",
+   "~blunders",
+   1
+  ],
+  [
+   "",
+   "~hanging piece",
+   1
+  ],
+  [
+   "",
+   "~middlegame",
+   1
+  ],
+  [
+   "",
+   "~nimzovich-larsen attack",
+   4
+  ],
+  [
+   "",
+   "~opening",
+   1
+  ],
+  [
+   "",
+   "1",
+   1
+  ],
+  [
+   "",
+   "10",
+   1
+  ],
+  [
+   "",
+   "12",
+   2
+  ],
+  [
+   "",
+   "20",
+   1
+  ],
+  [
+   "",
+   "2026-08-27",
+   1
+  ],
+  [
+   "",
+   "2026-08-28",
+   2
+  ],
+  [
+   "",
+   "31",
+   1
+  ],
+  [
+   "",
+   "4",
+   1
+  ],
+  [
+   "",
+   "49%",
+   1
+  ],
+  [
+   "",
+   "5",
+   1
+  ],
+  [
+   "",
+   "6",
+   3
+  ],
+  [
+   "",
+   "63",
+   1
+  ],
+  [
+   "",
+   "68%",
+   1
+  ],
+  [
+   "",
+   "7",
+   1
+  ],
+  [
+   "",
+   "8/26/2026",
+   1
+  ],
+  [
+   "",
+   "8/27/2026",
+   1
+  ],
+  [
+   "",
+   "8/28/2026",
+   1
+  ],
+  [
+   "",
+   "9",
+   1
+  ],
+  [
+   "",
+   "97",
+   1
+  ],
+  [
+   "",
+   "signal4/6",
+   1
+  ],
+  [
+   "",
+   "signal5/6",
+   1
+  ],
+  [
+   "Which colour to play",
+   "~your weaker colour",
+   1
+  ]
+ ],
+ "methods": []
+}

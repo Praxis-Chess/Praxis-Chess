@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { uciToSan } from '../components/san'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useGameAnalysis } from '../hooks/useGameAnalysis'
@@ -118,7 +119,7 @@ export function GameAnalysis() {
             <div style={{ marginTop: 6, fontSize: '0.72rem', display: 'flex', gap: 14 }}>
               <span className="stat-value" style={{ color: 'var(--loss)', fontWeight: 500 }}>▶ {selectedError.move_played}</span>
               {selectedError.better_move && (
-                <span className="stat-value" style={{ color: 'var(--gain)', fontWeight: 500 }}>✓ {selectedError.better_move}</span>
+                <span className="stat-value" style={{ color: 'var(--gain)', fontWeight: 500 }}>✓ {uciToSan(selectedError.fen_position, selectedError.better_move)}</span>
               )}
             </div>
           )}
@@ -140,7 +141,7 @@ export function GameAnalysis() {
                 <h2 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                   {errors.length} mistake{errors.length !== 1 ? 's' : ''} identified
                 </h2>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>· Click to see position</span>
+
               </div>
               {fromThrown && target && (
                 <p role="status" style={{
@@ -166,8 +167,17 @@ export function GameAnalysis() {
                     {/* Under the selected card only: one mistake's "why" at a time,
                         and its steps drive the board beside it. */}
                     {id && selectedError?.id === error.id && (
-                      <WhyPanel gameId={id} ply={error.move_number} recordedBest={error.better_move}
-                        onShowBoard={setWhyBoard} />
+                      <>
+                        {/* Reached from a report, this is not a dead end: drill exactly this position (F7). */}
+                        {error.better_move && (
+                          <Link to={`/drills?positions=${id}:${error.move_number}`}
+                                style={{ display: 'inline-block', margin: '6px 0 10px', fontSize: '0.8rem' }}>
+                            Drill this position →
+                          </Link>
+                        )}
+                        <WhyPanel gameId={id} ply={error.move_number} recordedBest={error.better_move}
+                          onShowBoard={setWhyBoard} />
+                      </>
                     )}
                   </div>
                 ))}
