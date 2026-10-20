@@ -1,3 +1,82 @@
+# Praxis Chess v1.5.0 — one frame, your own positions, a sample to explore
+
+Every screen now sits in the same calm frame, shows the positions behind its
+numbers, and says what to do next. A new install has something to look at
+before its first game is analysed.
+
+- **One frame on every page.** Pages are centred on one of three widths
+  instead of hugging the left edge. A new top bar: the logo on the left, the
+  six sections centred, Settings on the right, and new games or games waiting
+  as small "16 new · Sync" and "3 waiting · Analyse" chips. The sync banner
+  appears only while a run is going or has failed. A page the nav already names
+  no longer repeats its title, and Library and Insights share one tab style.
+- **Today, as a cockpit.** The day's focus shows one of your own positions
+  behind it, and a rail beside it carries your rating trend, your last game,
+  your next plan session and your top habit. "Due today" is the deck's real
+  count.
+- **A drill deck that fills itself.** Every analysed blunder and mistake
+  becomes a review card, up to 120 active cards and 10 new a day, due the day
+  it is made: blunders first, then the positions your training plan is aimed
+  at. Games analysed before this release are added on first start. Before, the
+  deck stayed empty until a session was started.
+- **Boards in lists.** Library → Drills is a gallery of positions; each
+  Pattern Report habit shows its costliest position; each Training Plan session
+  shows its positions; each thrown-away win shows the position where it
+  slipped.
+- **Game Analysis shows the whole game.** Your winning chance after every
+  move, with your mistakes marked on the curve; the full move list, where any
+  move shows its position; and the page opens on your costliest mistake.
+  Curves are kept for games analysed from this release on; an older game
+  offers "Re-analyse this game".
+- **Accuracy fixed.** Games analysed before the eval-sign fix kept accuracies
+  that were far too low (some under 20%). Accuracy is now recomputed every time
+  a game is analysed, so re-analysing corrects them.
+- **Insights says what the chart says.** A takeaway line ("Your Elo has risen
+  from 1171 on 23 Jul to 1278, and your play with it…"), with a link to what
+  goes wrong when results fall. Win rates are coloured against your own rate,
+  not 50%, so an average day is no longer red. No half-empty cards, and the
+  thrown-away wins come with "Drill these positions".
+- **Openings named at sync.** A game shows its opening as soon as it is
+  synced, not only after analysis; existing games are filled in on first start.
+- **Ask Prax starts somewhere.** Before the first question: what Prax is
+  answering from (your analysed games, report and plan), questions drawn from
+  your latest report, and your recent questions.
+- **Explore with sample games.** Empty screens say what they will show and
+  what they are built from. Until your own games are in, "Explore with sample
+  games" shows the whole app on 16 games Stockfish played as a made-up player,
+  analysed by the real pipeline. It is read-only, and a banner on every page
+  says so and is the way out.
+- **Feels responsive.** Every button, row and tab answers hover and press, in
+  one 120–180 ms motion scale. With reduced motion set, nothing moves: no
+  transitions, no press travel, smooth scrolls jump, and the loading mark holds
+  still.
+- **Prax without the particle body.** Prax is its voice, its answers and its
+  progress and question cards, which sit beside the page when there is room.
+  The ambient background setting is hidden for now; the background is off.
+- **Smaller fixes.** Today's rating panel always said "Not enough rated games
+  yet"; it now shows your rating trend. Due dates, "due today" and streaks all
+  use your practice timezone. "Start session" says why when it cannot start.
+  The week strip shows the days still to come. The local `application.yml`
+  template now includes `commentary-model`, without which a fresh install had
+  no trained commentary, and `practice.timezone`.
+
+**Upgrading.** Docker with the published images:
+`docker compose -f docker/compose.yaml pull`, then
+`docker compose -f docker/compose.yaml up -d`. If you set `PRAXIS_VERSION`,
+change it to `1.5.0` or remove it to follow `latest`. Building it yourself:
+`git pull`, then `docker compose -f docker/compose.yaml up -d --build`. From
+source: `git pull`, `npm ci` in `frontend` (new font packages), rebuild the
+backend and restart; add `commentary-model: praxis-grid-2b-r3` under
+`praxis-chess.ollama` in your `application.yml` if it is missing. The database
+updates itself on start (the drill deck and opening names are filled in
+there); nothing is deleted. To get curves and corrected accuracy on games
+analysed before this release, re-analyse them: per game from Game Analysis, or
+all at once in Settings → Library (a backup is taken first, and drill cards
+keep their history). Re-analysis runs Stockfish over every game again, so a
+large library takes a while.
+
+---
+
 # Praxis Chess v1.4.0 — checked reports, two models, nothing deleted
 
 Every pattern, drill and report now comes from the verified diagnosis of every
