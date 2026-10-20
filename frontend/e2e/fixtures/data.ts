@@ -11,6 +11,7 @@
  * ids — tests must not depend on the operator's personal data, and this file is
  * committed.
  */
+import { Chess } from 'chess.js'
 import type { AiStatus,
   BackupOverview,
   PlayerView,
@@ -228,6 +229,8 @@ export const insights: Insights = {
         played_at: '2026-08-20T17:44:00Z',
         turning_ply: 47,
         turning_move: '24.f3',
+        // White to move, a piece up, before 24.f3.
+        turning_fen: 'r4rk1/pp3ppp/2n1b3/3q4/3P4/2N2N2/PP3PPP/R2QR1K1 w - - 0 24',
       },
     ],
   },
@@ -286,19 +289,31 @@ export const progress: Progress = {
 
 export const opponentProfile: OpponentProfile = {
   skill_level: 9,
-  target_eco: 'A01',
-  target_opening: 'Nimzovich-Larsen Attack',
+  target_eco: 'C21',
+  target_opening: 'Center Game',
   target_phase: 'MIDDLEGAME',
-  target_motif: 'HANGING_PIECE',
-  targeted_weakness: 'opening:A01',
-  // As OpponentProfileService writes them: "Label: facts". Positional is never a pattern (no tactic proven).
+  target_motif: 'FORK',
+  targeted_weakness: 'opening:C21',
+  // As OpponentProfileService writes them: "Label: facts".
   rationale: [
-    'Steers toward: Nimzovich-Larsen Attack · 49% accuracy in 12 games, your weakest opening with enough games to judge',
-    'Most blunders: middlegame · 97 of them',
-    'Most frequent tactic: hanging piece · 63 times',
-    'Strength: 9 of 20 · calibrated to your 68% average accuracy',
+    'Steers toward: Center Game · 6.0 serious mistakes per game vs your 4.7 · 5 games',
+    'Strength: engine skill 9 of 20, set from your 68% average accuracy',
+    'Watch for: middlegame · 17.6 vs 13.6 per 100 moves',
   ],
   personalised: true,
+  // The same figures as reports.pattern: one source for Play, the report and the plan.
+  opening: { eco: 'C21', name: 'Center Game', games: 5, serious: 30, serious_per_game: 6, average: 4.7, vs_average: 1.28 },
+  skill: { level: 9, scale: 20, min: 1, max: 14, calibrated: 9, capped: false, requested: false, accuracy: 68.2 },
+  colour: {
+    weaker: 'black', basis: 'accuracy', min_games: 5,
+    white: { games: 58, accuracy: 70.1, win_pct: 52 },
+    black: { games: 43, accuracy: 64.9, win_pct: 41 },
+  },
+  watch_for: {
+    phase: { key: 'MIDDLEGAME', label: 'middlegame', count: 96, moves: 547, per_hundred: 17.6, overall: 13.6 },
+    cause: { key: 'IGNORED_THREAT', title: "Ignoring your opponent's threat", count: 32, base: 145, pct: 22 },
+    tactic: { key: 'FORK', title: 'Forks', count: 14, base: 145, pct: 10 },
+  },
 }
 
 /**
@@ -363,6 +378,7 @@ export const analysedReport: ImprovementReport = {
   sample_size: 6,
   trend_claimable: true,
   caveat: null,
+  drill_plies: [4],
 }
 
 /**
@@ -436,6 +452,10 @@ export const practiceHistory: PracticeGameSummary[] = [
     target_opening: 'Nimzovich-Larsen Attack',
     rated: true,
     analysed: true,
+    accuracy: 80,
+    blunders: 0,
+    mistakes: 1,
+    inaccuracies: 0,
   },
   {
     id: '22222222-2222-4222-8222-222222222222',
@@ -448,6 +468,10 @@ export const practiceHistory: PracticeGameSummary[] = [
     target_opening: 'Nimzovich-Larsen Attack',
     rated: false,
     analysed: true,
+    accuracy: 71.5,
+    blunders: 1,
+    mistakes: 2,
+    inaccuracies: 1,
   },
   {
     // Archived but never measured — must not offer a review of an empty analysis.
@@ -498,24 +522,24 @@ export const practicePatterns: PracticePatternReport = {
   games_considered: 6,
   claimable: true,
   caveat: null,
-  opening_caveat:
-    'Every one of these games is the Nimzovich-Larsen Attack, because your opponent ' +
-    'is built to play your weakest opening. Some of what follows may be specific to ' +
-    'that opening rather than a habit you carry everywhere.',
+  opening_caveat: 'All aimed at the Nimzovich-Larsen Attack',
+  min_games: 5,
+  aimed_at: 'Nimzovich-Larsen Attack',
   patterns: [
     {
       id: 'castling-delay',
       title: 'You castle late',
       finding: 'You castled after move 10 in 4 of 6 games, and never castled in 1 of them.',
       why: 'An uncastled king stays on the file the opponent will open.',
-      what_to_do: 'Aim to castle inside the first ten moves.',
+      what_to_do: 'Aim to castle inside the first ten moves unless there is a concrete reason not to.',
+      do_now: 'Castle inside the first ten moves',
       strength: 'EMERGING',
       games_affected: 4,
       games_considered: 6,
       drill_motif: null,
       evidence: [
-        { game_id: PRACTICE_GAME_ID, ply: 23, label: 'Castled on move 12 (2026-08-28)' },
-        { game_id: PRACTICE_GAME_ID, ply: null, label: 'Never castled (2026-08-27)' },
+        { game_id: PRACTICE_GAME_ID, ply: 23, label: 'Castled on move 12 (28 Aug)' },
+        { game_id: PRACTICE_GAME_ID, ply: null, label: 'Never castled (27 Aug)' },
       ],
     },
     {
@@ -523,19 +547,18 @@ export const practicePatterns: PracticePatternReport = {
       title: 'The same tactic keeps catching you',
       finding: 'Hanging pieces showed up in 5 of 6 games, across 31 written-up mistakes.',
       why: 'A tactic you miss once is bad luck; the same one repeatedly is a shape you are not seeing.',
-      what_to_do: 'Drill this motif from your own positions.',
+      what_to_do: 'Drill this specific motif from your own positions until you spot the shape.',
+      do_now: 'Drill these positions until you see it',
       strength: 'EMERGING',
       games_affected: 5,
       games_considered: 6,
       drill_motif: 'HANGING_PIECE',
       evidence: [
-        { game_id: PRACTICE_GAME_ID, ply: 14, label: 'Hanging pieces on move 7 (2026-08-28)' },
+        { game_id: PRACTICE_GAME_ID, ply: 14, label: 'Hanging pieces on move 7 (28 Aug)' },
       ],
     },
   ],
-  not_measured: [
-    'Time and decision-making — practice games are untimed, so no clock is recorded.',
-  ],
+  not_measured: ['Untimed: no clock'],
 }
 
 export const resignResult: MoveResult = {
@@ -996,3 +1019,26 @@ export const backupsNotRunning: BackupOverview = {
   last_verification: null,
   snapshots: [],
 }
+
+/**
+ * U5: the whole of the Scholar's-mate game as Game Analysis reads it, built with
+ * chess.js so every FEN is real, with an eval curve (White's side, pawns; mate
+ * ±100) and the one flagged move (3...Nf6??, ply 6).
+ */
+export const scholarsReview: GameReview = (() => {
+  const san = ['e4', 'e5', 'Bc4', 'Nc6', 'Qh5', 'Nf6', 'Qxf7#']
+  const evals = [0.3, 0.25, 0.2, 0.25, 0.1, 100, 100]
+  const chess = new Chess()
+  const moves = san.map((m, i) => {
+    const before = chess.fen()
+    chess.move(m)
+    const ply = i + 1
+    return {
+      ply, move_number: Math.ceil(ply / 2), san: m, color: (ply % 2 === 1 ? 'white' : 'black') as 'white' | 'black',
+      by_player: ply % 2 === 0, fen_before: before, fen_after: chess.fen(),
+      mistake: ply === 6 ? (scholarsMistakeVerified as unknown as GameReview['moves'][number]['mistake']) : null,
+    }
+  })
+  return { game_id: WHY_GAME_ID, player_color: 'black', opening_eco: 'C20', opening_name: "King's Pawn Opening",
+           result: 'loss', accuracy: 41.2, analysis_status: 'ANALYZED', moves, evals }
+})()

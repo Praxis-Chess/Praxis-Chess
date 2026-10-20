@@ -1,4 +1,4 @@
-import { Chessboard } from 'react-chessboard'
+import { ThemedBoard } from './ThemedBoard'
 import { Chess } from 'chess.js'
 
 interface Arrow {
@@ -33,13 +33,10 @@ export function ChessBoard({ fen, playerColor = 'white', arrows }: Props) {
     // react-chessboard sizes itself to this wrapper via a ResizeObserver. A
     // fixed 360 overflowed its card on a phone, where the column is ~336px.
     <div style={{ width: '100%', maxWidth: 360 }}>
-    <Chessboard
+    <ThemedBoard
       position={safeFen}
       boardOrientation={playerColor === 'black' ? 'black' : 'white'}
       arePiecesDraggable={false}
-      customDarkSquareStyle={{ backgroundColor: '#4A4340' }}
-      customLightSquareStyle={{ backgroundColor: '#E3DBD1' }}
-      customBoardStyle={{ borderRadius: '2px', border: '1px solid rgba(255,255,255,0.08)' }}
       customArrows={customArrows}
       customArrowColor="rgba(226,102,74,0.85)"
     />

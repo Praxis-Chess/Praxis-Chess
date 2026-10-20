@@ -28,8 +28,11 @@ public interface PatternDetector {
     /** What this costs. One sentence, fixed. */
     String why();
 
-    /** The corrective principle — not a move. */
+    /** The corrective principle, not a move. */
     String whatToDo();
+
+    /** The same, as an imperative of at most eight words: what the page shows by default. */
+    String doNow();
 
     /**
      * The motif whose positions would practise this, or null when no position's

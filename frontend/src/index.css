@@ -7,11 +7,15 @@
    ========================================================================== */
 
 :root {
+  /* Dark only: native popups (a select's list), scrollbars and form controls follow. */
+  color-scheme: dark;
+
   /* --- Surfaces (warm neutral, hue-shifted to brown/graphite) --- */
-  --canvas:        #121110;
-  --canvas-deep:   #0C0B0A;
+  --canvas:        #000000;   /* pure black: the ground the background effect sits on */
+  --canvas-deep:   #000000;
   --surface-1:     rgba(255, 255, 255, 0.035);
   --hairline:      rgba(255, 255, 255, 0.08);
+  --hairline-strong: rgba(255, 255, 255, 0.16);   /* a control's outline: neutral, never the accent */
   --hairline-lit:  rgba(231, 166, 214, 0.28);
 
   /* --- Text --- */
@@ -24,10 +28,23 @@
   --mauve-deep:  #B0679F;
   --accent-wash: rgba(231, 166, 214, 0.12);
 
+  /* --- Interaction (U8): neutral washes and one motion scale ---
+     Hover lifts a surface by a white wash, never pink (pink is the next action
+     and the active state). Interaction moves in 120–180 ms; a progress fill,
+     which shows change over time, takes 400 ms. Reduced motion zeroes both. */
+  --hover-wash:  rgba(255, 255, 255, 0.045);
+  --press-wash:  rgba(255, 255, 255, 0.085);
+  --dur-fast:    120ms;
+  --dur:         150ms;
+  --dur-slow:    180ms;
+  --dur-fill:    400ms;
+  --ease-out:    cubic-bezier(0.2, 0, 0, 1);
+
   /* --- Signal (desaturated, filmic) --- */
   --gain:    #B9D96C;   /* win  — acid lime-chartreuse */
   --warn:    #E5B04B;   /* mistake — amber */
   --loss:    #E2664A;   /* blunder — burnt coral */
+  --loss-soft: #C98172; /* a loss figure beside data (chips, "−28% each"): red, quieter than a result */
   --neutral: #8A847E;   /* draw */
 
   /* --- Chart long-tail greys --- */
@@ -55,7 +72,19 @@
   --rating:     #7DB9E8;   /* Elo line: cool sky blue, clear of the orchid accent and the win/mistake/blunder colours */
   --per-game:   #9D8CF0;   /* per-game accuracy: violet, between the orchid average and the sky-blue Elo */
 
-  /* --- Type stacks (offline-safe: named faces first, system fallbacks) --- */
+  /* --- Page widths (POLISH_PLAN.md D1): every page is centred on one of these. Wide is all of main. --- */
+  --page-reading:  760px;
+  --page-standard: 1200px;
+
+  /* --- Type steps (U1): the page title clearly above section titles, sections clearly above body --- */
+  --fs-display: 1.6rem;   /* stat values */
+  --fs-h1:      1.75rem;  /* page title */
+  --fs-section: 1.25rem;  /* section title */
+  --fs-body:    0.875rem; /* 14px */
+  --fs-small:   0.8rem;   /* muted lines, stat lines */
+  --fs-micro:   10px;     /* micro-labels */
+
+  /* --- Type stacks (bundled with @fontsource: named faces first, system fallbacks) --- */
   --font-display: 'Inter Tight', 'Archivo', 'Neue Haas Grotesk Display',
                   'Segoe UI Variable Display', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'Cascadia Code',
@@ -66,7 +95,7 @@ body {
   background: var(--canvas);
   color: var(--text-primary);
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -99,32 +128,48 @@ table, td, th, input, .mono, .stat-value {
 /* --- Micro-label: section eyebrows, stat captions, axis legends --- */
 .micro-label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-micro);
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--text-tertiary);
 }
 
-a { color: var(--orchid); text-decoration: none; }
-a:hover { color: var(--mauve-deep); text-decoration: none; border-bottom: 1px solid var(--hairline-lit); }
+/* --- Links: neutral. Pink is only the primary action and the active state (principle 2).
+   A quiet underline at rest, since phones have no hover; it brightens on hover. --- */
+a, .link {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 32%, transparent);
+}
+a, .link { transition: text-decoration-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out); }
+a:hover, .link:hover { text-decoration-color: currentColor; }
+a:focus-visible { outline: 1px solid var(--orchid); outline-offset: 2px; border-radius: 2px; }
 
-/* --- Buttons: ghost by default; .solid reserved for the primary sync action --- */
+/* --- Buttons: ghost by default and neutral; .solid is the one next action --- */
 button {
   cursor: pointer;
   background: transparent;
-  color: var(--orchid);
-  border: 1px solid var(--hairline-lit);
+  color: var(--text-primary);
+  border: 1px solid var(--hairline-strong);
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 0.82rem;
   letter-spacing: -0.01em;
   padding: 7px 15px;
   border-radius: 3px;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out),
+              color var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
 button:hover:not(:disabled) {
-  background: var(--accent-wash);
-  border-color: var(--orchid);
+  background: var(--hover-wash);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+/* Pressed: a firmer wash and one pixel down, so a click is felt before the page answers. */
+button:active:not(:disabled) {
+  background: var(--press-wash);
+  transform: translateY(1px);
 }
 button:disabled { opacity: 0.35; cursor: not-allowed; }
 button:focus-visible { outline: 1px solid var(--orchid); outline-offset: 2px; }
@@ -135,6 +180,7 @@ button.solid {
   border-color: var(--orchid);
 }
 button.solid:hover:not(:disabled) { background: var(--mauve-deep); border-color: var(--mauve-deep); }
+button.solid:active:not(:disabled) { background: var(--mauve-deep); border-color: var(--mauve-deep); filter: brightness(0.9); }
 
 button.secondary {
   background: transparent;
@@ -142,10 +188,27 @@ button.secondary {
   border: 1px solid var(--hairline);
 }
 button.secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--hover-wash);
   border-color: rgba(255, 255, 255, 0.16);
   color: var(--text-primary);
 }
+
+/* After the button rules, so a link-toggle never gets a button's hover. */
+/* A toggle that reads as a link: opens text in place. */
+button.link {
+  all: unset;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 32%, transparent);
+}
+button.link { transition: text-decoration-color var(--dur) var(--ease-out); }
+button.link:hover:not(:disabled), button.link:active:not(:disabled) { background: none; border: none; text-decoration-color: currentColor; transform: none; }
+button.link:focus-visible { outline: 1px solid var(--orchid); outline-offset: 2px; }
 
 /* --- Cards: frosted mineral scrim over canvas, sharp 4px corners --- */
 .card {
@@ -228,8 +291,47 @@ thead th {
   padding: 8px 10px;
   text-align: left;
 }
-tbody tr { border-bottom: 1px solid var(--hairline); transition: background 0.12s; }
-tbody tr:hover { background: var(--accent-wash); }
+tbody tr { border-bottom: 1px solid var(--hairline); transition: background var(--dur-fast) var(--ease-out); }
+/* Row hover is a neutral wash (U8): pink here read as "selected" on every row the pointer crossed. */
+tbody tr:hover { background: var(--hover-wash); }
+
+/* --- A row that is one link or one button (U8): the whole row lifts on hover and dips on press --- */
+.row-link {
+  border-radius: 3px;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.row-link:hover { background: var(--hover-wash); }
+.row-link:active { background: var(--press-wash); }
+.row-link[data-selected] { background: var(--surface-2); }
+.row-link:focus-visible { outline: 1px solid var(--orchid); outline-offset: 1px; }
+
+/* --- Tabs (components/Tabs.tsx): one look for every tab bar ---
+   An underline under the active tab on a hairline, the active one pink (the
+   active state). The same for link tabs (Insights, its own addresses) and
+   in-page tabs (Library), so the eye learns one thing. Not a pill: pills are
+   filters and chips here (the speed filter sits right under Insights' tabs). */
+.tabs { display: flex; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--hairline); }
+.tabs .tab {
+  background: none; border: none; border-radius: 0;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  padding: 8px 14px;
+  font-family: var(--font-display); font-size: 0.85rem; font-weight: 500; letter-spacing: -0.01em;
+  color: var(--text-secondary); text-decoration: none; cursor: pointer;
+  transition: color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
+}
+.tabs .tab:hover { color: var(--text-primary); background: none; border-color: transparent; }
+.tabs .tab:active { transform: none; background: none; }
+.tabs .tab[aria-current="page"], .tabs .tab[aria-selected="true"] {
+  color: var(--orchid); border-bottom-color: var(--orchid); font-weight: 600;
+}
+.tabs .tab:focus-visible { outline: 1px solid var(--orchid); outline-offset: -2px; }
+
+/* --- A card that is itself a link (U8): its edge lights on hover; it never moves --- */
+a.card, button.card, .card.interactive {
+  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
+}
+a.card:hover, button.card:hover, .card.interactive:hover { border-color: rgba(255, 255, 255, 0.24); }
+a.card:active, button.card:active, .card.interactive:active { background: var(--surface-2); }
 tbody td { padding: 9px 10px; }
 
 
@@ -245,7 +347,7 @@ tbody td { padding: 9px 10px; }
   font-size: 10px;
 }
 .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background: rgba(18, 17, 16, 0.92) !important;
+  background: rgba(0, 0, 0, 0.88) !important;
   backdrop-filter: blur(18px) saturate(115%);
   border: 1px solid var(--hairline-lit) !important;
   border-radius: 3px;
@@ -258,7 +360,7 @@ tbody td { padding: 9px 10px; }
 /* --- Scrollbar --- */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--canvas-deep); }
-::-webkit-scrollbar-thumb { background: #2A2624; border-radius: 0; border: 3px solid var(--canvas-deep); }
+::-webkit-scrollbar-thumb { background: #262626; border-radius: 0; border: 3px solid var(--canvas-deep); }
 ::-webkit-scrollbar-thumb:hover { background: #3A3532; }
 
 /* --- Prax thought card: enters from the organism, never bounces --- */
@@ -266,6 +368,17 @@ tbody td { padding: 9px 10px; }
   from { opacity: 0; transform: translateX(-8px); }
   to   { opacity: 1; transform: translateX(0); }
 }
+/* Reduced motion (U8): no transition anywhere, no press travel. Animations that
+   say "working" keep a reduced form of their own (below), never a jump. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  button:active:not(:disabled) { transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   @keyframes prax-thought-in {
     from { opacity: 0; }
@@ -303,14 +416,21 @@ tbody td { padding: 9px 10px; }
   .stack-on-phone { grid-template-columns: minmax(0, 1fr) !important; }
 }
 
+/* Insights: three win-rate charts side by side; below 1000px two charts of
+   seven bars do not fit a third, so they stack (U6). */
+@media (max-width: 1000px) {
+  .win-rates { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
 /* --- Disclosure: method and long text, one tap away (principle 12) --- */
 .disclose > summary {
   cursor: pointer;
   width: fit-content;
-  color: var(--orchid);
+  color: var(--text-secondary);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 500;
 }
+.disclose > summary:hover { color: var(--text-primary); }
 .disclose > summary::marker { color: var(--text-tertiary); }
 .disclose > summary:focus-visible { outline: 1px solid var(--orchid); outline-offset: 2px; }
 
@@ -318,4 +438,201 @@ tbody td { padding: 9px 10px; }
 .only-stacked { display: none; }
 @media (max-width: 760px) {
   .only-stacked { display: block; }
+}
+
+/* A select's list is drawn by the browser: an opaque surface, since --surface-2 is translucent. */
+select option { background: var(--canvas); color: var(--text-primary); }
+
+/* --- Top nav: brand · sections · settings (Layout.tsx) --- */
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-areas: "brand menu end";
+  align-items: stretch;
+  height: 56px;
+  background: var(--canvas-deep);
+  border-bottom: 1px solid var(--hairline);
+}
+.topnav a { text-decoration: none; }
+.topnav-brand {
+  grid-area: brand;
+  display: flex;
+  align-items: center;
+  justify-self: start;
+  padding-left: 24px;
+}
+/* The file has transparent margins around the mark; the negative margin lines the mark up with the page gutter. */
+.topnav-brand img { height: 32px; width: auto; display: block; margin-left: -9px; }
+.topnav-menu {
+  grid-area: menu;
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 2.6vw, 34px);
+  min-width: 0;
+}
+.topnav-link {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 6px 0;
+  transition: color var(--dur) var(--ease-out);
+}
+.topnav-link:hover { color: var(--text-primary); }
+/* The active section: pink, the one active state (principle 2). */
+.topnav-link[aria-current="page"] { color: var(--orchid); font-weight: 600; }
+.topnav-end {
+  grid-area: end;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.topnav-settings {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 24px 0 22px;
+  border-left: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: color var(--dur) var(--ease-out);
+}
+.topnav-settings:hover { color: var(--text-primary); }
+.topnav-settings[aria-current="page"] { color: var(--orchid); }
+/* Idle library news (D2): a ghost chip, never solid. */
+.nav-chip {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--text-primary);
+  border: 1px solid var(--hairline-strong);
+  background: transparent;
+  white-space: nowrap;
+}
+.topnav-link:focus-visible, .topnav-settings:focus-visible, .topnav-brand:focus-visible {
+  outline: 1px solid var(--orchid);
+  outline-offset: 2px;
+}
+
+/* Small laptops (1280–1440): the nav keeps its three zones by shortening the end
+   zone: chips show their count (the verb is in the accessible name), Settings
+   shows its gear, and the sections sit a little closer. */
+@media (max-width: 1440px) {
+  .topnav-menu { gap: clamp(14px, 1.7vw, 24px); }
+  .topnav-end-label { display: none; }
+  .nav-chip .chip-verb { display: none; }
+}
+
+/* Phone and narrow windows: brand and settings on the first row, the sections on their own row, scrolling if they must. */
+@media (max-width: 860px) {
+  .topnav {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "brand end" "menu menu";
+    height: auto;
+  }
+  .topnav-brand { padding-block: 10px; padding-left: 16px; }
+  .topnav-brand img { height: 28px; margin-left: -8px; }
+  .topnav-end { gap: 8px; }
+  .topnav-settings { padding: 0 16px; }
+  .topnav-end-label { display: none; }
+  .topnav-menu {
+    border-top: 1px solid var(--hairline);
+    padding: 0 16px;
+    height: 40px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    justify-content: center;
+  }
+}
+
+/* A phone: six sections must fit one row without scrolling. */
+@media (max-width: 480px) {
+  .topnav-menu { gap: 10px; padding: 0 14px; justify-content: space-between; }
+  .topnav-link { font-size: 0.66rem; letter-spacing: 0.02em; }
+}
+
+/* --- Glass slab: a pane of frosted glass over whatever is behind it (the sync banner).
+   A faint white tint, a strong blur, a lit top edge and a diagonal sheen. --- */
+.glass {
+  position: relative;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.02) 55%, rgba(255, 255, 255, 0.045) 100%);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 10px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03),
+    0 10px 30px rgba(0, 0, 0, 0.45);
+}
+/* An active state (analysis running) tints the glass, never fills it. */
+.glass[data-active] {
+  background:
+    linear-gradient(135deg, rgba(231, 166, 214, 0.13) 0%, rgba(231, 166, 214, 0.03) 60%, rgba(255, 255, 255, 0.04) 100%);
+  border-color: rgba(231, 166, 214, 0.22);
+}
+
+
+/* --- Ambient background (src/background): behind all content, soft, and dimmer under the nav --- */
+.ambient-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /* Darker at the top, where the takeaway sits under the nav. */
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0, #000 220px);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0, #000 220px);
+}
+.ambient-background canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* Soft by design; the cap on brightness keeps text readable over it. */
+  filter: blur(7px);
+  opacity: 0.7;
+  transform: scale(1.04); /* hides the blur's dark fringe at the edges */
+}
+
+/* --- The page frame (components/Page.tsx): centred on one of three widths --- */
+.page { width: 100%; margin-inline: auto; }
+.page-reading  { max-width: var(--page-reading); }
+.page-standard { max-width: var(--page-standard); }
+.page-wide     { max-width: none; }
+/* Running text keeps a readable measure however wide the page. */
+.page p { max-width: 75ch; }
+/* The rail: 8 + 4 of 12 columns from 1200px of viewport; stacked below that. */
+.page-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+@media (min-width: 1200px) {
+  .page-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .page-main { grid-column: span 8; min-width: 0; }
+  .page-rail { grid-column: span 4; min-width: 0; }
+}
+
+
+/* A teaching empty state (U7): its positions beside the text, under it when narrow. */
+@media (max-width: 760px) {
+  .teaching { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+/* Read by screen readers, not drawn: a page's own heading where the nav already names it. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }

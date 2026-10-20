@@ -1,43 +1,47 @@
-import { useLayoutEffect } from 'react'
+import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { PraxCanvas } from './renderer/PraxCanvas'
-import { setPraxBodyShown } from './state/renderPolicy'
+import { praxRuntime } from './state/runtime'
 import { PraxStack } from './ui/PraxStack'
-import { PraxHitTarget } from './ui/PraxHitTarget'
-import { PraxDebugPanel } from './ui/PraxDebugPanel'
 import { usePraxRouterBridge } from './state/routerBridge'
 import { usePracticeSignal } from './state/usePracticeSignal'
+import { initPraxVoice } from './voice'
+import { praxBus } from './core/events'
+import { praxAsk } from './ui/PraxAsk'
 
 /**
- * Everything Prax mounts, in one place. Must sit inside the Router (the bridge
- * needs useLocation) and is mounted exactly once, outside <Routes>, so the
- * organism survives navigation.
+ * Everything Prax mounts, in one place (no debug pill: removed 20 Oct). Must sit inside the Router (the bridge
+ * needs useLocation) and is mounted exactly once, outside <Routes>.
+ *
+ * Prax has no particle body any more: the ambient background (src/background)
+ * is what shows Prax at work, reading the same runtime. What stays here is the
+ * runtime itself, the voice, and Prax's cards, docked bottom right.
  */
 export function PraxHost() {
   usePraxRouterBridge()
   usePracticeSignal()
-
-  // Prax's body appears on the home pages only: Today, Progress and Library.
-  // Elsewhere the canvas stays mounted (so the particle body is never rebuilt)
-  // but is hidden and frozen, and its click target and cards are not rendered.
   const { pathname } = useLocation()
-  const shown = PRAX_BODY_ROUTES.has(pathname)
-  useLayoutEffect(() => { setPraxBodyShown(shown) }, [shown])
+
+  useEffect(() => {
+    praxRuntime.start()
+    void initPraxVoice()
+    // Dev only: tests and the debug panel read state and open the card through here.
+    if (import.meta.env.DEV) {
+      ;(window as unknown as Record<string, unknown>).__prax = { runtime: praxRuntime, bus: praxBus, ask: praxAsk }
+    }
+  }, [])
 
   return (
-    <>
-      <PraxCanvas hidden={!shown} />
-      {shown && <PraxHitTarget />}
-      {shown && <PraxStack />}
-      <PraxDebugPanel />
-    </>
+    PRAX_CARD_ROUTES.has(pathname) ? <PraxStack /> : null
   )
 }
 
-/** The routes that show Prax's body: Today (/), Progress and Library. */
-export const PRAX_BODY_ROUTES = new Set(['/', '/progress', '/library'])
+/**
+ * Prax's cards (analysis progress, the question card) show on the home pages
+ * only, as they did beside the old body: elsewhere a docked card, a bottom
+ * sheet on a phone, would cover the page's own controls (Play's Resign).
+ */
+export const PRAX_CARD_ROUTES = new Set(['/', '/progress', '/library'])
 
-export { PraxAnchor } from './ui/PraxAnchor'
 export { praxThoughts } from './ui/thoughts'
 export { praxBus } from './core/events'
 export { useFocusIntent } from './interaction/useFocusIntent'

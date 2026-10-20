@@ -1,5 +1,6 @@
 package com.praxis.pipeline;
 
+import com.praxis.service.CardGeneratorService;
 import com.praxis.service.settings.SettingsService;
 import com.praxis.domain.AnalysisSettings;
 import com.praxis.domain.Game;
@@ -31,6 +32,7 @@ public class AnalysisPipelineOrchestrator {
     private final PracticeLedgerService practiceLedger;
     private final SettingsService settings;
     private final DiagnosisService diagnosis;
+    private final CardGeneratorService cardGenerator;
 
     public AnalysisPipelineOrchestrator(GameAnalysisTransactionService gameAnalysisTransactionService,
                                         GameRepository gameRepository,
@@ -38,7 +40,8 @@ public class AnalysisPipelineOrchestrator {
                                         AnalysisProgressTracker progressTracker,
                                         PracticeLedgerService practiceLedger,
                                         SettingsService settings,
-                                        DiagnosisService diagnosis) {
+                                        DiagnosisService diagnosis,
+                                        CardGeneratorService cardGenerator) {
         this.gameAnalysisTransactionService = gameAnalysisTransactionService;
         this.gameRepository = gameRepository;
         this.patternAggregator = patternAggregator;
@@ -46,6 +49,7 @@ public class AnalysisPipelineOrchestrator {
         this.practiceLedger = practiceLedger;
         this.settings = settings;
         this.diagnosis = diagnosis;
+        this.cardGenerator = cardGenerator;
     }
 
     @PostConstruct
@@ -108,6 +112,12 @@ public class AnalysisPipelineOrchestrator {
         } finally {
             progressTracker.finish();
             markPracticeDay(username, analysed);
+        }
+        // The review deck follows the analysis (DeckRule): never fails the run.
+        try {
+            cardGenerator.generateForUser(username);
+        } catch (Exception e) {
+            log.warn("Card generation after analysis failed for {}: {}", username, e.getMessage());
         }
     }
 

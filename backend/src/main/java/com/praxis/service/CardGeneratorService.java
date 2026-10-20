@@ -1,12 +1,16 @@
 package com.praxis.service;
 
-import com.praxis.config.AppProperties;
+import com.praxis.config.PraxisClock;
 import com.praxis.domain.Card;
 import com.praxis.domain.MoveError;
 import com.praxis.domain.enums.CardStatus;
 import com.praxis.domain.enums.Severity;
 import com.praxis.repository.CardRepository;
 import com.praxis.repository.MoveErrorRepository;
+import com.praxis.repository.TrainingPlanRepository;
+import com.praxis.service.drills.DeckRule;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -16,66 +20,74 @@ import java.time.LocalDate;
 import java.util.*;
 
 /**
- * Generates and refreshes the Card deck from MoveError rows.
+ * Generates the review deck from analysed mistakes, by {@link DeckRule}:
+ * blunders and mistakes from Chess.com games (never inaccuracies, never practice
+ * games), up to about {@link DeckRule#TARGET_ACTIVE_CARDS} active cards. When
+ * there are more candidates than room: blunders first, then the Training Plan's
+ * focus positions, then the most recent game. A new card can be drilled the day
+ * it is created (D8); the session engine introduces at most
+ * {@link DeckRule#NEW_PER_DAY} a day.
  *
- * Strategy:
- *   - Target ~120 active cards; cap by severity + recency
- *   - Deduplicate by FEN: only one card per unique position
- *   - New cards start with dueDate = today + MIN_FIRST_INTERVAL_DAYS (anti-memorisation:
- *     you can't drill a mistake from your game played today on the same day)
- *   - Blunders contribute more candidates than mistakes/inaccuracies (see SEVERITY_WEIGHT)
- *   - Calling generateForUser is idempotent — existing cards are never deleted,
- *     only new positions are added
+ * Idempotent: one card per game and ply, and one per position. Existing cards
+ * are never deleted. Called after each analysis run, at startup (the backfill),
+ * and when a session starts.
  */
 @Service
 public class CardGeneratorService {
 
     private static final Logger log = LoggerFactory.getLogger(CardGeneratorService.class);
 
-    private static final int MIN_FIRST_INTERVAL_DAYS = 7;   // anti-memorisation
-    private static final int TARGET_ACTIVE_CARDS      = 120;
-
     private final MoveErrorRepository moveErrorRepository;
     private final CardRepository cardRepository;
-    private final AppProperties appProperties;
+    private final TrainingPlanRepository planRepository;
+    private final ObjectMapper objectMapper;
+    private final PraxisClock clock;
 
     public CardGeneratorService(MoveErrorRepository moveErrorRepository,
                                 CardRepository cardRepository,
-                                AppProperties appProperties) {
+                                TrainingPlanRepository planRepository,
+                                ObjectMapper objectMapper,
+                                PraxisClock clock) {
         this.moveErrorRepository = moveErrorRepository;
         this.cardRepository = cardRepository;
-        this.appProperties = appProperties;
+        this.planRepository = planRepository;
+        this.objectMapper = objectMapper;
+        this.clock = clock;
     }
 
     @Transactional
     public int generateForUser(String username) {
-        List<MoveError> candidates = moveErrorRepository.findDrillCandidatesByUsername(username);
+        if (username == null || username.isBlank()) return 0;
+        List<MoveError> candidates = new ArrayList<>(moveErrorRepository.findDrillCandidatesByUsername(username).stream()
+                .filter(e -> e.getSeverity() == Severity.BLUNDER || e.getSeverity() == Severity.MISTAKE)
+                .toList());
         if (candidates.isEmpty()) {
             log.debug("No drill candidates for {}", username);
             return 0;
         }
 
         long existingCount = cardRepository.countActiveByUsername(username);
-        int budget = (int) Math.max(0, TARGET_ACTIVE_CARDS - existingCount);
+        int budget = (int) Math.max(0, DeckRule.TARGET_ACTIVE_CARDS - existingCount);
         if (budget == 0) {
-            log.debug("Card deck at target capacity ({}) for {}", TARGET_ACTIVE_CARDS, username);
+            log.debug("Card deck at target capacity ({}) for {}", DeckRule.TARGET_ACTIVE_CARDS, username);
             return 0;
         }
 
-        // Sort: blunders first, then mistakes, then inaccuracies; within tier by win% drop desc
+        // D3b: blunders before mistakes, then the plan's focus positions, then the most recent game.
+        Set<String> focus = planFocus(username);
         candidates.sort(Comparator
-                .comparingInt((MoveError e) -> severityWeight(e.getSeverity())).reversed()
-                .thenComparingDouble((MoveError e) -> e.getWinPctDrop() != null ? e.getWinPctDrop() : 0.0).reversed());
+                .comparingInt((MoveError e) -> e.getSeverity() == Severity.BLUNDER ? 0 : 1)
+                .thenComparingInt(e -> focus.contains(key(e)) ? 0 : 1)
+                .thenComparing(e -> e.getGame().getPlayedAt(), Comparator.nullsLast(Comparator.reverseOrder())));
 
         int created = 0;
-        LocalDate firstDue = LocalDate.now().plusDays(MIN_FIRST_INTERVAL_DAYS);
+        LocalDate firstDue = clock.today();   // D8: no wait; NEW_PER_DAY paces introductions
 
         for (MoveError error : candidates) {
             if (created >= budget) break;
             String fen = error.getFenPosition();
             if (fen == null || fen.isBlank()) continue;
-
-            // Skip if a card already exists for this position
+            if (cardRepository.countForGameAndPly(username, error.getGame().getId(), error.getMoveNumber()) > 0) continue;
             if (cardRepository.findByUsernameAndFenPosition(username, fen).isPresent()) continue;
 
             Card card = Card.builder()
@@ -93,12 +105,36 @@ public class CardGeneratorService {
         return created;
     }
 
-    private int severityWeight(Severity s) {
-        if (s == null) return 0;
-        return switch (s) {
-            case BLUNDER    -> 3;
-            case MISTAKE    -> 2;
-            case INACCURACY -> 1;
-        };
+    private static String key(MoveError e) {
+        return e.getGame().getId() + ":" + e.getMoveNumber();
+    }
+
+    /**
+     * The positions the latest Training Plan drills, as "gameId:ply". Read from
+     * the stored plan's JSON, wherever it lists a position (snake_case, as the
+     * API writes it); an unreadable or missing plan means no focus.
+     */
+    private Set<String> planFocus(String username) {
+        Set<String> out = new HashSet<>();
+        planRepository.findTopByUsernameOrderByGeneratedAtDesc(username).ifPresent(plan -> {
+            try {
+                collect(objectMapper.readTree(plan.getPlanJson()), out);
+            } catch (Exception e) {
+                log.debug("Training plan not readable for focus: {}", e.getMessage());
+            }
+        });
+        return out;
+    }
+
+    private static void collect(JsonNode node, Set<String> out) {
+        if (node == null) return;
+        if (node.isObject()) {
+            JsonNode game = node.has("game_id") ? node.get("game_id") : node.get("gameId");
+            JsonNode ply = node.get("ply");
+            if (game != null && ply != null && ply.canConvertToInt()) out.add(game.asText() + ":" + ply.asInt());
+            node.elements().forEachRemaining(n -> collect(n, out));
+        } else if (node.isArray()) {
+            node.elements().forEachRemaining(n -> collect(n, out));
+        }
     }
 }

@@ -13,8 +13,6 @@ public interface PracticeGameRepository extends JpaRepository<PracticeGame, UUID
 
     List<PracticeGame> findByUsernameOrderByStartedAtDesc(String username);
 
-    List<PracticeGame> findByUsernameAndStatusOrderByStartedAtDesc(String username, PracticeStatus status);
-
     /**
      * Games eligible for improvement tracking: finished, analysed, and not
      * undone. Rated games only — an undone game is shown to the player but must

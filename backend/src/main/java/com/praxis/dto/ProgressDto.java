@@ -18,7 +18,9 @@ public record ProgressDto(
             long newCards,
             long learningCards,
             long reviewCards,
-            long suspendedCards
+            long suspendedCards,
+            /** Reviews due today or overdue, plus the new cards that can still be introduced today (DeckRule). */
+            long dueToday
     ) {}
 
     public record DailyStat(

@@ -12,9 +12,8 @@ import { Children, useLayoutEffect, useRef, useState, type ReactNode } from 'rea
  * chess piece, or the sticky board instead of the button under the finger.
  *
  * Flex-wrap rather than a media query, deliberately: the breakpoint that matters
- * is the width of THIS row, not of the viewport. <main> also loses a fixed
- * strip to --prax-gutter whenever a Prax card is open, so a viewport rule would
- * be wrong on exactly the desktops where the card is showing.
+ * is the width of THIS row, not of the viewport: the page's own width (Page.tsx)
+ * decides it, and that differs from the viewport by the page's margins.
  *
  * Expects exactly two children: the board column, then the side column.
  */

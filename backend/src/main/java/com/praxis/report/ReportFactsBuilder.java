@@ -37,9 +37,9 @@ public final class ReportFactsBuilder {
      * serious mistakes behind it to be ranked, and a rate, a clock figure or an
      * opening with fewer is marked as too few or left out.
      */
-    public static final int MIN_SAMPLE = 10;
-    /** An opening is listed only with this many analysed games… */
-    static final int MIN_OPENING_GAMES = 3;
+    public static final int MIN_SAMPLE = Thresholds.MIN_MISTAKES;
+    /** An opening is listed only with this many analysed games (the games threshold)… */
+    static final int MIN_OPENING_GAMES = Thresholds.MIN_GAMES;
     /** …and at least this far above the player's own rate (1.2 = a fifth more). */
     static final double OPENING_ABOVE = 1.2;
     static final int TIME_PRESSURE_SECONDS = 30;

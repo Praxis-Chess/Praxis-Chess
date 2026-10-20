@@ -38,7 +38,11 @@ public class CastlingDelayDetector extends PerGameDetector {
 
     @Override public String whatToDo() {
         return "Aim to castle inside the first ten moves unless there is a concrete "
-             + "reason not to — a forcing line, or a king already safer where it stands.";
+             + "reason not to: a forcing line, or a king already safer where it stands.";
+    }
+
+    @Override public String doNow() {
+        return "Castle inside the first ten moves";
     }
 
     @Override

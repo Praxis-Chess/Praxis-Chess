@@ -47,7 +47,7 @@ export function SetupChecklist({ mode }: { mode: 'attention' | 'inline' }) {
     const title = !s.ready ? 'Finish setting up Praxis' : 'Downloading AI models'
     return (
       <section className="card" aria-labelledby="setup-title-attention" style={{ maxWidth: 540, marginBottom: 28 }}>
-        <h2 id="setup-title-attention" style={{ fontSize: '1rem', marginBottom: 10 }}>{title}</h2>
+        <h2 id="setup-title-attention" style={{ fontSize: 'var(--fs-section)', marginBottom: 10 }}>{title}</h2>
         <ChecklistBody s={s} hideSkipped readyFolded modelsFolded={!s.ready} />
       </section>
     )
@@ -102,15 +102,14 @@ function ChecklistBody({ s, hideSkipped, readyFolded, modelsFolded }: {
       </ul>
       {ready.length > 0 && (
         <button type="button" data-disclose aria-expanded={showReady} onClick={() => setShowReady(!showReady)}
-                style={{ all: 'unset', cursor: 'pointer', color: 'var(--orchid)', fontSize: '0.78rem', fontWeight: 600, marginTop: 10 }}>
+                className="link" style={{ marginTop: 10 }}>
           {showReady ? 'Hide the ready ones' : `${ready.length} ready ▾`}
         </button>
       )}
 
       {s.models.length > 0 && modelsFolded && (
         <button type="button" data-disclose aria-expanded={showModels} onClick={() => setShowModels(!showModels)}
-                style={{ all: 'unset', cursor: 'pointer', color: 'var(--orchid)', fontSize: '0.78rem', fontWeight: 600,
-                         marginTop: 10, marginLeft: 14 }}>
+                className="link" style={{ marginTop: 10, marginLeft: 14 }}>
           {showModels ? 'Hide models' : `Models (${s.models.length}) ▾`}
         </button>
       )}
@@ -142,7 +141,7 @@ function CheckRow({ c }: { c: SetupCheck }) {
         {c.fix && (
           <div style={{ ...muted, marginTop: 2, overflowWrap: 'anywhere' }}>
             {c.key === 'username'
-              ? <Link to="/settings#player" style={{ color: 'var(--orchid)' }}>Enter it in Settings →</Link>
+              ? <Link to="/settings#player">Enter it in Settings →</Link>
               : <span className="mono" style={{ userSelect: 'all' }}>{c.fix}</span>}
           </div>
         )}
@@ -175,7 +174,7 @@ function ModelRow({ m }: { m: SetupModel }) {
              aria-valuenow={pct ?? undefined}
              style={{ height: 4, borderRadius: 2, background: 'var(--hairline)', marginTop: 5, overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${m.state === 'creating' ? 100 : pct ?? 0}%`,
-                        background: 'var(--grey-1)', transition: 'width 0.6s ease' }} />
+                        background: 'var(--grey-1)', transition: 'width var(--dur-fill) var(--ease-out)' }} />
         </div>
       )}
       {m.state === 'failed' && m.message && (

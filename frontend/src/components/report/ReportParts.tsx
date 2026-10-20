@@ -1,23 +1,24 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
-import { Chessboard } from 'react-chessboard'
+import { ThemedBoard } from '../ThemedBoard'
 import type { ReportExample } from '../../api/types'
 
 /**
  * Shared pieces of the Pattern Report and Training Plan tabs (Phase 12), and of
  * "Show, don't tell" (DESIGN_SYSTEM.md, principle 12).
  *
- * Colour has one meaning each: pink (--orchid) only for what can be clicked;
- * a bar above your own average is a brighter neutral, never a colour, so amber
- * keeps meaning severity. Everything else is neutral.
+ * Colour has one meaning each: pink (--orchid) only for the primary action
+ * and the active state; links are neutral and underlined (index.css), so pink
+ * stands out where it is. A bar above your own average is a brighter neutral,
+ * never a colour, so amber keeps meaning severity. A loss is a soft red.
  */
 
 export const muted: React.CSSProperties = { color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: 1.55 }
 
 /** A section heading: clearly above an item title in size and weight. */
 export const sectionTitle: React.CSSProperties = {
-  fontSize: '1.08rem', fontWeight: 700, margin: 0, paddingTop: 18, borderTop: '1px solid var(--hairline)',
+  fontSize: 'var(--fs-section)', fontWeight: 700, margin: 0, paddingTop: 18, borderTop: '1px solid var(--hairline)',
 }
 
 /** An item title inside a section. */
@@ -28,12 +29,8 @@ export const marker: React.CSSProperties = {
   color: 'var(--text-tertiary)', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
 }
 
-export const linkStyle: React.CSSProperties = { color: 'var(--orchid)', fontWeight: 600 }
-
-/** A control that reads as a link: for toggles that open text in place. */
-export const linkButton: React.CSSProperties = {
-  all: 'unset', cursor: 'pointer', ...linkStyle, fontSize: '0.78rem',
-}
+/** A link's weight; its colour and underline come from index.css (`a`, `.link`). */
+export const linkStyle: React.CSSProperties = { fontWeight: 500 }
 
 /** A section's one-line label: what is measured, or the caveat that changes how it reads. */
 export const sectionLabel: React.CSSProperties = { ...muted, margin: 0, fontSize: '0.78rem' }
@@ -51,7 +48,7 @@ export function statLine(s: { count: number; base: number; pct: number; blunders
 export const rate1 = (n: number) => n.toFixed(1)
 
 /** The drill route for a list of positions. */
-export function drillLink(positions: ReportExample[], session?: number, plan?: string) {
+export function drillLink(positions: Pick<ReportExample, 'game_id' | 'ply'>[], session?: number, plan?: string) {
   const q = new URLSearchParams({ positions: positions.map(p => `${p.game_id}:${p.ply}`).join(',') })
   if (session) q.set('session', String(session))
   if (plan) q.set('plan', plan)
@@ -94,7 +91,7 @@ export function useHelp(about: string, text: ReactNode): [ReactNode, ReactNode] 
   const button = (
     <button type="button" data-disclose aria-expanded={open} aria-controls={id} aria-label={`About ${about}`}
             onClick={e => { e.preventDefault(); setOpen(!open) }}
-            style={{ all: 'unset', cursor: 'pointer', marginLeft: 6, color: 'var(--orchid)', fontWeight: 400 }}>ⓘ</button>
+            style={{ all: 'unset', cursor: 'pointer', marginLeft: 6, color: 'var(--text-secondary)', fontWeight: 400 }}>ⓘ</button>
   )
   const panel = open
     ? <span id={id} role="note" style={{ ...muted, display: 'block', fontSize: '0.74rem', fontWeight: 400 }}>{text}</span>
@@ -119,30 +116,37 @@ export interface BarRow {
 
 /**
  * Bars that can be compared, against a stated baseline: every track has the
- * same width, the baseline is a tick at the same place on every track, and a
- * bar above it is a brighter neutral. A row with too little behind it is faded.
+ * same width, and the baseline is a tick at the same place on every track. The
+ * bright bar is `highlight` (the finding the section leads with), or else every
+ * bar above the baseline. A row with too little behind it is faded. The value
+ * sits right after its bar, so the eye doesn't travel.
  */
-export function Bars({ rows, baseline, max }: { rows: BarRow[]; baseline?: number; max?: number }) {
+export function Bars({ rows, baseline, max, highlight }: {
+  rows: BarRow[]; baseline?: number; max?: number; highlight?: string | null
+}) {
   const top = Math.max(1e-9, max ?? Math.max(...rows.map(r => r.value), baseline ?? 0))
   const at = (v: number) => `${Math.max(0, Math.min(100, (100 * v) / top))}%`
   return (
-    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    // One grid for all rows, so every track starts and ends at the same place.
+    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', rowGap: 8, columnGap: 12,
+                 gridTemplateColumns: 'minmax(min-content, 6.5rem) minmax(3rem, 9rem) max-content' }}>
       {rows.map(r => {
         const above = baseline != null && r.value > baseline
+        const bright = highlight !== undefined ? r.key === highlight : above
         return (
-          <li key={r.key} data-above={above || undefined}
-              style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 7.5rem) minmax(0, 1fr) 10.5rem',
-                       gap: 12, alignItems: 'center', fontSize: '0.8rem', opacity: r.enough === false ? 0.5 : 1 }}>
-            <span style={{ overflowWrap: 'anywhere' }}>{r.label}</span>
+          <li key={r.key} data-above={above || undefined} data-highlight={bright || undefined}
+              style={{ display: 'grid', gridColumn: '1 / -1', gridTemplateColumns: 'subgrid',
+                       alignItems: 'center', fontSize: '0.8rem', opacity: r.enough === false ? 0.5 : 1 }}>
+            <span style={{ overflowWrap: 'break-word', color: bright ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{r.label}</span>
             <div aria-hidden="true" style={{ position: 'relative', height: 8, background: 'var(--hairline)', borderRadius: 3 }}>
               <div style={{ width: at(r.value), height: '100%', borderRadius: 3,
-                            background: above ? 'color-mix(in srgb, var(--text-primary) 62%, transparent)' : 'var(--grey-3)' }} />
+                            background: bright ? 'color-mix(in srgb, var(--text-primary) 62%, transparent)' : 'var(--grey-3)' }} />
               {baseline != null && (
                 <div style={{ position: 'absolute', left: at(baseline), top: -4, bottom: -4, width: 2,
                               background: 'var(--text-primary)' }} />
               )}
             </div>
-            <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'right',
+            <span className="mono" style={{ fontSize: '0.75rem', color: bright ? 'var(--text-primary)' : 'var(--text-secondary)',
                                             fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
               {r.text}{r.enough === false ? ' · few' : ''}
             </span>
@@ -226,7 +230,7 @@ export function PopoverButton({ label, title, children, style, ariaLabel }: {
         <div ref={panel} id={id} role="dialog" aria-label={title} tabIndex={-1} className="popover-panel"
              style={{ position: 'fixed', zIndex: 1000, padding: 10, boxSizing: 'border-box', outline: 'none',
                       // Opaque: --surface-2 is a translucent tint, and the text behind showed through.
-                      background: 'var(--canvas)', border: '1px solid var(--hairline-lit)', borderRadius: 4,
+                      background: 'var(--canvas)', border: '1px solid var(--hairline-strong)', borderRadius: 4,
                       boxShadow: '0 8px 24px rgba(0,0,0,0.45)', display: 'flex', flexDirection: 'column', gap: 8,
                       visibility: anchor ? 'visible' : 'hidden', ...place }}>
           {children}
@@ -240,13 +244,11 @@ export function PopoverButton({ label, title, children, style, ariaLabel }: {
 const BOARD = 168
 
 /** A position's board, in the board tokens every other board uses. */
-function MiniBoard({ fen }: { fen: string }) {
+export function MiniBoard({ fen }: { fen: string }) {
   const toMove = fen.split(' ')[1] === 'b' ? 'black' : 'white'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', alignSelf: 'center', width: BOARD }}>
-      <Chessboard position={fen} boardOrientation={toMove} arePiecesDraggable={false} boardWidth={BOARD}
-                  customDarkSquareStyle={{ backgroundColor: 'var(--board-dark)' }}
-                  customLightSquareStyle={{ backgroundColor: 'var(--board-light)' }} />
+      <ThemedBoard position={fen} boardOrientation={toMove} arePiecesDraggable={false} boardWidth={BOARD} />
       <span style={{ ...muted, fontSize: '0.72rem' }}>{toMove === 'white' ? 'White' : 'Black'} to move</span>
     </div>
   )
@@ -264,10 +266,10 @@ export function PositionChip({ p }: { p: ReportExample }) {
     <li data-scope={p.move} style={{ fontSize: '0.8rem', listStyle: 'none' }}>
       <PopoverButton title={`${p.move}: the position`} ariaLabel={`${p.move}, ${lost}: show the position`}
                      style={{ display: 'inline-flex', gap: 6, alignItems: 'baseline', padding: '2px 8px', borderRadius: 3,
-                              border: '1px solid var(--hairline-lit)', whiteSpace: 'nowrap' }}
+                              border: '1px solid var(--hairline-strong)', whiteSpace: 'nowrap' }}
                      label={<>
-                       <span className="mono" style={{ color: 'var(--orchid)', fontWeight: 600 }}>{p.move}</span>
-                       <span className="mono" style={{ color: 'var(--text-secondary)', fontSize: '0.74rem' }}>{lost}</span>
+                       <span className="mono" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{p.move}</span>
+                       <span className="mono" style={{ color: 'var(--loss-soft)', fontSize: '0.74rem' }}>{lost}</span>
                      </>}>
         <MiniBoard fen={p.fen} />
         <span style={{ ...muted, fontSize: '0.75rem', overflowWrap: 'anywhere' }}>{context}</span>
@@ -281,7 +283,13 @@ export function PositionChip({ p }: { p: ReportExample }) {
 }
 
 /** Positions as chips: the first few, and all on request. */
-export function Positions({ positions, first = 3 }: { positions: ReportExample[]; first?: number }) {
+export function Positions({ positions, first = 3, more, after }: {
+  positions: ReportExample[]; first?: number
+  /** The toggle's text while closed; "Show all n" by default. */
+  more?: string
+  /** On the same line, after the chips: the item's one action. */
+  after?: ReactNode
+}) {
   const [all, setAll] = useState(false)
   if (positions.length === 0) return null
   const shown = all ? positions : positions.slice(0, first)
@@ -291,10 +299,11 @@ export function Positions({ positions, first = 3 }: { positions: ReportExample[]
         {shown.map(p => <PositionChip key={`${p.game_id}-${p.ply}`} p={p} />)}
       </ul>
       {positions.length > first && (
-        <button type="button" data-disclose aria-expanded={all} onClick={() => setAll(!all)} style={linkButton}>
-          {all ? 'Show fewer' : `Show all ${positions.length}`}
+        <button type="button" data-disclose aria-expanded={all} onClick={() => setAll(!all)} className="link">
+          {all ? 'Show fewer' : more ?? `Show all ${positions.length}`}
         </button>
       )}
+      {after}
     </div>
   )
 }

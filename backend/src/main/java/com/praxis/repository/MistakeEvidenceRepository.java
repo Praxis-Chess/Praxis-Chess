@@ -15,8 +15,6 @@ public interface MistakeEvidenceRepository extends JpaRepository<MistakeEvidence
 
     List<MistakeEvidence> findByUsername(String username);
 
-    List<MistakeEvidence> findByUsernameAndLabelledAtIsNotNull(String username);
-
     long countByUsername(String username);
 
     long countByUsernameAndLabelledAtIsNotNull(String username);

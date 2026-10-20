@@ -8,7 +8,10 @@ import { LibraryCard } from '../components/LibraryCard'
 import { AiModelsCard } from '../components/AiModelsCard'
 import { PlayerCard } from '../components/PlayerCard'
 import { LoadingSpinner } from '../components/LoadingSpinner'
-import { PraxAnchor, praxInteract } from '../prax/PraxHost'
+import { praxInteract } from '../prax/PraxHost'
+import { setBackground, useBackground, type BackgroundChoice, type BackgroundMotion } from '../background/preference'
+import { BACKGROUND_SETTING } from '../background/preference'
+import { BACKGROUND_STYLES } from '../background/styles'
 import { BackupFailedNotice } from '../components/BackupFailedNotice'
 import { BackupsCard } from '../components/BackupsCard'
 import { useHelp } from '../components/report/ReportParts'
@@ -100,7 +103,7 @@ function CoverageCard({ coverage, onReanalyseOutdated, reanalysing, reanalyseErr
 
   return (
     <section className="card" aria-labelledby="coverage-title">
-      <h2 id="coverage-title" style={{ fontSize: '1rem', marginBottom: 6 }}>Coverage</h2>
+      <h2 id="coverage-title" style={{ fontSize: 'var(--fs-section)', marginBottom: 6 }}>Coverage</h2>
       <p style={muted}>
         {coverage.first_game
           ? <><span className="mono">{coverage.first_game}</span> → <span className="mono">{coverage.last_game}</span></>
@@ -112,8 +115,8 @@ function CoverageCard({ coverage, onReanalyseOutdated, reanalysing, reanalyseErr
 
       {coverage.mixed_settings && (
         <div role="status" style={{
-          marginTop: 12, padding: '10px 12px', borderLeft: '2px solid var(--warn)',
-          background: 'rgba(229, 176, 75, 0.08)', ...muted,
+          marginTop: 12, padding: '10px 12px', borderLeft: '2px solid var(--loss-soft)',
+          background: 'rgba(201, 129, 114, 0.08)', ...muted,
         }}>
           Your analysed games span {coverage.analyzed_with.length} engine settings:{' '}
           {coverage.analyzed_with.map(c => `${c.label} (${c.games})`).join(', ')}.
@@ -281,7 +284,7 @@ function EngineTable({ drafts, set, view, bounds, errors }: {
   const explanations = `Written explanations per game (0–${bounds.explanations_max})`
   return (
     <section className="card" aria-labelledby="engine-title">
-      <h2 id="engine-title" style={{ fontSize: '1rem', marginBottom: 12 }}>Engine</h2>
+      <h2 id="engine-title" style={{ fontSize: 'var(--fs-section)', marginBottom: 12 }}>Engine</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="stack-on-phone" style={engineRow}>
           <span />
@@ -370,6 +373,44 @@ function EstimateTable({ estimate }: { estimate: SettingsEstimate | undefined })
   )
 }
 
+/**
+ * This device's display choices. Applied at once and kept in this browser, so
+ * no Save: they are not the server's settings.
+ */
+function DisplayCard() {
+  const { style, motion } = useBackground()
+  const [help, panel] = useHelp('the background',
+    'An animated layer behind every page. It speeds up while Prax thinks about a question or answers it. Kept in this browser.')
+  const select: React.CSSProperties = {
+    background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--hairline)',
+    borderRadius: 4, padding: '5px 8px', fontSize: '0.8rem',
+  }
+  return (
+    <section className="card" aria-labelledby="display-title">
+      <h2 id="display-title" style={{ fontSize: 'var(--fs-section)', marginBottom: 10 }}>Display{help}</h2>
+      {panel && <div style={{ marginTop: -6, marginBottom: 10 }}>{panel}</div>}
+      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center', fontSize: '0.8rem' }}>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          Background
+          <select value={style} onChange={e => setBackground({ style: e.target.value as BackgroundChoice })} style={select}>
+            {BACKGROUND_STYLES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+            <option value="off">Off</option>
+          </select>
+        </label>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          Motion
+          <select value={motion} disabled={style === 'off'}
+                  onChange={e => setBackground({ motion: e.target.value as BackgroundMotion })} style={select}>
+            <option value="reacts">Reacts to Prax</option>
+            <option value="calm">Calm</option>
+            <option value="still">Still</option>
+          </select>
+        </label>
+      </div>
+    </section>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function Settings() {
@@ -387,7 +428,7 @@ export function Settings() {
   const rangesHelpParts = useHelp('what to sync and analyse',
     'A range decides what is fetched and analysed from now on. Games already stored are never deleted.')
   const speedsHelpParts = useHelp('speeds',
-    'Every game is synced. Mixing speeds blurs the patterns (bullet blunders are mostly the clock), so rapid alone is the default.')
+    'Only ticked speeds are analysed; every game is synced. Mixing speeds blurs the patterns (bullet blunders are mostly the clock), so rapid alone is the default.')
 
   // Estimate follows the draft, debounced so typing "24" doesn't also ask about "2".
   const [debounced, setDebounced] = useState<Draft | null>(null)
@@ -447,9 +488,9 @@ export function Settings() {
   const [speedsHelp, speedsPanel] = speedsHelpParts
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 920 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
-        <h1 style={{ fontSize: '1.3rem' }}>Settings</h1>
+        <h1 style={{ fontSize: 'var(--fs-h1)' }}>Settings</h1>
       </div>
 
       <PlayerCard />
@@ -461,7 +502,7 @@ export function Settings() {
                     onReanalyseOutdated={skip => { praxInteract('PRIMARY_ACTION'); reanalyse.mutate(skip) }} />
 
       <section className="card" aria-labelledby="ranges-title">
-        <h2 id="ranges-title" style={{ fontSize: '1rem', marginBottom: 12 }}>
+        <h2 id="ranges-title" style={{ fontSize: 'var(--fs-section)', marginBottom: 12 }}>
           What to sync and analyse{rangesHelp}
         </h2>
         {rangesPanel && <div style={{ marginTop: -6, marginBottom: 10 }}>{rangesPanel}</div>}
@@ -505,7 +546,7 @@ export function Settings() {
                 </label>
               ))}
             </div>
-            <span style={{ ...muted, fontSize: '0.72rem' }}>Only ticked speeds are analysed.{speedsHelp}</span>
+            <span style={{ ...muted, fontSize: '0.72rem' }}>{speedsHelp}</span>
             {speedsPanel}
             {errors.analysis_time_classes && <span role="alert" style={errorStyle}>{errors.analysis_time_classes}</span>}
           </fieldset>
@@ -519,16 +560,16 @@ export function Settings() {
 
       <BackupsCard />
 
+      {/* Display (the background) is hidden until the backgrounds are redone; see BACKGROUND_SETTING. */}
+      {BACKGROUND_SETTING && <DisplayCard />}
+
       <section className="card" aria-labelledby="estimate-title">
-        <h2 id="estimate-title" style={{ fontSize: '1rem', marginBottom: 6 }}>Estimated time</h2>
+        <h2 id="estimate-title" style={{ fontSize: 'var(--fs-section)', marginBottom: 6 }}>Estimated time</h2>
         <EstimateTable estimate={estimate} />
         {errors.practice_budget && <p role="alert" style={errorStyle}>{errors.practice_budget}</p>}
       </section>
 
-      {/* Bottom RIGHT, where a form's primary action conventionally sits — and
-          clear of the bottom-left corner, which the dev-only PraxDebugPanel
-          occupies. Left-aligned, the Save button sat under it at the end of the
-          page on the dev server. */}
+      {/* Bottom RIGHT, where a form's primary action conventionally sits. */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
         {notice && <span role="status" style={muted}>{notice}</span>}
         {Object.keys(errors).length > 0 && (
@@ -540,7 +581,6 @@ export function Settings() {
         </button>
       </div>
 
-      <PraxAnchor x={0.9} y={0.45} />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Chessboard } from 'react-chessboard'
+import { ThemedBoard } from '../../components/ThemedBoard'
 import type { Square } from 'react-chessboard/dist/chessboard/types'
 import type { ArrowRole, ChessPositionArtifact, MoveComparisonArtifact } from './types'
 
@@ -81,7 +81,7 @@ export function ChessPositionCard({ artifact }: { artifact: ChessPositionArtifac
       </figcaption>
 
       <div style={{ maxWidth: 300 }}>
-        <Chessboard
+        <ThemedBoard
           position={artifact.fen}
           boardOrientation={orientation}
           customArrows={arrows}
@@ -89,7 +89,6 @@ export function ChessPositionCard({ artifact }: { artifact: ChessPositionArtifac
           // A diagram, not a game. Dragging pieces here would imply the position
           // can be played from, which it cannot.
           arePiecesDraggable={false}
-          customBoardStyle={{ borderRadius: 5 }}
           boardWidth={300}
         />
       </div>

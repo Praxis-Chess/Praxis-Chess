@@ -1,11 +1,10 @@
 import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Chessboard } from 'react-chessboard'
+import { ThemedBoard } from '../components/ThemedBoard'
 import { Chess } from 'chess.js'
 import { api } from '../api/client'
 import type { Drill } from '../api/types'
-import { PraxAnchor } from '../prax/PraxHost'
 import { drillLink } from '../components/report/ReportParts'
 import { uciToSan } from '../components/san'
 
@@ -87,15 +86,13 @@ function DrillBoard({ drill, onSolved, onNext, onAnswer }: {
       <div style={{
         borderRadius: 8, overflow: 'hidden',
         boxShadow: wrongFlash ? '0 0 0 3px var(--red)' : solved ? '0 0 0 3px var(--green)' : 'none',
-        transition: 'box-shadow 0.2s',
+        transition: 'box-shadow var(--dur-slow) var(--ease-out)',
       }}>
-        <Chessboard
+        <ThemedBoard
           position={boardFen}
           boardOrientation={toMove}
           onPieceDrop={onDrop}
           arePiecesDraggable={!done}
-          customDarkSquareStyle={{ backgroundColor: 'var(--board-dark)' }}
-          customLightSquareStyle={{ backgroundColor: 'var(--board-light)' }}
           boardWidth={360}
           customArrows={answerArrow}
         />
@@ -184,7 +181,7 @@ export function Drills() {
   if (!drills || drills.length === 0) {
     return (
       <div>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Drills</h2>
+        <h2 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700 }}>Drills</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
           No drills yet: each analysed blunder becomes one.
         </p>
@@ -193,7 +190,6 @@ export function Drills() {
         {/* The empty state needs the anchor as much as the loaded one —
             Prax is on the page either way, and a branch without it falls
             back to the registry default. */}
-        <PraxAnchor x={0.9} y={0.45} />
       </div>
     )
   }
@@ -226,7 +222,7 @@ export function Drills() {
           <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>{session ? `Session ${session}` : 'Drills'}</h2>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
             {session
-              ? <>From your <Link to="/insights/training" style={{ color: 'var(--orchid)' }}>Training Plan</Link>: your own positions, in order.</>
+              ? <>From your <Link to="/insights/training">Training Plan</Link>: your own positions, in order.</>
               : 'Re-solve your own mistakes. The best way to stop repeating them.'}
           </p>
         </div>
@@ -269,7 +265,6 @@ export function Drills() {
           the registry falls back to a fixed 0.68/0.46, which on this
           layout is directly on top of the content. */}
       {/* Right of the drill board. */}
-      <PraxAnchor x={0.9} y={0.45} />
     </div>
   )
 }
@@ -291,7 +286,7 @@ function NextAfterSession({ plan, session, onGo }: {
             Start session {next.number}
           </button>
         : <button className="solid" onClick={() => onGo('/progress')}>See progress</button>}
-      <Link to="/insights/training" style={{ color: 'var(--orchid)', fontSize: '0.85rem' }}>Back to the plan</Link>
+      <Link to="/insights/training" style={{ fontSize: '0.85rem' }}>Back to the plan</Link>
     </div>
   )
 }

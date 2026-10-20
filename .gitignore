@@ -25,8 +25,8 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
-"application.yml" 
-"tts-service/models/*.onnx" 
+# Kokoro voice models are downloaded, not committed (voices-v1.0.bin was committed before this line worked).
+tts-service/models/*.onnx
 
 # Playwright
 frontend/test-results/

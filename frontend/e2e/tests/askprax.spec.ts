@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/test'
+import * as reports from '../fixtures/reports'
 
 /**
  * The Ask Prax workspace, and the conversation scoping behind it.
@@ -55,6 +56,41 @@ test.describe('Ask Prax workspace', () => {
 
     await expect(page.getByRole('heading', { name: 'Ask Prax' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'What is my weakness?' })).toBeVisible()
+  })
+
+  // U7, N15: before the first question, what Prax answers from and what to ask.
+  test('before a question: what Prax knows, questions from the report, and recent ones', async ({ page, api }) => {
+    api.json('/api/patterns', reports.pattern)
+    api.json('/api/prax/conversations', [
+      { id: THREAD, title: 'Why was my worst blunder a mistake?', last_message_at: '2026-08-21T10:00:00Z' },
+    ])
+    api.json(`/api/prax/conversations/${THREAD}`, {
+      id: THREAD, title: 'Why was my worst blunder a mistake?',
+      messages: [
+        { id: 'm1', role: 'user', content: 'Why was my worst blunder a mistake?', created_at: null, payload: {} },
+        { id: 'm2', role: 'assistant', content: 'It left the rook undefended.', created_at: null, payload: answer('It left the rook undefended.') },
+      ],
+    })
+    await page.goto('/ask')
+
+    const knows = page.getByRole('region', { name: 'What Prax knows' })
+    await expect(knows).toContainText('Analysed games')
+    await expect(knows.getByRole('link', { name: 'Read it →' })).toHaveAttribute('href', '/insights/patterns')
+    await expect(knows.getByRole('link', { name: 'Make one →' })).toHaveAttribute('href', '/insights/training')
+
+    const fromReport = page.getByRole('region', { name: 'From your report' })
+    const first = reports.pattern.facts!.top_tactics[0].title.toLowerCase()
+    await expect(fromReport.getByRole('button', { name: `Show me the ${first} I missed` })).toBeVisible()
+
+    await page.getByRole('region', { name: 'Recent questions' })
+      .getByRole('button', { name: 'Why was my worst blunder a mistake?' }).click()
+    await expect(page.getByText('It left the rook undefended.')).toBeVisible()
+  })
+
+  test('with no report, the general questions', async ({ page }) => {
+    await page.goto('/ask')
+    await expect(page.getByRole('region', { name: 'Try asking' }).getByRole('button', { name: 'Where do I blunder most?' })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Recent questions' })).toHaveCount(0)
   })
 
   test('shows the question and its answer as one exchange', async ({ page, api }) => {

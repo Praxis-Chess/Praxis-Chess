@@ -216,10 +216,9 @@ test.describe('Settings', () => {
   })
 
   /**
-   * The dev-only PraxDebugPanel is fixed to the bottom-left corner. With the Save
-   * button left-aligned at the end of the page, scrolling down put the button
-   * underneath it — found in a screenshot, not by any test. The Playwright server
-   * is the Vite dev server, so the panel is really there.
+   * Nothing fixed to the screen may cover the Save button once it is scrolled
+   * into view (a dev-only panel in the bottom-left corner once did, found in a
+   * screenshot, not by any test).
    */
   test('the Save button is not covered once scrolled into view', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })

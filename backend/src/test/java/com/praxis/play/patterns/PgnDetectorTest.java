@@ -208,6 +208,9 @@ class PgnDetectorTest {
         void rationale() {
             assertThat(detector.why()).isNotBlank();
             assertThat(detector.whatToDo()).isNotBlank();
+            // Shown by default on Play: an imperative of at most eight words, no em dash.
+            assertThat(detector.doNow().split("\\s+")).hasSizeLessThanOrEqualTo(8);
+            assertThat(detector.whatToDo() + detector.doNow()).doesNotContain("—");
         }
     }
 }

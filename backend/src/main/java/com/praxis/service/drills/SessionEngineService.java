@@ -101,9 +101,15 @@ public class SessionEngineService {
 
     @Transactional
     public DrillSession createSession(String username) {
-        LocalDate today = LocalDate.now();
-        List<Card> due     = cardRepository.findDueCards(username, today);
+        LocalDate today = clock.today();
+        // New cards are due the day they are made (DeckRule, D8): count them as new, not as due reviews.
+        List<Card> due     = cardRepository.findDueCards(username, today).stream()
+                .filter(c -> c.getStatus() != CardStatus.NEW)
+                .toList();
         List<Card> newCards = cardRepository.findByUsernameAndStatusOrderByCreatedAtAsc(username, CardStatus.NEW);
+        long introducedToday = cardRepository.countIntroducedSince(username,
+                today.atStartOfDay(clock.zone()).toOffsetDateTime());
+        int newLeftToday = (int) Math.max(0, DeckRule.NEW_PER_DAY - introducedToday);
         // Stretch: cards due in next 3 days
         LocalDate stretchHorizon = today.plusDays(3);
         List<Card> stretch = cardRepository.findDueCards(username, stretchHorizon).stream()
@@ -111,7 +117,7 @@ public class SessionEngineService {
                 .toList();
 
         int nDue     = (int) Math.round(MAX_SESSION_CARDS * RATIO_DUE);
-        int nNew     = (int) Math.round(MAX_SESSION_CARDS * RATIO_NEW);
+        int nNew     = (int) Math.min(Math.round(MAX_SESSION_CARDS * RATIO_NEW), newLeftToday);
         int nStretch = MAX_SESSION_CARDS - nDue - nNew;
 
         List<Card> queue = new ArrayList<>();

@@ -45,7 +45,7 @@ export function PlayerCard() {
 
   return (
     <section id="player" className="card" aria-labelledby="player-title">
-      <h2 id="player-title" style={{ fontSize: '1rem', marginBottom: 10 }}>Player</h2>
+      <h2 id="player-title" style={{ fontSize: 'var(--fs-section)', marginBottom: 10 }}>Player</h2>
       <form onSubmit={e => { e.preventDefault(); if (!unchanged) save.mutate(name) }}
             style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.78rem', flex: '1 1 220px', minWidth: 0 }}>

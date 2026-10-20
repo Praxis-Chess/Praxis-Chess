@@ -12,7 +12,17 @@ export class PlayPage extends AppPage {
   }
 
   get colourSelect(): Locator {
-    return this.page.getByRole('combobox')
+    return this.page.getByRole('combobox', { name: 'Which colour to play' })
+  }
+
+  /** I1: the strength, the recommended one preselected. */
+  get strengthSelect(): Locator {
+    return this.page.getByRole('combobox', { name: 'Engine strength' })
+  }
+
+  /** The page's one line: the game about to be played. */
+  get takeaway(): Locator {
+    return this.main.getByText(/^Next game:/)
   }
 
   get undoButton(): Locator {
@@ -23,8 +33,9 @@ export class PlayPage extends AppPage {
     return this.page.getByRole('button', { name: 'Resign' })
   }
 
+  /** What the opponent does: the opening it steers toward and its strength. */
   get opponentPanel(): Locator {
-    return this.main.getByText('Your opponent')
+    return this.main.getByRole('region', { name: 'This game' })
   }
 
   /** react-chessboard renders squares carrying data-square="e2" etc. */
@@ -58,7 +69,7 @@ export class PlayPage extends AppPage {
   }
 
   get historyPanel(): Locator {
-    return this.main.getByText('Earlier practice games')
+    return this.main.getByRole('region', { name: 'Practice so far' })
   }
 
   get reviewButtons(): Locator {

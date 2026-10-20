@@ -43,8 +43,8 @@ function collectInPage(arg: { rootSel: string | null; base: string[]; baseSel?: 
   const out: Collected = { runs: [], links: [], methods: [] }
   if (!root) return out
 
-  // Reading text only: no board coordinates, no chart axes, not the dev-only Prax pill.
-  const EXCLUDE = '[data-boardid], svg, [data-parity-ignore], [style*="z-index: 200"][style*="bottom: 12px"]'
+  // Reading text only: no board coordinates or pieces (static boards draw them as text), no chart axes.
+  const EXCLUDE = '[data-boardid], [data-board], svg, [data-parity-ignore]'
   const SCOPES = 'section, article, li, tr, fieldset, dialog, table, details, .card, [role=region], [role=group], ' +
                  '[role=dialog], [role=tooltip], [role=status], [aria-label], [aria-labelledby], [data-scope]'
   const INTERACTIVE = 'a, button, input, select, textarea, summary'
@@ -173,6 +173,8 @@ export async function expandAll(page: Page): Promise<Collected> {
     const clicked = await page.evaluate(() => {
       const main = document.querySelector('main') ?? document.body
       main.querySelectorAll('details:not([open])').forEach(d => { (d as HTMLDetailsElement).open = true })
+      // Tabs are views of one section: every panel's facts count, so show them all.
+      main.querySelectorAll<HTMLElement>('[role="tabpanel"][hidden]').forEach(p => { p.hidden = false })
       const buttons = Array.from(main.querySelectorAll<HTMLButtonElement>(
         '[data-disclose][aria-expanded="false"], button[aria-expanded="false"]:not([data-popover])'))
       // LEGACY: toggles without aria-expanded.
@@ -303,7 +305,9 @@ export function pairs(c: Collected, vocabulary: string[]): Pair[] {
 
 export interface Exceptions {
   /** Deliberate removals, each with the decision behind it. */
-  removed: { screen: string; state?: string; scope?: string; token: string; reason: string; decision?: string }[]
+  removed: { screen: string; state?: string; scope?: string; token: string; reason: string; decision?: string
+             /** Only this many of the token's occurrences were removed; the rest must stay. Omitted: all. */
+             count?: number }[]
   /** A value shown in a new format: `from` is one token, `to` is tokenised like page text. */
   formats: { screen: string; from: string; to: string; reason: string }[]
   /**
@@ -333,8 +337,12 @@ export function checkParity(golden: Golden, now: Collected, vocabulary: string[]
   const segments = (scope: string) => scope.split(' > ').filter(Boolean)
   const failures: string[] = []
 
-  for (const [scope, token, count] of golden.pairs) {
-    if (ex.removed.some(r => applies(r, golden) && r.token === token && (!r.scope || scope.includes(r.scope)))) continue
+  for (const [scope, token, goldenCount] of golden.pairs) {
+    // Partial removals of one token add up; any removal without a count removes it all.
+    const removals = ex.removed.filter(r => applies(r, golden) && r.token === token && (!r.scope || scope.includes(r.scope)))
+    if (removals.some(r => r.count == null)) continue
+    const count = Math.max(0, goldenCount - removals.reduce((a, r) => a + (r.count ?? 0), 0))
+    if (count === 0) continue
     let wanted = [token]
     const f = ex.formats.find(x => applies(x, golden) && x.from === token)
     // Words in the new format are text data ("16 Oct" is 16 and ~oct), as pairs() records them.
@@ -351,9 +359,16 @@ export function checkParity(golden: Golden, now: Collected, vocabulary: string[]
     const within = (s: string) => { const have = segments(s); return key.every(k => have.includes(k)) }
     // A link that gained query parameters ("/games/x" → "/games/x?ply=45") still goes to the same place.
     const same = (t: string, w: string) => t === w || (w.startsWith('@') && !w.includes('?') && t.startsWith(`${w}?`))
-    for (const w of wanted) {
-      const n = current.filter(([s, t]) => same(t, w) && within(s)).reduce((a, [, , c]) => a + c, 0)
-      if (n < count) failures.push(`[${golden.screen}/${golden.state}] ${scope} :: ${w} — was ${count}, now ${n}`)
+    const found = (w: string) => current.filter(([s, t]) => same(t, w) && within(s)).reduce((a, [, , c]) => a + c, 0)
+    // Text alternatives ("a | b"): one of them is the new wording. Data tokens: every one must be there.
+    if (f && token.startsWith('~')) {
+      const best = Math.max(...wanted.map(found))
+      if (best < count) failures.push(`[${golden.screen}/${golden.state}] ${scope} :: ${wanted.join(' | ')} — was ${count}, now ${best}`)
+    } else {
+      for (const w of wanted) {
+        const n = found(w)
+        if (n < count) failures.push(`[${golden.screen}/${golden.state}] ${scope} :: ${w} — was ${count}, now ${n}`)
+      }
     }
   }
 
@@ -363,4 +378,112 @@ export function checkParity(golden: Golden, now: Collected, vocabulary: string[]
     if (!text.includes(norm(m ? m.to : method))) failures.push(`[${golden.screen}/${golden.state}] ${scope} :: help text missing: "${method}"`)
   }
   return failures
+}
+
+// ── Layout and density (docs/design/POLISH_PLAN.md, U0) ─────────────────────
+
+/**
+ * How much of the page the content uses, and what it shows above the fold.
+ * Measured in the default state, at the current viewport.
+ */
+export interface Layout {
+  viewport: number
+  /** The page's content box: the `[data-page]` frame (U1), or `main` where there is none. */
+  mainLeft: number
+  mainRight: number
+  /** The extent of `main`'s ink: text runs and painted boxes (fixed layers excluded). */
+  left: number
+  right: number
+  /** (right − left) / (mainRight − mainLeft). */
+  coverage: number
+  /** Chess boards on the page, and how many start above the fold. */
+  boards: number
+  boardsAboveFold: number
+  /** Chart roots on the page, and how many start above the fold. */
+  charts: number
+  chartsAboveFold: number
+  /** Solid (primary) buttons visible above the fold, anywhere: nav, banner and main. */
+  solidAboveFold: number
+  solidLabels: string[]
+}
+
+/**
+ * Board roots: react-chessboard's `[data-boardid]` (and `[data-board]`, which U1's
+ * ThemedBoard adds). Chart roots, until U1 marks them `data-chart`: a Recharts
+ * surface, the Practice history dot grid (the card titled so), and the report's
+ * comparison bars (a list whose rows each hold an aria-hidden bar track).
+ * A heuristic on purpose: U0 changes no product code.
+ */
+export function layout(page: Page): Promise<Layout> {
+  return page.evaluate(() => {
+    // The drill session is a focused page outside the app frame: no <main>.
+    const main = document.querySelector('main') ?? document.body
+    // Coverage is against the page's own width (U1's Page frame), else `main`.
+    const frame = main.querySelector('[data-page]') ?? main
+    const ms = getComputedStyle(frame)
+    const mr = frame.getBoundingClientRect()
+    const mainLeft = mr.left + parseFloat(ms.paddingLeft)
+    const mainRight = mr.right - parseFloat(ms.paddingRight)
+    let left = Infinity
+    let right = -Infinity
+    const take = (r: DOMRect) => {
+      if (r.width === 0 || r.height === 0) return
+      left = Math.min(left, r.left)
+      right = Math.max(right, r.right)
+    }
+    // Ink, not boxes: a heading's box spans the column however short its text. So
+    // the extent is the union of text runs and of anything painted (a background, a
+    // border, a graphic, a control), skipping fixed layers and hidden subtrees.
+    const tw = document.createTreeWalker(main, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+      acceptNode(n) {
+        if (n.nodeType === Node.ELEMENT_NODE) {
+          const cs = getComputedStyle(n as Element)
+          if (cs.display === 'none' || cs.visibility === 'hidden' || cs.position === 'fixed') return NodeFilter.FILTER_REJECT
+        }
+        return NodeFilter.FILTER_ACCEPT
+      },
+    })
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      if (n.nodeType === Node.TEXT_NODE) {
+        if (!n.textContent?.trim()) continue
+        const range = document.createRange()
+        range.selectNodeContents(n)
+        take(range.getBoundingClientRect())
+        continue
+      }
+      const el = n as Element
+      const cs = getComputedStyle(el)
+      const painted = /^(IMG|SVG|CANVAS|INPUT|SELECT|TEXTAREA|BUTTON|TABLE)$/i.test(el.tagName) ||
+        (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent') ||
+        cs.backgroundImage !== 'none' || parseFloat(cs.borderLeftWidth) > 0 || parseFloat(cs.borderRightWidth) > 0
+      if (painted) take(el.getBoundingClientRect())
+    }
+    if (!isFinite(left)) { left = mainLeft; right = mainLeft }
+    const fold = window.innerHeight
+    const above = (e: Element) => { const r = e.getBoundingClientRect(); return r.height > 0 && r.top < fold && r.bottom > 0 }
+
+    const boards = Array.from(main.querySelectorAll('[data-boardid], [data-board]'))
+      .filter(b => !b.parentElement?.closest('[data-boardid], [data-board]'))
+    const charts = new Set<Element>()
+    main.querySelectorAll('.recharts-surface, [data-chart]').forEach(e => charts.add(e))
+    main.querySelectorAll('h3').forEach(h => {
+      if (h.textContent?.trim() === 'Practice history') { const card = h.closest('.card'); if (card) charts.add(card) }
+    })
+    main.querySelectorAll('ul').forEach(ul => {
+      const rows = Array.from(ul.children).filter(li => li.querySelector(':scope > div[aria-hidden="true"]'))
+      if (rows.length >= 2) charts.add(ul)
+    })
+    const solid = Array.from(document.querySelectorAll<HTMLElement>('button.solid'))
+      .filter(b => above(b) && getComputedStyle(b).visibility !== 'hidden')
+    return {
+      viewport: window.innerWidth,
+      mainLeft: Math.round(mainLeft), mainRight: Math.round(mainRight),
+      left: Math.round(left), right: Math.round(right),
+      coverage: Math.round(((right - left) / Math.max(1, mainRight - mainLeft)) * 100) / 100,
+      boards: boards.length, boardsAboveFold: boards.filter(above).length,
+      charts: charts.size, chartsAboveFold: Array.from(charts).filter(above).length,
+      solidAboveFold: solid.length,
+      solidLabels: solid.map(b => (b.textContent ?? '').trim().slice(0, 30)),
+    }
+  })
 }

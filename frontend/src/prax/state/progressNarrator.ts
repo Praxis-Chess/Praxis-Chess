@@ -6,7 +6,7 @@
  * afterwards, once there is something real to interpret.
  *
  * Three registers, and nothing else:
- *   operational   — what Prax is doing        "27 of 93 games analyzed."
+ *   operational   — what Prax is doing        "27 of 93 games analysed."
  *   observational — what Prax is seeing       "Endgame mistakes lead so far."
  *   resolved      — what Prax concluded       "Done. 3 patterns worth a look."
  *
@@ -55,12 +55,12 @@ export function narratePractice(streak: number): PraxNarration {
 export function narrateStart(total: number): PraxNarration {
   return {
     kind: 'operational',
-    text: total > 0 ? `Re-analyzing ${total} games.` : 'Re-analyzing your games.',
+    text: total > 0 ? `Re-analysing ${total} games.` : 'Re-analysing your games.',
   }
 }
 
 export function narrateProgress(completed: number, total: number): PraxNarration {
-  return { kind: 'operational', text: `${completed} of ${total} games analyzed.` }
+  return { kind: 'operational', text: `${completed} of ${total} games analysed.` }
 }
 
 export function narratePatternPhase(): PraxNarration {
@@ -72,7 +72,7 @@ export function narrateStopping(): PraxNarration {
 }
 
 export function narrateStopped(completed: number, total: number): PraxNarration {
-  return { kind: 'operational', text: `Stopped. ${completed} of ${total} games analyzed.` }
+  return { kind: 'operational', text: `Stopped. ${completed} of ${total} games analysed.` }
 }
 
 const PHASE_LABEL: Record<string, string> = {
@@ -120,7 +120,7 @@ export function narrateComplete(
     kind: 'resolved',
     text: topMotif
       ? `Done. ${humanMotif(topMotif)} is your most frequent mistake.`
-      : `Done. ${total} games analyzed.`,
+      : `Done. ${total} games analysed.`,
     evidence,
     examineHref: '/insights',
   }

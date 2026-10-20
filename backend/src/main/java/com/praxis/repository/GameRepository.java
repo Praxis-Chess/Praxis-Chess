@@ -34,6 +34,9 @@ import java.util.UUID;
  */
 public interface GameRepository extends JpaRepository<Game, UUID> {
 
+    /** Games synced before sync read the opening (N11): the backfill's work list. */
+    List<Game> findByOpeningEcoIsNull();
+
     /** Spellings of a username already stored, matched without case — Chess.com names are case-insensitive. */
     @Query("SELECT DISTINCT g.username FROM Game g WHERE LOWER(g.username) = LOWER(:username)")
     List<String> findStoredSpellings(@Param("username") String username);

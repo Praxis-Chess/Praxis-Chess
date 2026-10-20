@@ -30,7 +30,7 @@ export function PraxThought() {
         // Positioned by PraxStack — this card only styles itself.
         pointerEvents: 'auto',
         // Opaque base under the tint — this card floats over page content.
-        background: 'var(--canvas, #121110)',
+        background: 'var(--canvas, #000)',
         backgroundImage: 'linear-gradient(var(--surface, #141317), var(--surface, #141317))',
         border: '1px solid var(--hairline, #26232B)',
         borderLeft: '2px solid var(--orchid, #E7A6D6)',

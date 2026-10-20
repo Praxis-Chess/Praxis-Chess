@@ -6,7 +6,8 @@ import java.util.List;
  * @param gamesConsidered size of the window actually used, after filtering
  * @param claimable       false below MIN_SAMPLE: the counts are still returned,
  *                        but no tendency is named
- * @param caveat          why nothing is being claimed, when nothing is
+ * @param caveat          null since the Play redesign: below the threshold the page
+ *                        shows progress (gamesConsidered of minGames) instead
  * @param openingCaveat   set when every game in the window is one opening, which
  *                        is the normal case: the opponent steers to the player's
  *                        weakest ECO, so a habit and an unfamiliar opening look
@@ -20,5 +21,9 @@ public record PracticePatternReport(
         String caveat,
         String openingCaveat,
         List<PracticePattern> patterns,
-        List<String> notMeasured
+        List<String> notMeasured,
+        /** The games threshold: patterns are named from this many analysed practice games. */
+        int minGames,
+        /** The one opening every game in the window was aimed at, or null when they differ. */
+        String aimedAt
 ) {}

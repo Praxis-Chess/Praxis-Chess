@@ -180,15 +180,15 @@ export function PraxAsk() {
       style={{
         // Positioned by PraxStack — this card only styles itself.
         pointerEvents: 'auto',
-        // --surface is rgba(255,255,255,0.035): a tint meant to sit ON the page.
-        // This card floats OVER it, so the tint alone let charts and game rows
-        // read straight through the text. Same tint, composited onto an opaque
-        // base — identical appearance, no bleed-through.
-        background: 'var(--canvas, #121110)',
-        backgroundImage: 'linear-gradient(var(--surface, #141317), var(--surface, #141317))',
-        border: '1px solid var(--hairline, #26232B)',
+        // Glass over the background (docked in the gutter it reserves); a dark base
+        // under the sheen keeps text readable when, on a phone, it sits over the page.
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), rgba(0,0,0,0.55)',
+        backdropFilter: 'blur(28px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(160%)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 10px 30px rgba(0,0,0,0.45)',
+        border: '1px solid rgba(255,255,255,0.10)',
         borderLeft: '2px solid var(--orchid, #E7A6D6)',
-        borderRadius: '0 6px 6px 0',
+        borderRadius: '0 10px 10px 0',
         padding: '13px 15px',
         animation: 'prax-thought-in 320ms cubic-bezier(0.2, 0.8, 0.3, 1)',
       }}

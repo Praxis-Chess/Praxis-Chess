@@ -33,7 +33,6 @@ import type { AiStatus,
   PracticePatternReport,
   PracticeStreak,
   Progress,
-  RatingPoint,
   Session,
   SyncStatus,
   TodayInsight,
@@ -100,7 +99,6 @@ export const api = {
 
   dashboard: {
     stats: () => request<DashboardStats>('/dashboard/stats'),
-    ratingHistory: () => request<RatingPoint[]>('/dashboard/rating-history'),
   },
 
   analysis: {

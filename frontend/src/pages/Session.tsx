@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { Chessboard } from 'react-chessboard'
+import { ThemedBoard } from '../components/ThemedBoard'
 import { Chess, type Square } from 'chess.js'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { Card, AttemptRating, Session as SessionType } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { uciToSan } from '../components/san'
-import { praxBus, PraxAnchor } from '../prax/PraxHost'
+import { praxBus } from '../prax/PraxHost'
 
 type Stage = 'solving' | 'rating' | 'done'
 
@@ -27,7 +27,7 @@ function RatingButton({ rating, label, sublabel, onClick }: {
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
         padding: '10px 16px', borderRadius: 8, border: `1.5px solid ${colors[rating]}`,
         background: 'transparent', color: colors[rating], cursor: 'pointer',
-        minWidth: 80, transition: 'background 0.15s',
+        minWidth: 80, transition: 'background var(--dur) var(--ease-out)',
       }}
       onMouseEnter={e => (e.currentTarget.style.background = `${colors[rating]}18`)}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -158,7 +158,6 @@ function CardView({ card, sessionId, onRated }: {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: 24 }}>
       {/* The board is centred and this route has no nav, so Prax sits high and
           right — out of the way of the position, still present while you work. */}
-      <PraxAnchor x={0.86} y={0.24} />
 
       {/* Header */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -184,18 +183,15 @@ function CardView({ card, sessionId, onRated }: {
       <div style={{
         borderRadius: 8, overflow: 'hidden',
         boxShadow: wrong ? '0 0 0 3px var(--red)' : correct && stage === 'rating' ? '0 0 0 3px var(--gain)' : 'none',
-        transition: 'box-shadow 0.2s',
+        transition: 'box-shadow var(--dur-slow) var(--ease-out)',
       }}>
-        <Chessboard
+        <ThemedBoard
           position={boardFen}
           boardOrientation={(card.player_color ?? 'white') as 'white' | 'black'}
           onPieceDrop={onDrop}
           onSquareClick={onSquareClick}
           arePiecesDraggable={stage === 'solving'}
           customArrows={answerArrow}
-          customDarkSquareStyle={{ backgroundColor: '#4A4340' }}
-          customLightSquareStyle={{ backgroundColor: '#E3DBD1' }}
-          customBoardStyle={{ borderRadius: '2px', border: '1px solid rgba(255,255,255,0.08)' }}
           customDropSquareStyle={{ boxShadow: 'inset 0 0 0 2px rgba(231,166,214,0.7)' }}
           customSquareStyles={squareStyles}
           boardWidth={360}
@@ -318,7 +314,7 @@ export function Session() {
       {/* Slim progress bar */}
       <div style={{ height: 3, background: 'var(--surface-2)', borderRadius: 2, marginBottom: 20, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${progress}%`, background: 'var(--orchid)',
-                      transition: 'width 0.4s ease', borderRadius: 2 }} />
+                      transition: 'width var(--dur-fill) var(--ease-out)', borderRadius: 2 }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem',
                     color: 'var(--text-muted)', marginBottom: 16 }}>

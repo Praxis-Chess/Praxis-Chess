@@ -23,7 +23,7 @@ export function AiModelsCard() {
 
   return (
     <section className="card" aria-labelledby="ai-title">
-      <h2 id="ai-title" style={{ fontSize: '1rem', marginBottom: 10 }}>
+      <h2 id="ai-title" style={{ fontSize: 'var(--fs-section)', marginBottom: 10 }}>
         AI models{help}
       </h2>
       {helpPanel && <div style={{ marginTop: -4, marginBottom: 10 }}>{helpPanel}</div>}
@@ -51,7 +51,7 @@ export function AiModelsCard() {
         <p style={{ ...muted, marginTop: 12 }}>
           Checked commentary is off. The trained model is on{' '}
           <a href="https://huggingface.co/praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF"
-             target="_blank" rel="noopener noreferrer" style={{ color: 'var(--orchid)' }}>Hugging Face</a>
+             target="_blank" rel="noopener noreferrer">Hugging Face</a>
           ; set it up with step 3b of the README, then <span className="mono">commentary-model</span> in application.yml.
         </p>
       )}

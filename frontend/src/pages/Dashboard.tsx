@@ -9,7 +9,6 @@ import { RecentGames } from '../components/RecentGames'
 import { usePatternReport } from '../hooks/usePatternReport'
 import type { TimeControlStat } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
-import { PraxAnchor } from '../prax/PraxHost'
 import { BackupFailedNotice } from '../components/BackupFailedNotice'
 
 const tile = (label: string, value: React.ReactNode, sub?: React.ReactNode, color = 'var(--text)') => (
@@ -238,7 +237,7 @@ export function Dashboard() {
               style={{ width: '100%', fontSize: '0.78rem', padding: '7px 12px' }}
               onClick={() => reanalyzeMut.mutate(false)}
               disabled={reanalyzeMut.isPending}>
-              {reanalyzeMut.isPending ? 'Backing up, then queuing…' : '↺ Re-Analyze All'}
+              {reanalyzeMut.isPending ? 'Backing up, then queuing…' : '↺ Re-Analyse All'}
             </button>
             <BackupFailedNotice error={reanalyzeMut.error} busy={reanalyzeMut.isPending}
                                 onProceed={() => reanalyzeMut.mutate(true)} onCancel={() => reanalyzeMut.reset()} />
@@ -267,7 +266,7 @@ export function Dashboard() {
                       <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{count} <span style={{ fontWeight: 400, opacity: 0.7 }}>({pct}%)</span></span>
                     </div>
                     <div style={{ height: 7, background: 'var(--surface-2)', borderRadius: 4, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4, transition: 'width 0.4s' }} />
+                      <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4, transition: 'width var(--dur-fill) var(--ease-out)' }} />
                     </div>
                   </div>
                 )
@@ -278,7 +277,7 @@ export function Dashboard() {
             </div>
           ) : (
             <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-              Analyze games to see breakdown.
+              Analyse games to see breakdown.
             </p>
           )}
         </div>
@@ -299,7 +298,6 @@ export function Dashboard() {
           the registry falls back to a fixed 0.68/0.46, which on this
           layout is directly on top of the content. */}
       {/* Right of the chart grid. */}
-      <PraxAnchor x={0.95} y={0.45} />
     </div>
   )
 }

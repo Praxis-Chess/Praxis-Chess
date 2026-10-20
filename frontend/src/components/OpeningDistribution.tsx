@@ -31,16 +31,9 @@ export function OpeningDistribution({ data, totalGames }: Props) {
 
         return (
           <div key={d.eco}>
-            <div
+            <div className="row-link" data-selected={isSelected || undefined}
               onClick={() => setSelected(isSelected ? null : d.eco)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                cursor: 'pointer', padding: '4px 6px', borderRadius: 6,
-                background: isSelected ? 'var(--accent-dim)' : 'transparent',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)' }}
-              onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '4px 6px' }}
             >
               <span style={{ width: 30, fontSize: '0.7rem', fontWeight: 700, color: isSelected ? 'var(--accent)' : 'var(--text-muted)', flexShrink: 0 }}>
                 {d.eco}
@@ -51,7 +44,7 @@ export function OpeningDistribution({ data, totalGames }: Props) {
                 </div>
                 <div style={{ height: 6, borderRadius: 3, background: 'var(--surface-2)', overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${barW}%`, borderRadius: 3,
-                                background: SERIES[i % SERIES.length], transition: 'width 0.4s' }} />
+                                background: SERIES[i % SERIES.length], transition: 'width var(--dur-fill) var(--ease-out)' }} />
                 </div>
               </div>
               <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', width: 38, textAlign: 'right', flexShrink: 0 }}>
@@ -88,7 +81,7 @@ export function OpeningDistribution({ data, totalGames }: Props) {
                   <div style={{
                     height: '100%', width: `${selectedStat.win_pct}%`,
                     background: selectedStat.win_pct >= 55 ? 'var(--green)' : selectedStat.win_pct >= 45 ? 'var(--accent)' : 'var(--red)',
-                    borderRadius: 3, transition: 'width 0.4s',
+                    borderRadius: 3, transition: 'width var(--dur-fill) var(--ease-out)',
                   }} />
                 </div>
                 <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'var(--text-muted)' }}>

@@ -8,7 +8,4 @@ import java.util.UUID;
 
 public interface PlanDrillAnswerRepository extends JpaRepository<PlanDrillAnswer, UUID> {
 
-    List<PlanDrillAnswer> findByPlanIdOrderByAnsweredAtAsc(UUID planId);
-
-    List<PlanDrillAnswer> findByGameIdAndPlyOrderByAnsweredAtAsc(UUID gameId, int ply);
 }

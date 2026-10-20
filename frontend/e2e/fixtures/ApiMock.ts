@@ -124,7 +124,6 @@ export class ApiMock {
     this.json('/api/backups', data.backups)
     this.json('/api/analysis/progress', data.analysisIdle)
     this.json('/api/dashboard/stats', data.dashboardStats)
-    this.json('/api/dashboard/rating-history', data.dashboardStats.rating_history)
     this.json('/api/games', data.games)
     // The per-game detail route. Registered here rather than per-test because
     // every path that reaches /games/:id needs both halves of it, and the

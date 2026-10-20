@@ -39,12 +39,15 @@ public class PlayController {
     private final PlayerIdentity player;
     private final GameRepository games;
     private final PracticePatternService patternService;
+    private final com.praxis.repository.MoveErrorRepository moveErrors;
 
     public PlayController(PlaySessionService sessions, OpponentProfileService profiles,
                           PracticeGameArchiver archiver, ImprovementService improvement,
                           PracticeGameRepository practiceGames, StockfishPlayService engine,
                           PlayerIdentity player, GameRepository games,
-                          PracticePatternService patternService) {
+                          PracticePatternService patternService,
+                          com.praxis.repository.MoveErrorRepository moveErrors) {
+        this.moveErrors = moveErrors;
         this.sessions = sessions;
         this.profiles = profiles;
         this.archiver = archiver;
@@ -100,7 +103,13 @@ public class PlayController {
             Integer skillLevel,
             String targetOpening,
             boolean rated,
-            boolean analysed
+            boolean analysed,
+            /** The measured game's accuracy; null until analysed, or when it has none. */
+            Double accuracy,
+            /** Flagged moves by severity, as the review counts them; null until analysed. */
+            Integer blunders,
+            Integer mistakes,
+            Integer inaccuracies
     ) {}
 
     /** Probed before showing the tab — no engine, no feature. */
@@ -208,13 +217,21 @@ public class PlayController {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Set<UUID> measured = archivedIds.isEmpty() ? Set.of()
+        Map<UUID, Game> measured = archivedIds.isEmpty() ? Map.of()
                 : StreamSupport.stream(games.findAllById(archivedIds).spliterator(), false)
                         .filter(g -> g.getAnalysisStatus() == AnalysisStatus.ANALYZED)
-                        .map(Game::getId)
-                        .collect(Collectors.toSet());
+                        .collect(Collectors.toMap(Game::getId, g -> g));
 
-        return ResponseEntity.ok(all.stream().map(g -> summary(g, measured)).toList());
+        // Severity counts for every measured game in one query, not one per row.
+        Map<UUID, Map<String, Integer>> counts = new java.util.HashMap<>();
+        if (!measured.isEmpty()) {
+            for (Object[] row : moveErrors.countBySeverity(measured.keySet())) {
+                counts.computeIfAbsent((UUID) row[0], k -> new java.util.HashMap<>())
+                        .put(String.valueOf(row[1]), ((Number) row[2]).intValue());
+            }
+        }
+
+        return ResponseEntity.ok(all.stream().map(g -> summary(g, measured, counts)).toList());
     }
 
     // --- helpers ---
@@ -241,7 +258,9 @@ public class PlayController {
                 g.isRated());
     }
 
-    private GameSummary summary(PracticeGame g, Set<UUID> measured) {
+    private GameSummary summary(PracticeGame g, Map<UUID, Game> measured, Map<UUID, Map<String, Integer>> counts) {
+        Game game = g.getGameId() == null ? null : measured.get(g.getGameId());
+        Map<String, Integer> c = game == null ? null : counts.getOrDefault(game.getId(), Map.of());
         return new GameSummary(
                 g.getId(),
                 g.getGameId(),
@@ -252,6 +271,10 @@ public class PlayController {
                 g.getSkillLevel(),
                 g.getTargetOpening(),
                 g.isRated(),
-                g.getGameId() != null && measured.contains(g.getGameId()));
+                game != null,
+                game != null && game.hasAccuracy() ? game.getAccuracy() : null,
+                c == null ? null : c.getOrDefault("BLUNDER", 0),
+                c == null ? null : c.getOrDefault("MISTAKE", 0),
+                c == null ? null : c.getOrDefault("INACCURACY", 0));
     }
 }

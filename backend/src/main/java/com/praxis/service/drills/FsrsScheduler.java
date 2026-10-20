@@ -1,11 +1,11 @@
 package com.praxis.service.drills;
 
+import com.praxis.config.PraxisClock;
 import com.praxis.domain.Card;
 import com.praxis.domain.enums.AttemptRating;
 import com.praxis.domain.enums.CardStatus;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
@@ -23,6 +23,13 @@ import java.time.ZoneOffset;
  */
 @Component
 public class FsrsScheduler implements SchedulerStrategy {
+
+    /** Due dates are the player's calendar days (PraxisClock), not the JVM's. */
+    private final PraxisClock clock;
+
+    public FsrsScheduler(PraxisClock clock) {
+        this.clock = clock;
+    }
 
     // FSRS v4 default parameters
     private static final double W0  = 0.4;    // initial stability for AGAIN
@@ -94,7 +101,7 @@ public class FsrsScheduler implements SchedulerStrategy {
             // GOOD or EASY — check graduation
             advanceGood(c, rating);
         }
-        c.setDueDate(LocalDate.now().plusDays(c.getIntervalDays()));
+        c.setDueDate(clock.today().plusDays(c.getIntervalDays()));
     }
 
     // --- Review ---
@@ -125,7 +132,7 @@ public class FsrsScheduler implements SchedulerStrategy {
             c.setDifficulty(updateDifficulty(d, rating));
             advanceGood(c, rating);
         }
-        c.setDueDate(LocalDate.now().plusDays(c.getIntervalDays()));
+        c.setDueDate(clock.today().plusDays(c.getIntervalDays()));
     }
 
     // --- Relearning ---
@@ -140,7 +147,7 @@ public class FsrsScheduler implements SchedulerStrategy {
                 // just graduated back out of relearning — keep going
             }
         }
-        c.setDueDate(LocalDate.now().plusDays(c.getIntervalDays()));
+        c.setDueDate(clock.today().plusDays(c.getIntervalDays()));
     }
 
     // --- Helpers ---

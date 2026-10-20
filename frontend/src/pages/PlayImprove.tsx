@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { TeachingEmpty } from '../components/TeachingEmpty'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { Chessboard } from 'react-chessboard'
+import { Link, useNavigate } from 'react-router-dom'
+import { ThemedBoard } from '../components/ThemedBoard'
 import { Chess, type Square } from 'chess.js'
 import { api } from '../api/client'
 import type {
   GameAnalysisProgress, AnalysisStage, ImprovementReport, MoveResult,
-  PlaySession, PracticeGameSummary,
+  OpponentProfile, PlaySession,
 } from '../api/types'
-import { PracticePatterns } from '../components/PracticePatterns'
-import { PraxAnchor, praxBus, praxInteract } from '../prax/PraxHost'
+import { PracticeSoFar } from '../components/PracticePatterns'
+import { Disclose, drillLink, linkStyle, muted, sectionLabel } from '../components/report/ReportParts'
+import { Page } from '../components/Page'
+import { praxBus, praxInteract } from '../prax/PraxHost'
 import { BoardSplit } from '../components/BoardSplit'
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
@@ -100,81 +103,22 @@ function MoveList({ san, playerColor }: { san: string; playerColor: string }) {
   )
 }
 
-const RESULT_COLOR: Record<string, string> = {
-  win: 'var(--gain)',
-  loss: 'var(--loss, #E2664A)',
-  draw: 'var(--text-secondary)',
+const PIECE_VALUE: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
+
+/** "even", "you +2" or "you −1": the material balance in a position, from your side. */
+function materialText(fen: string, you: string) {
+  let white = 0, black = 0
+  for (const ch of fen.split(' ')[0]) {
+    const v = PIECE_VALUE[ch.toLowerCase()]
+    if (v == null) continue
+    if (ch === ch.toUpperCase()) white += v
+    else black += v
+  }
+  const d = you === 'black' ? black - white : white - black
+  return d === 0 ? 'even' : `you ${d > 0 ? '+' : '−'}${Math.abs(d)}`
 }
 
-/**
- * Games you actually finished.
- *
- * Abandoned and still-IN_PROGRESS rows are filtered out rather than listed as
- * failures: a session row is created the moment a game starts, so a closed tab
- * or a double-clicked Start leaves rows behind that were never games. They are
- * not history, and showing a dozen of them would bury the games that are.
- */
-function HistoryPanel({ games }: { games: PracticeGameSummary[] }) {
-  const navigate = useNavigate()
-  const played = games.filter(g => g.status === 'FINISHED')
-
-  if (played.length === 0) return null
-
-  return (
-    <Panel title="Earlier practice games">
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {played.slice(0, 10).map(g => {
-          const reviewable = g.analysed && g.game_id !== null
-          return (
-            <div
-              key={g.id}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '7px 0',
-                borderTop: '1px solid var(--hairline)',
-                fontSize: '0.78rem',
-              }}
-            >
-              <span style={{ color: RESULT_COLOR[g.result ?? 'draw'], minWidth: 42, fontWeight: 600 }}>
-                {g.result === 'win' ? 'Won' : g.result === 'loss' ? 'Lost' : 'Drew'}
-              </span>
-              <span className="mono" style={{ color: 'var(--text-tertiary)', minWidth: 66 }}>
-                {new Date(g.started_at).toLocaleDateString()}
-              </span>
-              <span style={{ color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden',
-                             textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {g.target_opening ?? '—'}
-              </span>
-              {!g.rated && (
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>unrated</span>
-              )}
-              {reviewable ? (
-                <button
-                  onClick={() => navigate(`/play/review/${g.game_id}`)}
-                  style={{
-                    background: 'transparent', border: '1px solid var(--hairline)',
-                    color: 'var(--text-secondary)', borderRadius: 3,
-                    padding: '3px 9px', fontSize: '0.72rem', cursor: 'pointer',
-                  }}
-                >
-                  Review
-                </button>
-              ) : (
-                // Says which kind of absent this is. "Not analysed" and "analysis
-                // failed" look identical from here, but neither is "no mistakes".
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>
-                  not analysed
-                </span>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </Panel>
-  )
-}
-
-function Panel({ title, children }: { title?: string; children: React.ReactNode }) {
+function Panel({ title, label, children }: { title?: string; label?: string; children: React.ReactNode }) {
   return (
     <div className="card" style={{ padding: '18px 20px' }}>
       {title && (
@@ -182,50 +126,161 @@ function Panel({ title, children }: { title?: string; children: React.ReactNode 
           {title}
         </div>
       )}
+      {/* A micro-label, as the pre-game sections use. */}
+      {label && <div className="micro-label" style={{ marginBottom: 10 }}>{label}</div>}
       {children}
     </div>
   )
 }
 
-/**
- * The opponent's reasons, shown BEFORE the game starts.
- *
- * This is the difference between this and a chess bot: every line comes from a
- * count in your own history. When there is not enough history the profile says
- * so rather than inventing a justification.
- */
-function OpponentCard({ skill }: { skill?: number }) {
-  const { data } = useQuery({
-    queryKey: ['play-preview', skill],
-    queryFn: () => api.play.preview(skill),
-    staleTime: 60_000,
-  })
-  if (!data) return null
+const label: React.CSSProperties = { paddingTop: 2 }
+const value: React.CSSProperties = { margin: 0, fontSize: '0.82rem', lineHeight: 1.5 }
+const rows: React.CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'minmax(0, 8rem) minmax(0, 1fr)', gap: '8px 12px', margin: 0,
+}
 
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+const pct1 = (n: number | null | undefined) => (n == null ? '–' : `${Math.round(n * 10) / 10}%`)
+
+/** The colour a game will be played as: the chosen one, or the weaker. */
+function resolvedColour(choice: 'weak' | 'white' | 'black', profile?: OpponentProfile) {
+  return choice === 'weak' ? profile?.colour?.weaker ?? 'white' : choice
+}
+
+/** Why that colour, with the figures that decided it (finding 2). */
+function colourFigure(profile?: OpponentProfile): string | null {
+  const c = profile?.colour
+  if (!c) return null
+  if (c.basis === 'too few games') {
+    if (c.white.games === 0 && c.black.games === 0) return null
+    return `White: too few games to compare (${c.min_games} as each)`
+  }
+  const weak = c[c.weaker], other = c[c.weaker === 'white' ? 'black' : 'white']
+  const otherName = c.weaker === 'white' ? 'Black' : 'White'
+  return c.basis === 'accuracy'
+    ? `${cap(c.weaker)} · accuracy ${pct1(weak.accuracy)} vs ${pct1(other.accuracy)} as ${otherName} · ${weak.games} and ${other.games} games`
+    : `${cap(c.weaker)} · wins ${pct1(weak.win_pct)} vs ${pct1(other.win_pct)} as ${otherName} · ${weak.games} and ${other.games} games`
+}
+
+/** The strength, with its scale and how it was set: a cap is said to be a cap (finding 7). */
+function strengthText(profile: OpponentProfile): string {
+  const k = profile.skill
+  if (!k) return `engine skill ${profile.skill_level} of 20`
+  const head = `${k.level} of ${k.scale}`
+  if (k.requested) {
+    return k.calibrated != null && k.accuracy != null
+      ? `${head} · your choice; your ${Math.round(k.accuracy)}% average maps to ${Math.min(k.max, Math.max(k.min, k.calibrated))}`
+      : `${head} · your choice`
+  }
+  if (k.accuracy == null || k.calibrated == null) return `${head} · a default`
+  if (k.capped) {
+    return `${head} · the ${k.calibrated > k.level ? 'cap' : 'lowest it goes'}; your ${Math.round(k.accuracy)}% average maps to ${k.calibrated}`
+  }
+  return `${head} · from your ${Math.round(k.accuracy)}% average accuracy`
+}
+
+/** The page's one line: the game you are about to play. */
+function takeaway(profile: OpponentProfile, colour: string): string {
+  const opening = profile.opening?.name ?? profile.target_opening
+  const what = !profile.personalised ? 'default opponent' : opening ?? 'any opening'
+  const level = profile.skill?.level ?? profile.skill_level
+  return `Next game: ${what} as ${cap(colour)} · engine skill ${level} of ${profile.skill?.scale ?? 20}`
+}
+
+/**
+ * What the opponent DOES: the opening it steers toward and its strength. The
+ * phase and cause are not here, because the opponent does not aim at them
+ * (PLAY_PLAN.md, finding 15); they are under Watch for.
+ */
+function ThisGame({ profile }: { profile: OpponentProfile }) {
+  // A server from before the Play redesign sends only "Label: facts" lines.
+  if (profile.skill == null) {
+    return (
+      <section aria-label="This game" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <span className="micro-label">This game</span>
+        <dl style={rows} className="stack-on-phone">
+          {profile.rationale.map((line, i) => {
+            const at = line.indexOf(': ')
+            const l = at > 0 && at < 30 ? line.slice(0, at) : null
+            return (
+              <div key={i} style={{ display: 'contents' }}>
+                <dt className="micro-label" style={label}>{l ?? ''}</dt>
+                <dd style={value}>{l ? line.slice(at + 2) : line}</dd>
+              </div>
+            )
+          })}
+        </dl>
+      </section>
+    )
+  }
+  const o = profile.opening
+  if (!profile.personalised) {
+    return (
+      // U7: a new player's opponent says what it will become, and from what.
+      <TeachingEmpty compact title="Shaped by your analysed games" label="Opponent"
+                     note="No analysed games yet" link={{ to: '/library', text: 'Your games →' }} />
+    )
+  }
   return (
-    <Panel title="Your opponent">
-      {/* Each line is "Label: facts": the label as a label, the facts as a row. */}
-      <dl style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 9.5rem) minmax(0, 1fr)', gap: '6px 12px', margin: 0 }}
-          className="stack-on-phone">
-        {data.rationale.map((line, i) => {
-          const at = line.indexOf(': ')
-          const label = at > 0 && at < 30 ? line.slice(0, at) : null
-          return (
-            <div key={i} style={{ display: 'contents' }}>
-              <dt className="micro-label" style={{ paddingTop: 3 }}>{label ?? ''}</dt>
-              <dd style={{ margin: 0, fontSize: '0.82rem', lineHeight: 1.5, color: i === 0 ? 'var(--text)' : 'var(--text-secondary)' }}>
-                {label ? line.slice(at + 2) : line}
-              </dd>
+    <section aria-label="This game" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span className="micro-label">This game</span>
+      <dl style={rows} className="stack-on-phone">
+        <dt className="micro-label" style={label}>Opening</dt>
+        <dd style={value}>
+          {o ? <>
+                 {o.name} · <span className="mono">{o.serious_per_game.toFixed(1)}</span> vs your{' '}
+                 <span className="mono">{o.average.toFixed(1)}</span> serious mistakes per game ·{' '}
+                 <span className="mono">{o.games}</span> games
+               </>
+             : 'Left open: no opening is far enough above your average'}
+          {o && (
+            <div style={{ marginTop: 4 }}>
+              <Disclose summary="Why">
+                The opening most above your own average of serious mistakes per game in your Pattern Report,
+                with at least 5 games and 10 serious mistakes behind it. The opponent plays its first moves from
+                a book; after that the game is yours, so every game is aimed at this opening, not always played in it.
+              </Disclose>
             </div>
-          )
-        })}
+          )}
+        </dd>
+        <dt className="micro-label" style={label}>Strength</dt>
+        <dd style={value}>{strengthText(profile)}</dd>
       </dl>
-      {!data.personalised && (
-        <p style={{ marginTop: 10, marginBottom: 0, fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-          Analyse some games and this opponent will be built from them.
-        </p>
-      )}
-    </Panel>
+    </section>
+  )
+}
+
+/** What the Pattern Report found, from the same stored report: the opponent does not aim at these. */
+function WatchForPanel({ profile }: { profile: OpponentProfile }) {
+  const w = profile.watch_for
+  if (!w || (!w.phase && !w.cause && !w.tactic)) return null
+  return (
+    <details data-disclose className="disclose" aria-label="Watch for">
+      <summary>Watch for</summary>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
+      <p style={sectionLabel}>
+        From your Pattern Report; the opponent doesn't aim at these.{' '}
+        <Link to="/insights/patterns" style={{ ...linkStyle, fontSize: '0.78rem' }}>Pattern Report →</Link>
+      </p>
+      <dl style={rows} className="stack-on-phone">
+        {w.phase && <>
+          <dt className="micro-label" style={label}>Most often</dt>
+          <dd style={value}>
+            {w.phase.label} · <span className="mono">{w.phase.per_hundred.toFixed(1)}</span> vs{' '}
+            <span className="mono">{w.phase.overall.toFixed(1)}</span> per 100 moves
+          </dd>
+        </>}
+        {w.cause && <>
+          <dt className="micro-label" style={label}>Costliest</dt>
+          <dd style={value}>{w.cause.title} · <span className="mono">{w.cause.count}</span> of <span className="mono">{w.cause.base}</span> ({w.cause.pct}%)</dd>
+        </>}
+        {w.tactic && <>
+          <dt className="micro-label" style={label}>Tactic</dt>
+          <dd style={value}>{w.tactic.title} · <span className="mono">{w.tactic.count}</span> of <span className="mono">{w.tactic.base}</span> ({w.tactic.pct}%)</dd>
+        </>}
+      </dl>
+      </div>
+    </details>
   )
 }
 
@@ -280,14 +335,19 @@ function ReportPanel({ report }: { report: ImprovementReport }) {
         </p>
       )}
 
-      {canReview && (
-        <button
-          onClick={() => navigate(`/play/review/${report.game_id}`)}
-          style={{ ...secondaryBtn, marginTop: 16 }}
-        >
-          Show full analysis
-        </button>
-      )}
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
+        {canReview && (
+          <button onClick={() => navigate(`/play/review/${report.game_id}`)} style={secondaryBtn}>
+            Show full analysis
+          </button>
+        )}
+        {report.analysed && report.game_id && (report.drill_plies?.length ?? 0) > 0 && (
+          <Link to={drillLink(report.drill_plies!.map(ply => ({ game_id: report.game_id!, ply })))}
+                style={{ ...linkStyle, fontSize: '0.82rem' }}>
+            Drill this game's mistakes ({report.drill_plies!.length})
+          </Link>
+        )}
+      </div>
     </Panel>
   )
 }
@@ -315,7 +375,7 @@ export function PlayImprove() {
    * Still NOT /api/analysis/progress: that tracks the LIBRARY run, and practice
    * games go through practiceExecutor without registering with
    * AnalysisProgressTracker, precisely so a post-game report does not queue
-   * behind a hundred-game Re-analyze All. Reading it here showed 0/0 in the
+   * behind a hundred-game Re-analyse All. Reading it here showed 0/0 in the
    * ordinary case and "47 / 101 games" — a real number about a different job —
    * whenever a library analysis happened to be running.
    *
@@ -325,6 +385,13 @@ export function PlayImprove() {
   const [elapsed, setElapsed] = useState<number | null>(null)
   const [progress, setProgress] = useState<GameAnalysisProgress | null>(null)
   const [colour, setColour] = useState<'weak' | 'white' | 'black'>('weak')
+  /** I1: a strength the player chose; undefined means the recommended one. */
+  const [skill, setSkill] = useState<number | undefined>()
+  const { data: profile } = useQuery({
+    queryKey: ['play-preview', skill],
+    queryFn: () => api.play.preview(skill),
+    staleTime: 60_000,
+  })
 
   const pollRef = useRef<number | null>(null)
 
@@ -386,7 +453,7 @@ export function PlayImprove() {
     setErr(null); setReport(null); stopPolling(); setAnalysing(false)
     praxInteract('PRIMARY_ACTION')
     try {
-      const s = await api.play.start({ color: colour === 'weak' ? undefined : colour })
+      const s = await api.play.start({ color: colour === 'weak' ? undefined : colour, skill })
       setSession(s); setFen(s.fen); setSanMoves(s.san_moves ?? '')
       praxBus.emit({ type: 'PRACTICE_GAME_STARTED' })
     } catch (e) {
@@ -449,8 +516,9 @@ export function PlayImprove() {
 
   if (status && !status.available) {
     return (
+      <Page width="standard">
       <div style={{ maxWidth: 620 }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 6px' }}>Play &amp; Improve</h2>
+        <h1 className="sr-only">Play &amp; Improve</h1>
         <Panel>
           <p style={{ margin: 0, fontSize: '0.85rem' }}>
             The chess engine is not running, so there is no opponent to play.
@@ -458,77 +526,104 @@ export function PlayImprove() {
           </p>
         </Panel>
       </div>
+      </Page>
     )
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 'min(100%, 900px)' }}>
-      <div>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Play &amp; Improve</h2>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-          An opponent built from your games, then measured the same way.
-        </p>
+    // Standard before a game; wide during one, for the board and its panel (D1).
+    <Page width={session ? 'wide' : 'standard'}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {/* The nav names this page; the heading stays for screen readers and tests, not the eye. */}
+        <h1 className="sr-only">Play &amp; Improve</h1>
+        {/* With the heading gone from sight, the next game is the page's lead line. */}
+        {!session && profile && (
+          <p data-reading="takeaway" style={{ fontSize: 'var(--fs-section)', fontWeight: 600, margin: 0 }}>
+            {takeaway(profile, resolvedColour(colour, profile))}
+          </p>
+        )}
       </div>
 
-      {!session && <OpponentCard />}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* The page's one solid button, before anything else (principle 10). */}
+          <button className={!session || finished ? 'solid' : 'secondary'} onClick={newGame}
+                  style={{ padding: '7px 16px', fontSize: '0.82rem' }}>
+            {session ? 'New game' : 'Start a game'}
+          </button>
+
+          {!session && (
+            <>
+              <select
+                // Without a name this is announced as an unlabelled combobox.
+                aria-label="Which colour to play"
+                value={colour}
+                onChange={e => setColour(e.target.value as 'weak' | 'white' | 'black')}
+                style={selectStyle}
+              >
+                <option value="weak">
+                  {profile?.colour ? `Weaker colour: ${cap(profile.colour.weaker)}` : 'Your weaker colour'}
+                </option>
+                <option value="white">White</option>
+                <option value="black">Black</option>
+              </select>
+              {/* I1: choose the strength; the recommended one is preselected. */}
+              <select
+                aria-label="Engine strength"
+                value={skill ?? ''}
+                onChange={e => setSkill(e.target.value === '' ? undefined : Number(e.target.value))}
+                style={selectStyle}
+              >
+                <option value="">
+                  Strength: recommended{profile && skill == null ? ` (${profile.skill?.level ?? profile.skill_level})` : ''}
+                </option>
+                {Array.from({ length: (profile?.skill?.max ?? 14) - (profile?.skill?.min ?? 1) + 1 },
+                            (_, i) => (profile?.skill?.min ?? 1) + i).map(n => (
+                  <option key={n} value={n}>Strength: {n} of {profile?.skill?.scale ?? 20}</option>
+                ))}
+              </select>
+            </>
+          )}
+
+          {session && !finished && (
+            <>
+              <button onClick={doUndo} style={secondaryBtn}>Undo</button>
+              <button onClick={doResign} style={secondaryBtn}>Resign</button>
+            </>
+          )}
+
+          {session && !session.rated && (
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              Takeback used: this game will not count toward your progress.
+            </span>
+          )}
+        </div>
+        {!session && colour === 'weak' && colourFigure(profile) && (
+          <p style={{ ...muted, margin: 0, fontSize: '0.75rem' }}>{colourFigure(profile)}</p>
+        )}
+      </div>
+
+      {!session && profile && <ThisGame profile={profile} />}
+      {!session && profile && <WatchForPanel profile={profile} />}
       {/*
         Also shown once a game is over, not only before one starts. If the report
         poll gives up at five minutes the analysis still completes server-side,
-        and without this the finished report would be unreachable — the page
+        and without this the finished report would be unreachable: the page
         holds no session across a reload.
       */}
-      {(!session || finished) && history && <HistoryPanel games={history} />}
-      {(!session || finished) && <PracticePatterns />}
-
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button className="btn-primary" onClick={newGame} style={{ padding: '7px 16px', fontSize: '0.82rem' }}>
-          {session ? 'New game' : 'Start a game'}
-        </button>
-
-        {!session && (
-          <select
-            // Without a name this is announced as an unlabelled combobox — the
-            // options alone do not say what is being chosen.
-            aria-label="Which colour to play"
-            value={colour}
-            onChange={e => setColour(e.target.value as 'weak' | 'white' | 'black')}
-            style={{
-              background: 'var(--surface-2, #1B1920)', color: 'var(--text)',
-              border: '1px solid var(--hairline)', borderRadius: 4,
-              padding: '6px 9px', fontSize: '0.78rem',
-            }}
-          >
-            <option value="weak">Your weaker colour</option>
-            <option value="white">Play White</option>
-            <option value="black">Play Black</option>
-          </select>
-        )}
-
-        {session && !finished && (
-          <>
-            <button onClick={doUndo} style={secondaryBtn}>Undo</button>
-            <button onClick={doResign} style={secondaryBtn}>Resign</button>
-          </>
-        )}
-
-        {session && !session.rated && (
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            Takeback used — this game will not count toward your progress.
-          </span>
-        )}
-      </div>
+      {(!session || finished) && history && <PracticeSoFar games={history} />}
 
       {err && <p style={{ fontSize: '0.8rem', color: 'var(--loss, #E2664A)', margin: 0 }}>{err}</p>}
 
       {session && (
         <BoardSplit boardBasis={320} boardMax={460} gap={18}>
           <div>
-            <Chessboard
+            <ThemedBoard
               position={fen}
               boardOrientation={orientation as 'white' | 'black'}
               onPieceDrop={onDrop}
               arePiecesDraggable={!finished && !thinking}
-              customBoardStyle={{ borderRadius: 6 }}
             />
             <div style={{ marginTop: 8, fontSize: '0.74rem', color: 'var(--text-muted)', minHeight: 18 }}>
               {finished
@@ -538,14 +633,25 @@ export function PlayImprove() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {session.target_opening && (
-              <Panel title="This game is pressing">
+            {/* N6: what the game is, the habit you are working on, and the material, while you play. */}
+            <Panel label="This game">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <p style={{ margin: 0, fontSize: '0.82rem' }}>
-                  {session.target_opening}
-                  <span style={{ color: 'var(--text-muted)' }}> · engine skill {session.skill_level}/20</span>
+                  {session.target_opening ?? 'Any opening'}
+                  <span style={{ color: 'var(--text-muted)' }}> · engine skill {session.skill_level} of 20</span>
                 </p>
-              </Panel>
-            )}
+                {profile?.watch_for?.cause && (
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <span className="micro-label" style={{ marginRight: 6 }}>Watch for</span>
+                    {profile.watch_for.cause.title}{profile.watch_for.tactic ? ` · ${profile.watch_for.tactic.title}` : ''}
+                  </p>
+                )}
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  <span className="micro-label" style={{ marginRight: 6 }}>Material</span>
+                  <span className="mono">{materialText(fen, orientation)}</span>
+                </p>
+              </div>
+            </Panel>
 
             {sanMoves && (
               <Panel title="Moves">
@@ -584,7 +690,7 @@ export function PlayImprove() {
                       position: 'absolute', top: 0, left: 0, bottom: 0,
                       width: `${Math.min(100, (progress.done / progress.total) * 100)}%`,
                       background: 'var(--orchid, #E7A6D6)',
-                      transition: 'width 300ms linear',
+                      transition: 'width var(--dur-fill) var(--ease-out)',
                     }} />
                   ) : (
                     <div style={{
@@ -620,9 +726,14 @@ export function PlayImprove() {
 
       {/* 0.28 put Prax's body over the sync toolbar. The board is tall, so the
           anchor sits at the same mid-height every other page uses. */}
-      <PraxAnchor x={0.86} y={0.45} />
     </div>
+    </Page>
   )
+}
+
+const selectStyle: React.CSSProperties = {
+  background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--hairline)',
+  borderRadius: 4, padding: '6px 9px', fontSize: '0.78rem',
 }
 
 const secondaryBtn: React.CSSProperties = {

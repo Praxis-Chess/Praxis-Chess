@@ -119,4 +119,10 @@ public class Game {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
+
+    // The analysis sweep's evaluation after each half-move, from White's side, in
+    // pawns (mate ±100), comma-separated (U5: Game Analysis's eval graph). Null
+    // for games analysed before it was stored, until they are analysed again.
+    @Column(name = "eval_curve", columnDefinition = "TEXT")
+    private String evalCurve;
 }

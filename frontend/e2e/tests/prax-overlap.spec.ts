@@ -14,8 +14,8 @@ import * as data from '../fixtures/data'
  * covered by the Prax column — rather than asserting a specific position, so
  * they keep holding if the placement rule is tuned again.
  *
- * Run on Library: Prax's body, and so its column, appears only on Today,
- * Progress and Library (PRAX_BODY_ROUTES). Play no longer shows it at all.
+ * The card docks bottom right now that the particle body is retired; on a
+ * phone it is a bottom sheet. Run on Library, with an analysis running.
  */
 
 /** Every interactive control the card is actually sitting on top of. */
@@ -58,21 +58,37 @@ for (const viewport of [
   })
 }
 
-test('the card docks to the bottom edge in a very narrow window', async ({ page, api }) => {
+/**
+ * A run's progress card appears only in the margin beside the page. A phone has
+ * no margin, so there is no card there at all: the sync banner under the nav
+ * already shows the run, and nothing covers the page.
+ */
+test('no progress card on a phone: the banner carries the run', async ({ page, api }) => {
   api.json('/api/analysis/progress', data.analysisRunning)
   await page.setViewportSize({ width: 375, height: 812 })
 
   await new AppPage(page).goto('/library')
   await page.waitForTimeout(600)
 
-  const box = await page.locator('div[style*="z-index: 60"], div[style*="zIndex: 60"]').first().boundingBox()
-  expect(box, 'the Prax column never rendered').not.toBeNull()
-  // Within the edge clearance of the floor — a predictable strip, not a
-  // position that drifts with the organism.
-  expect(812 - (box!.y + box!.height)).toBeLessThanOrEqual(20)
+  await expect(page.locator('div[style*="z-index: 60"]')).toHaveCount(0)
+  await expect(page.getByLabel('Library status')).toContainText(/Analysing 47 \/ 101 games/)
 })
 
-test('no Prax column on a page that does not show Prax', async ({ page, api }) => {
+/** On a wide screen the margin beside the centred page holds it, clear of the page. */
+test('the progress card sits in the margin beside the page on a wide screen', async ({ page, api }) => {
+  api.json('/api/analysis/progress', data.analysisRunning)
+  await page.setViewportSize({ width: 1920, height: 1080 })
+
+  await new AppPage(page).goto('/library')
+  await page.waitForTimeout(600)
+
+  const card = (await page.locator('div[style*="z-index: 60"]').first().boundingBox())!
+  const pageBox = (await page.locator('[data-page]').boundingBox())!
+  expect(card, 'the Prax column never rendered').not.toBeNull()
+  expect(card.x).toBeGreaterThanOrEqual(pageBox.x + pageBox.width)
+})
+
+test('no Prax column on a page outside PRAX_CARD_ROUTES', async ({ page, api }) => {
   api.json('/api/analysis/progress', data.analysisRunning)
   await page.setViewportSize({ width: 375, height: 812 })
   await new AppPage(page).goto('/play')

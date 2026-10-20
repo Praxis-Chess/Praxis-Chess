@@ -1,0 +1,152 @@
+{
+ "screen": "today",
+ "state": "empty-deck",
+ "path": "/",
+ "metrics": {
+  "prose": 43,
+  "data": 9,
+  "paragraphs": []
+ },
+ "pairs": [
+  [
+   "",
+   "~aug",
+   2
+  ],
+  [
+   "",
+   "~recorded today",
+   1
+  ],
+  [
+   "",
+   "0",
+   4
+  ],
+  [
+   "",
+   "17",
+   1
+  ],
+  [
+   "",
+   "23",
+   1
+  ],
+  [
+   "",
+   "5",
+   1
+  ],
+  [
+   "2026-08-17 — examined",
+   "~mon",
+   1
+  ],
+  [
+   "2026-08-18 — examined",
+   "~tue",
+   1
+  ],
+  [
+   "2026-08-19 — examined",
+   "~wed",
+   1
+  ],
+  [
+   "2026-08-20 — examined",
+   "~thu",
+   1
+  ],
+  [
+   "2026-08-21 — examined",
+   "~fri",
+   1
+  ],
+  [
+   "2026-08-22 — upcoming",
+   "~sat",
+   1
+  ],
+  [
+   "2026-08-23 — upcoming",
+   "~sun",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "@/insights/patterns",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "~12",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "~blunders",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "~blunders in middlegame",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "~middlegame",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "101",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "154",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "8",
+   1
+  ],
+  [
+   "You lose material in the middlegame more than anywhere else",
+   "97",
+   1
+  ]
+ ],
+ "methods": [
+  [
+   "2026-08-17 — examined",
+   "2026-08-17 — examined"
+  ],
+  [
+   "2026-08-18 — examined",
+   "2026-08-18 — examined"
+  ],
+  [
+   "2026-08-19 — examined",
+   "2026-08-19 — examined"
+  ],
+  [
+   "2026-08-20 — examined",
+   "2026-08-20 — examined"
+  ],
+  [
+   "2026-08-21 — examined",
+   "2026-08-21 — examined"
+  ],
+  [
+   "2026-08-22 — upcoming",
+   "2026-08-22 — upcoming"
+  ],
+  [
+   "2026-08-23 — upcoming",
+   "2026-08-23 — upcoming"
+  ]
+ ]
+}

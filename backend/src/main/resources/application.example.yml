@@ -73,6 +73,13 @@ praxis-chess:
     # which spends its whole output budget inside <think> and returns an empty
     # answer. ~3.6GB — mostly fits a 4GB card, ~18% of layers stay on CPU.
     reasoning-model: qwen3:4b-instruct
+    # The checked commentary on each mistake: a model trained for Praxis
+    # (~1.3 GB). Blank turns the commentary off; the verified diagnosis still shows.
+    commentary-model: praxis-grid-2b-r3
+  # The day boundary for practice streaks and "due today". Blank: this machine's
+  # zone. An IANA name otherwise, e.g. Asia/Kolkata.
+  practice:
+    timezone: ""
   # Optional: a cloud model provider instead of Ollama, chosen per feature.
   # Default (this block absent or use-cloud-for empty): everything runs on Ollama
   # and nothing leaves this machine. A listed feature sends your positions and

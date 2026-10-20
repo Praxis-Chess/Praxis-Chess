@@ -14,6 +14,30 @@ import java.util.UUID;
 
 public interface CardRepository extends JpaRepository<Card, UUID> {
 
+    /** One card per game and ply (DeckRule): re-analysis makes new MoveError rows for the same moves. */
+    @Query("""
+        SELECT COUNT(c) FROM Card c
+        WHERE c.username = :username AND c.sourceError.game.id = :gameId AND c.sourceError.moveNumber = :ply
+        """)
+    long countForGameAndPly(@Param("username") String username, @Param("gameId") UUID gameId, @Param("ply") int ply);
+
+    /** Cards first attempted at or after {@code since}: the new cards introduced today (DeckRule.NEW_PER_DAY). */
+    @Query("""
+        SELECT COUNT(c) FROM Card c
+        WHERE c.username = :username
+          AND (SELECT MIN(a.createdAt) FROM Attempt a WHERE a.card = c) >= :since
+        """)
+    long countIntroducedSince(@Param("username") String username, @Param("since") java.time.OffsetDateTime since);
+
+    /** Reviews due today or overdue: learning, relearning and review cards (never new, never suspended). */
+    @Query("""
+        SELECT COUNT(c) FROM Card c
+        WHERE c.username = :username
+          AND c.status <> 'SUSPENDED' AND c.status <> 'NEW'
+          AND c.dueDate <= :today
+        """)
+    long countDueReviews(@Param("username") String username, @Param("today") LocalDate today);
+
     /** A player's cards from mistakes in these games, with the mistake loaded: plan positions → cards (F11). */
     @Query("""
         SELECT c FROM Card c JOIN FETCH c.sourceError e JOIN FETCH e.game g
@@ -21,8 +45,6 @@ public interface CardRepository extends JpaRepository<Card, UUID> {
         """)
     List<Card> findByUsernameAndGameIds(@Param("username") String username,
                                         @Param("gameIds") java.util.Collection<UUID> gameIds);
-
-    List<Card> findByUsernameOrderByCreatedAtDesc(String username);
 
     /** Cards due today or overdue, ordered by due_date ascending (most overdue first). */
     @Query("""

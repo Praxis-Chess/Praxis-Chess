@@ -30,17 +30,17 @@ export class AppPage {
     return this.main.getByRole('heading').first()
   }
 
-  /** Prax's WebGL surface. */
-  get praxCanvas(): Locator {
-    return this.page.locator('canvas')
+  /** The ambient background's canvas (src/background). */
+  get backgroundCanvas(): Locator {
+    return this.page.locator('.ambient-background canvas')
   }
 
   /**
-   * The wrapper PraxHost puts around the canvas. aria-hidden lives here rather
-   * than on the <canvas> itself, so assert against this element.
+   * The background's wrapper. aria-hidden lives here rather than on the
+   * <canvas>, and it carries data-background, data-motion and data-energy.
    */
-  get praxContainer(): Locator {
-    return this.page.locator('canvas').locator('..')
+  get background(): Locator {
+    return this.page.locator('.ambient-background')
   }
 
   get syncNowButton(): Locator {

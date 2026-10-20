@@ -18,12 +18,9 @@ export function RecentGames({ games }: Props) {
         const opening  = (g.opening_name ?? g.opening_eco ?? 'Unknown').slice(0, 18)
 
         return (
-          <div key={g.id}
+          <div key={g.id} className="row-link"
                onClick={() => navigate(`/games/${g.id}`)}
-               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 6,
-                        cursor: 'pointer', transition: 'background 0.12s' }}
-               onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', cursor: 'pointer' }}>
             <span style={{ fontWeight: 700, fontSize: '0.8rem', color: resColor, width: 28, flexShrink: 0 }}>{resLabel}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: '0.78rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opening}</div>

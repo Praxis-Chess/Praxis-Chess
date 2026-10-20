@@ -32,7 +32,14 @@ public record GameReviewDto(
         String result,
         Double accuracy,
         String analysisStatus,
-        List<ReviewMove> moves
+        List<ReviewMove> moves,
+        /**
+         * The evaluation after each half-move, from White's side, in pawns (mate
+         * ±100), aligned with {@code moves}; null when this game was analysed
+         * before the curve was stored (U5). An entry is null where it was not
+         * measured.
+         */
+        List<Double> evals
 ) {
 
     /**
@@ -82,7 +89,20 @@ public record GameReviewDto(
 
         return new GameReviewDto(
                 game.getId(), parsed.playerColor(), parsed.openingEco(), parsed.openingName(),
-                parsed.result(), game.getAccuracy(), game.getAnalysisStatus().name(), moves);
+                parsed.result(), game.getAccuracy(), game.getAnalysisStatus().name(), moves,
+                curve(game.getEvalCurve(), moves.size()));
+    }
+
+    /** The stored curve, or null when there is none or it no longer lines up with the moves. */
+    static List<Double> curve(String stored, int plies) {
+        if (stored == null || stored.isBlank()) return null;
+        String[] parts = stored.split(",", -1);
+        if (parts.length != plies) return null;
+        List<Double> out = new java.util.ArrayList<>(plies);
+        for (String p : parts) {
+            try { out.add(p.isBlank() ? null : Double.parseDouble(p)); } catch (NumberFormatException e) { out.add(null); }
+        }
+        return out;
     }
 
     private static ReviewMove toReviewMove(ParsedMove m, boolean playerIsWhite, MoveError error,

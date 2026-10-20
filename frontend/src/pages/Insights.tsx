@@ -1,23 +1,32 @@
-import { Link, NavLink, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
+import { Tabs } from '../components/Tabs'
+import { StaticBoard } from '../components/StaticBoard'
 import { PatternReport } from './PatternReport'
 import { TrainingPlan } from './TrainingPlan'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { PraxAnchor } from '../prax/PraxHost'
 import {
   BarChart, Bar, ComposedChart, Area, XAxis, YAxis, Tooltip, Legend,
-  ResponsiveContainer, CartesianGrid, Cell,
+  ResponsiveContainer, CartesianGrid, Cell, ReferenceLine, LabelList,
 } from 'recharts'
 import { api } from '../api/client'
 import type { TimeBucket, TimeClassCount } from '../api/types'
-import { Disclose, dayMonth } from '../components/report/ReportParts'
+import { Disclose, dayMonth, drillLink } from '../components/report/ReportParts'
+import { takeaway } from '../components/insights/takeaway'
 
 // Results colours only: pink is for what can be clicked, so an even win rate is neutral.
 const wrColor = (pct: number) =>
   pct >= 55 ? 'var(--green)' : pct >= 45 ? 'var(--text-primary)' : 'var(--red)'
-/** Bars behind a neutral figure: a brighter neutral, never the accent. */
-const wrBar = (pct: number) =>
-  pct >= 55 ? 'var(--green)' : pct >= 45 ? 'var(--grey-1)' : 'var(--red)'
+/**
+ * A win rate against your own (U6, N9): at your overall rate about 42%, a bar
+ * judged against 50 is red almost everywhere and the page reads as alarm. Ten
+ * points either side of your rate is coloured; the rest is your normal.
+ */
+const VS_YOU = 10
+const vsYou = (pct: number, base: number) =>
+  pct >= base + VS_YOU ? 'var(--green)' : pct <= base - VS_YOU ? 'var(--red)' : 'var(--text-primary)'
+const vsYouBar = (pct: number, base: number) =>
+  pct >= base + VS_YOU ? 'var(--green)' : pct <= base - VS_YOU ? 'var(--red)' : 'var(--grey-1)'
 
 /** The diagnosis's "no tactic" categories: counted, never shown as a tactic (as in the Pattern Report). */
 const NOT_A_TACTIC = new Set(['POSITIONAL', 'OTHER'])
@@ -26,6 +35,9 @@ const motifLabel = (m: string) =>
   m.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')
 
 /** A card's title and, at most, a few words on what it measures. */
+/** As the server's Thresholds.MIN_GAMES: fewer games than this and a win rate is marked few. */
+const MIN_GAMES = 5
+
 function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 14 }}>
@@ -60,20 +72,49 @@ function dateTicks(times: number[]): number[] {
   return ticks
 }
 
-function WinRateBars({ data }: { data: TimeBucket[] }) {
-  const rows = data.map(d => ({ label: d.label, win_pct: d.win_pct, games: d.games }))
+/**
+ * Win rate per bucket against your own rate (U6, N9): the dashed line is you,
+ * each bar's figure sits on it, and a bucket of fewer than MIN_GAMES games is
+ * faded and never coloured (N10).
+ */
+function WinRateBars({ data, base, note }: {
+  data: Pick<TimeBucket, 'label' | 'games' | 'win_pct'>[]
+  base: number
+  /** The line under the chart; by default, the bucket furthest from your rate. */
+  note?: React.ReactNode
+}) {
+  const counted = data.filter(d => d.games >= MIN_GAMES)
+  const far = counted.reduce<typeof counted[number] | null>((a, b) =>
+    !a || Math.abs(b.win_pct - base) > Math.abs(a.win_pct - base) ? b : a, null)
+  const line = note ?? (far && Math.abs(far.win_pct - base) >= VS_YOU
+    ? `${far.label} ${far.win_pct}% · ${far.games}g · ${Math.round(Math.abs(far.win_pct - base))} ${far.win_pct > base ? 'above' : 'below'} you`
+    : 'No outlier (10+ points)')
+  const rows = data.map(d => ({ label: d.label, win_pct: d.win_pct, games: d.games,
+                                shown: d.games > 0 ? `${d.win_pct}%` : '' }))
+  // The chart takes whatever height the row gives the card, so a longer note
+  // beside it never leaves a void below a shorter one (U6).
   return (
-    <ResponsiveContainer width="100%" height={170}>
-      <BarChart data={rows} margin={{ top: 4, right: 8, left: -22, bottom: 0 }}>
+    <>
+    <div style={{ flex: 1, minHeight: 170 }}>
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={rows} margin={{ top: 16, right: 8, left: -22, bottom: 0 }} accessibilityLayer={false}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-        <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} />
-        <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} domain={[0, 100]} />
-        <Tooltip {...tooltipStyle} formatter={(value, _name, item) => [`${value}% · ${(item as { payload?: { games?: number } })?.payload?.games ?? 0}g`, 'Win rate']} cursor={{ fill: 'var(--surface-2)' }} />
-        <Bar dataKey="win_pct" radius={[3, 3, 0, 0]}>
-          {rows.map((r, i) => <Cell key={i} fill={r.games === 0 ? 'var(--surface-2)' : wrBar(r.win_pct)} />)}
+        <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} interval={0} />
+        <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} domain={[0, 100]} ticks={[0, 50, 100]} />
+        <Tooltip {...tooltipStyle} formatter={(value, _name, item) => [`${value}% · ${(item as { payload?: { games?: number } })?.payload?.games ?? 0} games`, 'Win rate']} cursor={{ fill: 'var(--surface-2)' }} />
+        <ReferenceLine y={base} stroke="var(--text-secondary)" strokeDasharray="4 3" />
+        <Bar dataKey="win_pct" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+          {rows.map((r, i) => (
+            <Cell key={i} fill={r.games === 0 ? 'var(--surface-2)' : r.games < MIN_GAMES ? 'var(--grey-3)' : vsYouBar(r.win_pct, base)}
+                  fillOpacity={r.games > 0 && r.games < MIN_GAMES ? 0.5 : 1} />
+          ))}
+          <LabelList dataKey="shown" position="top" style={{ fill: 'var(--text-muted)', fontSize: 10 }} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
+    </div>
+    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 6, display: 'flex', flexWrap: 'wrap', columnGap: 12 }}>{line}</div>
+    </>
   )
 }
 
@@ -145,28 +186,13 @@ export function Insights() {
   const { tab = '' } = useParams()
   const active = TABS.some(t => t.key === tab) ? tab : ''
   return (
-    // Insights is the one page whose analytics span the full column, leaving no
-    // negative space for Prax. Capping the width opens the right-hand column the
-    // other pages already have — Prax occupies space rather than competing for it.
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 'min(100%, 860px)' }}>
-      <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Insights</h2>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* The nav names this page; the heading stays for screen readers and tests, not the eye. */}
+      <h1 className="sr-only">Insights</h1>
       {/* A group, not a second <nav>: the app shell owns the one navigation landmark. */}
-      <div role="group" aria-label="Insights sections" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid var(--hairline)', paddingBottom: 8 }}>
-        {TABS.map(t => (
-          <NavLink key={t.key} to={t.to} end aria-current={active === t.key ? 'page' : undefined}
-                   style={{
-                     padding: '5px 12px', borderRadius: 4, fontSize: '0.82rem', textDecoration: 'none',
-                     color: active === t.key ? 'var(--orchid)' : 'var(--text-secondary)',
-                     background: active === t.key ? 'var(--accent-wash)' : 'transparent',
-                     fontWeight: active === t.key ? 600 : 400,
-                   }}>
-            {t.label}
-          </NavLink>
-        ))}
-      </div>
+      <Tabs label="Insights sections" items={TABS} active={active} />
       {active === 'patterns' ? <PatternReport /> : active === 'training' ? <TrainingPlan /> : <InsightsOverview />}
       {/* Right of the capped analytics column, clear of KPI cards and charts. */}
-      <PraxAnchor x={0.85} y={0.45} />
     </div>
   )
 }
@@ -182,7 +208,7 @@ function InsightsOverview() {
 
   if (isLoading) return <p style={{ color: 'var(--text-muted)' }}>Loading insights…</p>
   if (error)     return <p style={{ color: 'var(--red)' }}>Failed to load insights. Is analysis done?</p>
-  if (!data)     return <p style={{ color: 'var(--text-muted)' }}>No data yet. Sync and analyze games first.</p>
+  if (!data)     return <p style={{ color: 'var(--text-muted)' }}>No data yet. Sync and analyse games first.</p>
 
   const tm = data.time_management
   const cv = data.conversion
@@ -201,12 +227,30 @@ function InsightsOverview() {
   const xTicks = dateTicks(accSeries.map(p => p.ts))
   // Elo is drawn on its own right-hand axis: it lives around 1000–1600, accuracy on 0–100.
   const hasRating = accSeries.some(p => p.rating != null)
+  // U6: the trend chart's story in one line, and your own win rate as the
+  // baseline every win-rate figure on the page is read against (N9).
+  const story = takeaway(data.accuracy_trend)
+  const played = data.time_of_day.reduce((a, b) => a + b.games, 0)
+  const base = played > 0 ? Math.round((data.time_of_day.reduce((a, b) => a + b.wins, 0) / played) * 1000) / 10 : 50
+  const drillable = cv.blown_games.filter(g => g.turning_ply != null)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <TimeClassPicker selected={data.time_class ?? null} options={data.time_classes ?? []} onPick={setTimeClass} />
 
       <MixedSettingsNotice />
+
+      {/* U6, N8: what the trend chart says, before the figures. */}
+      {story && (
+        <p aria-label="Takeaway" style={{ margin: 0, fontSize: 'var(--fs-section)', fontWeight: 600, lineHeight: 1.4, textWrap: 'balance' }}>
+          {story.text}{' '}
+          {story.falling && (
+            <Link to="/insights/patterns" className="link" style={{ fontSize: 'var(--fs-body)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+              What goes wrong →
+            </Link>
+          )}
+        </p>
+      )}
 
       {/* Row 1 — headline metric cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 12 }}>
@@ -238,9 +282,18 @@ function InsightsOverview() {
           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>timed games</div>
         </div>
 
-        <Link to="/drills" className="card" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent)' }}>♟ Drill →</div>
-        </Link>
+        {/* Resilience, a figure like the others (U6): the Drill tile was a link dressed as one (N14). */}
+        <div className="card">
+          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: data.tilt.after_loss_games >= MIN_GAMES ? vsYou(data.tilt.after_loss_win_pct, base) : 'var(--text-primary)' }}>
+            {data.tilt.after_loss_games > 0 ? `${data.tilt.after_loss_win_pct}%` : '—'}
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>Win % after a loss</div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>
+            {data.tilt.after_win_win_pct}% after a win · {data.tilt.after_loss_games} / {data.tilt.after_win_games} games
+            {/* More than 8 points below a win: the loss is still in the next game. */}
+            {data.tilt.after_loss_win_pct < data.tilt.after_win_win_pct - 8 && <span style={{ color: 'var(--red)' }}> · rest first</span>}
+          </div>
+        </div>
       </div>
 
       {/* Row 2 — accuracy trend (full width) */}
@@ -292,7 +345,7 @@ function InsightsOverview() {
             </ComposedChart>
           </ResponsiveContainer>
           </div>
-        ) : <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Not enough analyzed games yet.</p>}
+        ) : <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Not enough analysed games yet.</p>}
         <Disclose>
           {hasRating
             ? 'Per-game accuracy with a rolling average of up to 10 games (left axis), and your Elo in each game (right axis). Dates are to scale.'
@@ -300,32 +353,36 @@ function InsightsOverview() {
         </Disclose>
       </div>
 
-      {/* Row 3 — opponent strength | phase leak | missed tactics */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 16 }}>
-        <div className="card">
-          <SectionTitle hint="Win % · ±50 bands">vs Opponent Strength</SectionTitle>
-          {data.opponent_strength.map(b => (
-            <div key={b.bucket} style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 4 }}>
-                <span>{b.bucket}</span>
-                <span style={{ color: 'var(--text-muted)' }}>
-                  {b.games > 0 ? `${b.win_pct}% · ${b.games}g` : 'no games'}
-                  {b.avg_accuracy != null ? ` · ${b.avg_accuracy}% acc` : ''}
-                </span>
-              </div>
-              <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${b.win_pct}%`, background: wrBar(b.win_pct), borderRadius: 4 }} />
-              </div>
-            </div>
-          ))}
+      {/* Row 3 — win rate, three ways, each against your own rate (U6, N9). */}
+      <div className="win-rates" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <SectionTitle hint={`Win % · ±50 bands · line: your ${base}%`}>vs Opponent Strength</SectionTitle>
+          <WinRateBars base={base} data={data.opponent_strength.map(b => ({ label: b.bucket, games: b.games, win_pct: b.win_pct }))}
+                       note={data.opponent_strength.map(b => (
+                         // One run per band, so each reads as its own figure.
+                         <span key={b.bucket}>
+                           {b.bucket} {b.games > 0 ? `${b.win_pct}% · ${b.games}g${b.avg_accuracy != null ? ` · ${b.avg_accuracy}% acc` : ''}${b.games < MIN_GAMES ? ' · few' : ''}` : 'no games'}
+                         </span>
+                       ))} />
         </div>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <SectionTitle hint="Win %">Time of Day</SectionTitle>
+          <WinRateBars base={base} data={data.time_of_day} />
+        </div>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <SectionTitle hint="Win %">Day of Week</SectionTitle>
+          <WinRateBars base={base} data={data.day_of_week} />
+        </div>
+      </div>
 
-        <div className="card">
-          {/* phase_accuracy holds mistake COUNTS per phase (the field is misnamed): a share of
-              all flagged mistakes, not a rate. The rate per 100 moves is on the Pattern Report. */}
-          <SectionTitle hint={<>All flagged · <Link to="/insights/patterns#where-they-happen">per 100 moves →</Link></>}>
-            Mistakes by Phase
-          </SectionTitle>
+      {/* Row 4 — where the mistakes are: the phase split as one strip, the tactics beneath (U6). */}
+      <div className="card">
+        {/* phase_accuracy holds mistake COUNTS per phase (the field is misnamed): a share of
+            all flagged mistakes, not a rate. The rate per 100 moves is on the Pattern Report. */}
+        <SectionTitle hint={<>All flagged · <Link to="/insights/patterns#where-they-happen">per 100 moves →</Link></>}>
+          Mistakes by Phase
+        </SectionTitle>
+        <div role="list" aria-label="Mistakes by phase" style={{ display: 'flex', gap: 2, marginBottom: 18 }}>
           {[
             { label: 'Opening', count: data.phase_accuracy.opening },
             { label: 'Middlegame', count: data.phase_accuracy.middlegame },
@@ -333,110 +390,78 @@ function InsightsOverview() {
           ].map(({ label, count }) => {
             const pct = Math.round((count / phaseTotal) * 100)
             return (
-              <div key={label} style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 4 }}>
+              <div role="listitem" key={label} style={{ flex: `${Math.max(pct, 12)} 1 0`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div style={{ height: 6, background: count > 0 ? 'var(--grey-1)' : 'var(--surface-2)', borderRadius: 2 }} />
+                <div style={{ fontSize: '0.8rem', display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
                   <span>{label}</span>
                   <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{count} <span style={{ fontWeight: 400, opacity: 0.7 }}>({pct}%)</span></span>
-                </div>
-                <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct}%`, background: 'var(--grey-1)', borderRadius: 4 }} />
                 </div>
               </div>
             )
           })}
         </div>
 
-        <div className="card">
-          <SectionTitle>Missed Tactics</SectionTitle>
-          {tactics.length > 0 ? tactics.slice(0, 6).map(m => (
-            <div key={m.motif} style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 4 }}>
-                <span>{motifLabel(m.motif)}</span>
-                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{m.count}</span>
+        <SectionTitle>Missed Tactics</SectionTitle>
+        {tactics.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 240px), 1fr))', columnGap: 24 }}>
+            {tactics.slice(0, 6).map(m => (
+              <div key={m.motif} style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 4 }}>
+                  <span>{motifLabel(m.motif)}</span>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{m.count}</span>
+                </div>
+                <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${(m.count / maxMotif) * 100}%`, background: 'var(--grey-1)', borderRadius: 4 }} />
+                </div>
               </div>
-              <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${(m.count / maxMotif) * 100}%`, background: 'var(--grey-1)', borderRadius: 4 }} />
-              </div>
-            </div>
-          )) : <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No tactical motifs flagged yet.</p>}
-          {(tactics.length > 6 || notTactics.length > 0) && (
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>
-              The rest: {[...tactics.slice(6), ...notTactics].map(m => `${motifLabel(m.motif).toLowerCase()} ${m.count}`).join(', ')}
-              {notTactics.length > 0 && ' (no tactic proven)'}.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Row 4 — time of day | day of week */}
-      <div className="stack-on-phone" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.4fr)', gap: 16 }}>
-        <div className="card">
-          <SectionTitle hint="Win %">Time of Day</SectionTitle>
-          <WinRateBars data={data.time_of_day} />
-        </div>
-        <div className="card">
-          <SectionTitle hint="Win %">Day of Week</SectionTitle>
-          <WinRateBars data={data.day_of_week} />
-        </div>
-      </div>
-
-      {/* Row 5 — tilt | conversion detail */}
-      <div className="stack-on-phone" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.6fr)', gap: 16 }}>
-        <div className="card">
-          <SectionTitle hint="Next game's win %">Resilience</SectionTitle>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: wrColor(data.tilt.after_win_win_pct) }}>{data.tilt.after_win_win_pct}%</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>After a win</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{data.tilt.after_win_games} games</div>
-            </div>
-            <div style={{ width: 1, background: 'var(--border)' }} />
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: wrColor(data.tilt.after_loss_win_pct) }}>{data.tilt.after_loss_win_pct}%</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>After a loss</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{data.tilt.after_loss_games} games</div>
-            </div>
+            ))}
           </div>
-          {data.tilt.after_loss_win_pct < data.tilt.after_win_win_pct - 8 && (
-            <div style={{ fontSize: '0.72rem', color: 'var(--red)', marginTop: 12, lineHeight: 1.4 }}>
-              ⚠ {Math.round((data.tilt.after_win_win_pct - data.tilt.after_loss_win_pct) * 10) / 10} points lower after a loss · rest first
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <SectionTitle hint="≥ +2.0, not won">Thrown-Away Wins</SectionTitle>
-          {cv.blown_games.length > 0 ? (
-            <div>
-              {cv.blown_games.map(g => (
-                <Link key={g.game_id}
-                      to={g.turning_ply != null ? `/games/${g.game_id}?ply=${g.turning_ply}&from=thrown` : `/games/${g.game_id}`}
-                      title={g.turning_move ? `Open the game at ${g.turning_move}, where the win slipped` : undefined}
-                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
-                               padding: '7px 0', borderBottom: '1px solid var(--border)',
-                               textDecoration: 'none', color: 'inherit', fontSize: '0.8rem' }}>
-                  <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
-                      {g.opening_name || 'Unknown opening'}
-                    </span>
-                    {g.turning_move && (
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        slipped at <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--red)' }}>{g.turning_move}</span>
-                      </span>
-                    )}
-                  </span>
-                  <span style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-                    {/* Mate is stored as ±100 pawns; "+100" reads as a bug. */}
-                    <span style={{ color: 'var(--green)', fontWeight: 600 }}>{g.max_advantage >= 99 ? 'mate' : `+${g.max_advantage}`}</span>
-                    <span style={{ color: g.result === 'loss' ? 'var(--red)' : 'var(--text-muted)', textTransform: 'capitalize' }}>{g.result}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>{g.played_at ? dayMonth(new Date(g.played_at)) : ''}</span>
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ) : <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No thrown-away winning positions. Great conversion!</p>}
-        </div>
+        ) : <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No tactical motifs flagged yet.</p>}
+        {(tactics.length > 6 || notTactics.length > 0) && (
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>
+            The rest: {[...tactics.slice(6), ...notTactics].map(m => `${motifLabel(m.motif).toLowerCase()} ${m.count}`).join(', ')}
+            {notTactics.length > 0 && ' (no tactic proven)'}.
+          </p>
+        )}
       </div>
+
+      {/* Row 5 — thrown-away wins, full width, with the drill they ask for (U6, N14). */}
+      <div className="card">
+        <SectionTitle hint={<>≥ +2.0, not won{drillable.length > 0 && <> · <Link to={drillLink(drillable.map(g => ({ game_id: g.game_id, ply: g.turning_ply! })))}>Drill {drillable.length} {drillable.length === 1 ? 'position' : 'positions'} →</Link></>}</>}>
+          Thrown-Away Wins
+        </SectionTitle>
+        {cv.blown_games.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))', columnGap: 24 }}>
+            {cv.blown_games.map(g => (
+              <Link key={g.game_id} className="row-link"
+                    to={g.turning_ply != null ? `/games/${g.game_id}?ply=${g.turning_ply}&from=thrown` : `/games/${g.game_id}`}
+                    title={g.turning_move ? `Open the game at ${g.turning_move}, where the win slipped` : undefined}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+                             padding: '7px 6px', borderBottom: '1px solid var(--border)',
+                             textDecoration: 'none', color: 'inherit', fontSize: '0.8rem' }}>
+                {/* U4: the position where the win slipped, before the move. */}
+                {g.turning_fen && <StaticBoard fen={g.turning_fen} size={56} label={`Before ${g.turning_move ?? 'the turning move'}`} />}
+                <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', flex: 1 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
+                    {g.opening_name || 'Unknown opening'}
+                  </span>
+                  {g.turning_move && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      slipped at <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--red)' }}>{g.turning_move}</span>
+                    </span>
+                  )}
+                </span>
+                <span style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+                  {/* Mate is stored as ±100 pawns; "+100" reads as a bug. */}
+                  <span style={{ color: 'var(--green)', fontWeight: 600 }}>{g.max_advantage >= 99 ? 'mate' : `+${g.max_advantage}`}</span>
+                  <span style={{ color: g.result === 'loss' ? 'var(--red)' : 'var(--text-muted)', textTransform: 'capitalize' }}>{g.result}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{g.played_at ? dayMonth(new Date(g.played_at)) : ''}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        ) : <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No thrown-away winning positions. Great conversion!</p>}
+        </div>
 
       {/* Row 6 — openings table */}
       <div className="card">
@@ -459,7 +484,7 @@ function InsightsOverview() {
                     <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>{o.eco}</td>
                     <td style={{ padding: '6px 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 320 }}>{o.name}</td>
                     <td style={{ padding: '6px 8px', textAlign: 'right' }}>{o.games}</td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: wrColor(o.win_pct) }}>{o.win_pct}%</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: o.games >= MIN_GAMES ? vsYou(o.win_pct, base) : 'var(--text-primary)' }}>{o.win_pct}%</td>
                     <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--text-muted)' }}>{o.avg_accuracy != null ? `${o.avg_accuracy}%` : '—'}</td>
                   </tr>
                 ))}

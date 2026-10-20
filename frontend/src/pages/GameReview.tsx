@@ -6,8 +6,8 @@ import { MoveErrorCard, SEVERITY_COLOR, SEVERITY_SYMBOL } from '../components/Mo
 import { ARROW_NEUTRAL, ARROW_PLAYED_BAD, buildArrows } from '../components/moveArrows'
 import { useGameReview } from '../hooks/useGameReview'
 import type { ReviewMove, Severity } from '../api/types'
-import { PraxAnchor } from '../prax/PraxHost'
 import { BoardSplit } from '../components/BoardSplit'
+import { uciToSan } from '../components/san'
 
 const SEVERITIES: Severity[] = ['BLUNDER', 'MISTAKE', 'INACCURACY']
 
@@ -99,7 +99,6 @@ export function GameReview() {
     return (
       <>
         <LoadingSpinner label="Reading the game…" />
-        <PraxAnchor x={0.9} y={0.45} />
       </>
     )
   }
@@ -113,7 +112,6 @@ export function GameReview() {
             There are no moves recorded for this game.
           </p>
         </div>
-        <PraxAnchor x={0.9} y={0.45} />
       </div>
     )
   }
@@ -140,7 +138,7 @@ export function GameReview() {
         <button className="secondary" onClick={() => navigate(-1)} style={{ padding: '6px 12px' }}>
           ← Back
         </button>
-        <h1 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+        <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700 }}>
           Full analysis
           <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.9rem', marginLeft: 10 }}>
             {review.opening_name || review.opening_eco || 'Practice game'} · you played {review.player_color}
@@ -178,7 +176,7 @@ export function GameReview() {
                 </span>
                 {mistake.better_move && (
                   <span className="stat-value" style={{ color: 'var(--gain)', fontWeight: 500 }}>
-                    ✓ {mistake.better_move}
+                    ✓ {uciToSan(mistake.fen_position, mistake.better_move)}
                   </span>
                 )}
               </div>
@@ -236,7 +234,6 @@ export function GameReview() {
         </div>
       </BoardSplit>
 
-      <PraxAnchor x={0.95} y={0.38} />
     </div>
   )
 }

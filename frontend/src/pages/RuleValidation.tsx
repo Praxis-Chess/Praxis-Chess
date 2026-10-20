@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { scrollBehavior } from '../lib/motion'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
@@ -73,7 +74,7 @@ export default function RuleValidation() {
   const rep = report.data
   const openReview = (id: string) => {
     setReviewId(id)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({ top: 0, behavior: scrollBehavior() })
   }
 
   return (
@@ -104,7 +105,7 @@ export default function RuleValidation() {
           </span>
         )}
         {build.isError && <span role="alert" className="error">{(build.error as Error).message}</span>}
-        <Link to="/games" className="muted" style={{ marginLeft: 'auto' }}>Evidence lab is on each game →</Link>
+        <Link to="/library" className="muted" style={{ marginLeft: 'auto' }}>Evidence lab is on each game →</Link>
       </section>
 
       <LibraryDiagnosis />

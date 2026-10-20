@@ -35,14 +35,18 @@ import java.util.UUID;
 @Service
 public class ImprovementService {
 
-    /** Below this, differences are noise. Mirrors Evidence.MIN_SAMPLE. */
-    static final int MIN_SAMPLE = 5;
+    /** Below this, differences are noise (the games threshold). */
+    static final int MIN_SAMPLE = com.praxis.report.Thresholds.MIN_GAMES;
 
     /** Rolling window for the baseline. */
     static final int WINDOW = 5;
 
-    /** Error counts are normalised to this many player moves, so long games do not look worse. */
-    static final int PER_MOVES = 40;
+    /**
+     * Error counts are normalised to this many player moves, so long games do not
+     * look worse: per 100, the Pattern Report's unit, so a practice rate and a
+     * report rate can be read side by side.
+     */
+    static final int PER_MOVES = com.praxis.report.Thresholds.PER_MOVES;
 
     private final PracticeGameRepository practiceGames;
     private final GameRepository games;
@@ -103,7 +107,9 @@ public class ImprovementService {
             List<String> stillToWork,
             int sampleSize,
             boolean trendClaimable,
-            String caveat
+            String caveat,
+            /** This game's mistakes that have an engine move: what "Drill this game's mistakes" opens (I2). */
+            List<Integer> drillPlies
     ) {}
 
     public ImprovementReport report(PracticeGame pg) {
@@ -122,7 +128,7 @@ public class ImprovementService {
         // existing says nothing about whether there is anything to report.
         //
         // Reporting on it anyway produced a report that was structurally valid
-        // and entirely empty — "Accuracy — vs —", "Blunders per 40 moves 0.0" —
+        // and entirely empty ("Accuracy — vs —", "Blunders per 100 moves 0.0"):
         // and because that report says analysed:true, the controller returned
         // 200, the client stopped polling, and the user was left looking at a
         // finished-looking report of a game that had not been measured. The
@@ -134,7 +140,7 @@ public class ImprovementService {
         if (game.getAnalysisStatus() != AnalysisStatus.ANALYZED) {
             return switch (game.getAnalysisStatus()) {
                 case FAILED -> notAnalysed(pg, "The engine could not analyse this game.");
-                default -> notAnalysed(pg, "Analysing the game — the report is a moment away.");
+                default -> notAnalysed(pg, "Analysing the game: the report is a moment away.");
             };
         }
 
@@ -179,7 +185,7 @@ public class ImprovementService {
         double blunders = rate(count(errors, Severity.BLUNDER), playerMoves);
         Double blunderBase = averageRate(history, Severity.BLUNDER, null);
         out.add(compare("Blunders per " + PER_MOVES + " moves", fmt(blunders), fmt(blunderBase),
-                direction(blunders, blunderBase, 0.3, false, claimable),
+                direction(blunders, blunderBase, 0.75, false, claimable),
                 "Rate, not raw count, so a long game is not penalised."));
         classify(out.get(out.size() - 1), improved, todo, "Blunder rate");
 
@@ -190,7 +196,7 @@ public class ImprovementService {
             Double phaseBase = averageRate(history, null, targetPhase);
             out.add(compare(human(targetPhase) + " mistakes per " + PER_MOVES + " moves",
                     fmt(phaseRate), fmt(phaseBase),
-                    direction(phaseRate, phaseBase, 0.3, false, claimable),
+                    direction(phaseRate, phaseBase, 0.75, false, claimable),
                     "The weakness this opponent was built to press."));
             classify(out.get(out.size() - 1), improved, todo, human(targetPhase) + " play");
         }
@@ -200,8 +206,8 @@ public class ImprovementService {
             Double ecoBase = ecoAccuracy(pg.getUsername(), pg.getTargetEco());
             out.add(compare("Accuracy in " + displayEco(pg), fmtPct(acc), fmtPct(ecoBase),
                     direction(acc, ecoBase, 2.0, true, ecoBase != null),
-                    "Compared with all your games in this opening — the one measure that "
-                            + "carries across opponents, because the opening is the same object."));
+                    "Against all your games in this opening: the one measure that carries "
+                            + "across opponents, because the opening is the same object."));
             classify(out.get(out.size() - 1), improved, todo, "Play in " + displayEco(pg));
         }
 
@@ -210,7 +216,7 @@ public class ImprovementService {
                 ? "You took a move back, so this game is not counted toward your progress."
                 : claimable ? null
                 : "Only " + sample + " earlier practice game" + (sample == 1 ? "" : "s")
-                  + " to compare against — not yet a trend.";
+                  + " to compare against, fewer than " + MIN_SAMPLE + ": not yet a trend.";
         if (otherRuler > 0 && pg.isRated()) {
             String note = otherRuler + " earlier practice game" + (otherRuler == 1 ? " was" : "s were")
                     + " analysed with different engine settings, so "
@@ -220,9 +226,14 @@ public class ImprovementService {
 
         // No progress on a finished report: the run is over, and a bar that
         // lingers after the numbers arrive is just noise.
+        List<Integer> drillPlies = errors.stream()
+                .filter(e -> e.getBetterMove() != null)
+                .map(MoveError::getMoveNumber)
+                .sorted()
+                .toList();
         return new ImprovementReport(pg.getId(), game.getId(), null, true, pg.isRated(), verdict,
                 List.copyOf(out), List.copyOf(improved), List.copyOf(todo),
-                sample, claimable, caveat);
+                sample, claimable, caveat, drillPlies);
     }
 
     // --- verdict ---
@@ -230,7 +241,7 @@ public class ImprovementService {
     private String verdict(PracticeGame pg, boolean claimable,
                            List<String> improved, List<String> todo) {
         if (!pg.isRated()) {
-            return "Played with takebacks — shown, but not counted.";
+            return "Played with takebacks: shown, but not counted.";
         }
         if (!claimable) {
             return "Game recorded. Not enough practice games yet to say whether you are improving.";
@@ -355,7 +366,7 @@ public class ImprovementService {
                 .map(s -> new AnalysisProgress(s.stage().name(), s.done(), s.total()))
                 .orElse(null);
         return new ImprovementReport(pg.getId(), pg.getGameId(), live, false, pg.isRated(), why,
-                List.of(), List.of(), List.of(), 0, false, null);
+                List.of(), List.of(), List.of(), 0, false, null, List.of());
     }
 
     private static String fmt(Double v)    { return v == null ? "—" : String.valueOf(round1(v)); }

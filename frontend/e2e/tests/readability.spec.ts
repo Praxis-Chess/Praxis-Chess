@@ -40,9 +40,17 @@ const PROSE_RATIO: Record<string, number> = {
   insights: 0.6,           // M3
   settings: 0.6,           // M4
   today: 0.73,             // M5: D8, about −27%; its words are tiles, weekdays and the headline
+  play: 0.5,               // Play redesign: at most half of each state's baseline
 }
+/** Below this many baseline words a state only meets the element budgets. Play's target covers every state. */
+const RATIO_FROM: Record<string, number> = { play: 0 }
+/**
+ * States added as the "before" of a later milestone (POLISH_PLAN.md U0): their
+ * screen's prose ratio applies once that milestone has been through them.
+ */
+const RATIO_PENDING = new Set<string>(['play/in-game'])   // U5
 /** Screens that may show no paragraph at all by default. */
-const NO_PARAGRAPHS = new Set<string>(['pattern-report', 'training-plan', 'insights'])
+const NO_PARAGRAPHS = new Set<string>(['pattern-report', 'training-plan', 'insights', 'play'])
 /** Words visible in one element that declares its role. */
 const ELEMENT_BUDGET: Record<string, number> = { takeaway: 20, intro: 15, item: 8 }
 
@@ -62,7 +70,7 @@ async function check(page: import('@playwright/test').Page, api: import('../fixt
     console.log([`READING ${s.screen}/${s.state}: ${reading}`, ...m.paragraphs.map(p => `  ¶ ${p}`)].join('\n'))
   }
   const ratio = PROSE_RATIO[s.screen]
-  if (ratio != null && desktop && g!.metrics.prose >= 100) {
+  if (ratio != null && desktop && !RATIO_PENDING.has(`${s.screen}/${s.state}`) && g!.metrics.prose >= (RATIO_FROM[s.screen] ?? 100)) {
     expect(m.prose, `prose words over budget (${Math.round((1 - ratio) * 100)}% fewer than ${g!.metrics.prose})`)
       .toBeLessThanOrEqual(Math.ceil(g!.metrics.prose * ratio))
   }
@@ -85,6 +93,10 @@ test.describe('Parity and reading budget', () => {
 test('parity catches a fact that is lost or leaves its item', async ({ page, api }) => {
   const s = STATES.find(x => x.screen === 'pattern-report' && x.state === 'default')!
   await open(page, api, s)
+  // The stat lines are in each item's details.
+  for (const name of ['Missing your own chances', "Ignoring your opponent's threat"]) {
+    await page.getByRole('listitem', { name }).getByRole('button', { name: 'Details' }).click()
+  }
   await page.evaluate(() => {
     const cause = document.querySelector('li[aria-label="Missing your own chances"]')!
     const stat = Array.from(cause.querySelectorAll('span')).find(e => e.textContent?.startsWith('22 of 145'))!

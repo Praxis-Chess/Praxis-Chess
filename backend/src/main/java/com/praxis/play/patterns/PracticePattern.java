@@ -12,6 +12,7 @@ import java.util.List;
  *                    about this player — it is a fixed chess principle, true
  *                    whoever is reading.
  * @param whatToDo    authored constant: the corrective principle, not a move
+ * @param doNow       the same, as an imperative of at most eight words (shown by default)
  * @param strength    whether the sample supports stating this plainly
  * @param drillMotif  the motif to practise, or null when there is no position
  *                    whose best move is the lesson. Habit patterns (castling,
@@ -26,6 +27,7 @@ public record PracticePattern(
         String finding,
         String why,
         String whatToDo,
+        String doNow,
         Strength strength,
         int gamesAffected,
         int gamesConsidered,

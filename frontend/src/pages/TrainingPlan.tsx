@@ -1,4 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { TeachingEmpty } from '../components/TeachingEmpty'
+import { StaticBoard } from '../components/StaticBoard'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { PlanPriority, PlanRecall, SincePlan } from '../api/types'
@@ -42,22 +44,21 @@ export function TrainingPlan() {
   const failed = generate.isError && (
     <p role="alert" style={{ ...muted, color: 'var(--red)' }}>
       {/no analysed mistakes/i.test((generate.error as Error).message)
-        ? 'There is nothing to plan from yet: analyze some games first.'
+        ? 'There is nothing to plan from yet: analyse some games first.'
         : `Could not make a plan: ${(generate.error as Error).message}`}
     </p>
   )
 
   if (!plan || !p || !current) {
     return (
-      <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <h3 style={{ ...sectionTitle, borderTop: 'none', paddingTop: 0 }}>Training Plan</h3>
-        <p style={muted}>
-          {plan ? 'This plan was made by an older version. Make a new one.'
-                : 'Short weekly sessions of your own positions, aimed at your costliest mistakes.'}
-        </p>
-        <div>{makeButton}</div>
+      // U7: an empty plan teaches what it will hold and what it is built from.
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <TeachingEmpty title="Training Plan" label="Training Plan"
+                       promise="Weekly sessions of your own positions, aimed at your costliest mistakes."
+                       note={plan ? 'This plan was made by an older version: make a new one' : 'No plan yet: made from your latest report'}
+                       action={makeButton} />
         {failed}
-      </section>
+      </div>
     )
   }
 
@@ -109,6 +110,12 @@ export function TrainingPlan() {
                              : <span key={name} style={chipStyle}>{name}</span>
                   })}
                 </div>
+                {/* U4: the session is these positions; show them, not only their moves. */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {s.positions.slice(0, 4).map(p => (
+                    <StaticBoard key={`${p.game_id}-${p.ply}`} fen={p.fen} size={64} label={p.move} />
+                  ))}
+                </div>
                 <Positions positions={s.positions} first={s.positions.length} />
                 <RecallLine r={recall?.sessions.find(x => x.number === s.number)} since={recall?.since} />
                 <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -143,7 +150,7 @@ export function TrainingPlan() {
       )}
 
       <div style={{ ...muted, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
-        <span>Made {dayMonth(start)} · <span className="mono">{p.based_on_games}</span> analyzed games</span>
+        <span>Made {dayMonth(start)} · <span className="mono">{p.based_on_games}</span> analysed games</span>
         {makeButton}
         <span>Keeps this plan in your history</span>
       </div>
@@ -155,18 +162,18 @@ export function TrainingPlan() {
 /** A chip as a label: the focus of a session. */
 const chipStyle: React.CSSProperties = {
   fontSize: '0.7rem', padding: '2px 8px', borderRadius: 10,
-  border: '1px solid var(--hairline-lit)', color: 'var(--text-secondary)',
+  border: '1px solid var(--hairline-strong)', color: 'var(--text-secondary)',
 }
 
 /**
- * A focus chip that opens: interactive, so orchid, with a caret. Inside, what
+ * A focus chip that opens: neutral, with a caret that says it opens. Inside, what
  * the plan knew about this focus when it was made: rank, stat line, drill.
  */
 function FocusChip({ x, of, short, since }: { x: PlanPriority; of: number; short: string | null; since?: SincePlan }) {
   return (
     <span data-scope={x.focus} style={{ display: 'inline-flex' }}>
       <PopoverButton title={x.focus} ariaLabel={`${x.focus}: why this session trains it`}
-                     style={{ ...chipStyle, color: 'var(--orchid)', fontWeight: 600, display: 'inline-flex', gap: 4 }}
+                     style={{ ...chipStyle, color: 'var(--text-primary)', fontWeight: 500, display: 'inline-flex', gap: 4 }}
                      label={<>{x.focus}<span aria-hidden="true" style={{ color: 'var(--text-tertiary)' }}>▾</span></>}>
         <span className="micro-label">{of > 0 ? `Priority ${x.rank} of ${of}` : 'Tactic your opponent got'}</span>
         <strong style={{ fontSize: '0.85rem' }}>{x.focus}</strong>

@@ -1,0 +1,100 @@
+{
+ "screen": "game-analysis",
+ "state": "positional-only",
+ "path": "/games/7c3c9a2e-1111-4a22-8b33-445566778899",
+ "metrics": {
+  "prose": 159,
+  "data": 8,
+  "paragraphs": [
+   "No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not cover.",
+   "AI commentary · checked: No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not cover.",
+   "No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not cover.",
+   "AI commentary · checked: No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not cover.",
+   "No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not cover.",
+   "AI commentary · checked: No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not cover."
+  ]
+ },
+ "pairs": [
+  [
+   "",
+   "@/evidence/7c3c9a2e-1111-4a22-8b33-445566778899",
+   1
+  ],
+  [
+   "",
+   "~inaccuracy",
+   2
+  ],
+  [
+   "",
+   "~mistake",
+   1
+  ],
+  [
+   "",
+   "~opening",
+   3
+  ],
+  [
+   "",
+   "~positional",
+   3
+  ],
+  [
+   "",
+   "~white",
+   1
+  ],
+  [
+   "",
+   "~win",
+   1
+  ],
+  [
+   "",
+   "3",
+   1
+  ],
+  [
+   "",
+   "3.Nc6?!",
+   1
+  ],
+  [
+   "",
+   "4.fxe4?!",
+   1
+  ],
+  [
+   "",
+   "5.Bf5?",
+   1
+  ],
+  [
+   "",
+   "AnalysisA01",
+   1
+  ],
+  [
+   "",
+   "d5",
+   1
+  ],
+  [
+   "",
+   "Nf6",
+   2
+  ],
+  [
+   "Verified diagnosis",
+   "~positional",
+   3
+  ],
+  [
+   "Verified diagnosis",
+   "~verified",
+   3
+  ]
+ ],
+ "methods": []
+}
