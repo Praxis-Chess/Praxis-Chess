@@ -56,9 +56,10 @@ public record InsightsDto(
      * @param turningPly  the ply of the move that let the win go, for Game Analysis to open on;
      *                    null when the game has no recorded mistakes
      * @param turningMove that move as a reader writes it, e.g. "24.f3"
+     * @param turningFen  the position before that move, for its board (U4)
      */
     public record BlownGame(String gameId, String openingName, double maxAdvantage, String result, String playedAt,
-                            Integer turningPly, String turningMove) {}
+                            Integer turningPly, String turningMove, String turningFen) {}
 
     // Frequency of missed tactical motifs.
     public record MotifCount(String motif, int count) {}

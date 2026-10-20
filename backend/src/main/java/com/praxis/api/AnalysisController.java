@@ -1,5 +1,6 @@
 package com.praxis.api;
 
+import org.springframework.web.bind.annotation.RequestBody;
 import com.praxis.service.settings.PlayerIdentity;
 import com.praxis.service.settings.SettingsService;
 import com.praxis.domain.AnalysisSettings;
@@ -147,6 +148,43 @@ public class AnalysisController {
         Map<String, Object> body = new HashMap<>(tx.execute(status -> queueReanalysis(outdatedOnly)));
         if (backup != null) body.put("backup", backup.file());
         return ResponseEntity.ok(body);
+    }
+
+    /**
+     * Re-analyse these games, as one job (the executor's queue holds 50, so one
+     * call per game cannot carry a large set). A backup is taken first, as for
+     * Re-analyse All. Used to repair accuracies stored before the 17 Aug sign fix
+     * (POLISH_PLAN.md N23).
+     */
+    @PostMapping("/reanalyze-games")
+    public ResponseEntity<Map<String, Object>> reanalyzeGames(
+            @RequestBody Map<String, List<UUID>> body,
+            @RequestParam(name = "skip_backup", defaultValue = "false") boolean skipBackup) {
+        List<UUID> ids = body.getOrDefault("game_ids", List.of());
+        BackupDto.Result backup = null;
+        if (!skipBackup) {
+            backup = backups.snapshot("before-reanalysis", Duration.ofMinutes(5));
+            if (!backup.ok()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                        "error", "No backup could be taken first. " + backup.error(),
+                        "backup_failed", true));
+            }
+        }
+        Map<String, Object> out = new HashMap<>(tx.execute(status -> {
+            List<Game> games = gameRepository.findAllById(ids);
+            for (Game game : games) {
+                game.setAnalysisStatus(AnalysisStatus.PENDING);
+                game.setAnalyzedAt(null);
+                gameRepository.save(game);
+            }
+            if (!games.isEmpty()) {
+                progressTracker.setQueued(true);
+                pipelineOrchestrator.analyzeGames(games, player.username());
+            }
+            return Map.<String, Object>of("message", "Reanalysis queued", "games_queued", games.size());
+        }));
+        if (backup != null) out.put("backup", backup.file());
+        return ResponseEntity.ok(out);
     }
 
     private Map<String, Object> queueReanalysis(boolean outdatedOnly) {

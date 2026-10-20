@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { PraxAnchor } from '../prax/PraxHost'
+import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '../api/client'
+import type { ReportFacts } from '../api/types'
+import { dayMonth } from '../components/report/ReportParts'
 import { praxRuntime } from '../prax/state/runtime'
 import { ArtifactList } from '../prax/artifacts/ArtifactView'
 import type { PraxArtifact } from '../prax/artifacts/types'
@@ -244,10 +248,11 @@ export function AskPrax() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 160px)', minHeight: 420 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Ask Prax</h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+          {/* The nav names this page; the heading stays for screen readers and tests, not the eye. */}
+          <h1 className="sr-only">Ask Prax</h1>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
             Everything here is measured from your games, or cited to a source.
           </p>
         </div>
@@ -300,27 +305,12 @@ export function AskPrax() {
         </div>
       )}
 
-      {/*
-        Prax is anchored at 90% of the viewport width. A full-width transcript
-        ran its right-hand column straight under the particle body — evidence
-        VALUES were rendered at the far right and became unreadable, so the rows
-        looked like bare labels with nothing beside them.
-
-        The gutter is claimed here rather than by moving Prax: the anchor
-        position is part of the page's composition, and content should respect
-        it the way it respects any other fixed element.
-      */}
+      {/* The thread is on the reading width (D1): no clearance for a body any more. */}
       <div
         ref={transcriptRef}
-        style={{
-          flex: 1, overflowY: 'auto', marginTop: 16,
-          // Clearance from the ORGANISM, which is always on this page. <main>
-          // separately reserves --prax-gutter when a card is up; subtract it so
-          // the two reserves do not stack into a hard-left column of text.
-          paddingRight: 'max(0px, calc(clamp(4px, 22vw, 360px) - var(--prax-gutter, 0px)))',
-        }}
+        style={{ flex: 1, overflowY: 'auto', marginTop: 16 }}
       >
-        {turns.length === 0 && !busy && <EmptyState onPick={ask} />}
+        {turns.length === 0 && !busy && <EmptyState onPick={ask} onOpen={openThread} />}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
           {turns.map(turn => (
@@ -368,7 +358,6 @@ export function AskPrax() {
         )}
       </form>
 
-      <PraxAnchor x={0.9} y={0.42} />
     </div>
   )
 }
@@ -590,16 +579,103 @@ function AnswerMeta({ answer }: { answer: Answer }) {
   )
 }
 
-function EmptyState({ onPick }: { onPick: (q: string) => void }) {
+/**
+ * Questions from the latest report (U7, N15): its costliest cause, its most
+ * missed tactic, its costliest opening and its worst phase, phrased as the
+ * player would ask them. Without a report, the general three.
+ */
+export function reportQuestions(f: ReportFacts | null | undefined): string[] {
+  if (!f) return SUGGESTIONS
+  const out: string[] = []
+  const cause = f.top_causes[0]
+  if (cause) {
+    // Titles are written to the player ("Ignoring your opponent's threat"); a question is asked by them.
+    const t = cause.title.replace(/\byour\b/g, 'my')
+    const first = t.split(' ')[0]
+    out.push(/ing$/.test(first) ? `Why do I keep ${t.charAt(0).toLowerCase()}${t.slice(1)}?` : `How do I stop this: ${t.toLowerCase()}?`)
+  }
+  const tactic = f.top_tactics[0]
+  if (tactic) out.push(`Show me the ${tactic.title.toLowerCase()} I missed`)
+  const opening = f.openings[0]
+  if (opening?.name) out.push(`What goes wrong in my ${opening.name}?`)
+  if (f.worst_phase) out.push(`Why do I make the most mistakes in the ${f.worst_phase.toLowerCase()}?`)
+  return out.length > 0 ? out : SUGGESTIONS
+}
+
+/**
+ * Before the first question (U7, N15): what Prax is answering from, questions
+ * from the latest report, and the last few questions asked. Each part is
+ * absent when there is nothing to show; the page never invents a figure.
+ */
+function EmptyState({ onPick, onOpen }: { onPick: (q: string) => void; onOpen: (id: string) => void }) {
+  const stats = useQuery({ queryKey: ['dashboard-stats'], queryFn: api.dashboard.stats })
+  const report = useQuery({ queryKey: ['patterns'], queryFn: api.patterns.latest })
+  const plan = useQuery({ queryKey: ['training-plan'], queryFn: api.trainingPlan.latest })
+  const recent = useQuery({
+    queryKey: ['prax-conversations'],
+    queryFn: async () => {
+      const r = await fetch('/api/prax/conversations')
+      const list: unknown = r.ok ? await r.json() : []
+      return Array.isArray(list) ? list as ConversationSummary[] : []
+    },
+  })
+  const s = stats.data
+  const facts = report.data?.facts
+  const asked = (recent.data ?? [])
+    .filter((t, i, all) => t.title && all.findIndex(x => x.title === t.title) === i)
+    .slice(0, 5)
+  const questions = reportQuestions(facts)
+
   return (
-    <div style={{ maxWidth: 520 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
-        {SUGGESTIONS.map(s => (
-          <button key={s} onClick={() => onPick(s)} style={{ ...ghostBtn, fontSize: '0.78rem' }}>
-            {s}
-          </button>
-        ))}
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {s && (
+        <section aria-label="What Prax knows" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+          <Known label="Analysed games" value={s.total_games > 0 ? `${s.games_analyzed} of ${s.total_games}` : 'none yet'}
+                 link={s.total_games > 0 ? { to: '/library', text: 'Library' } : { to: '/settings', text: 'Sync in Settings' }} />
+          <Known label="Pattern report" value={report.data ? dayMonth(new Date(report.data.computed_at)) : 'none yet'}
+                 link={{ to: '/insights/patterns', text: report.data ? 'Read it' : 'Build it' }} />
+          <Known label="Training plan" value={plan.data ? dayMonth(new Date(plan.data.generated_at)) : 'none yet'}
+                 link={{ to: '/insights/training', text: plan.data ? 'Open it' : 'Make one' }} />
+        </section>
+      )}
+
+      <section aria-label={facts ? 'From your report' : 'Try asking'} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <span className="micro-label">{facts ? 'From your report' : 'Try asking'}</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {questions.map(q => (
+            <button key={q} onClick={() => onPick(q)} style={{ ...ghostBtn, fontSize: '0.78rem' }}>{q}</button>
+          ))}
+        </div>
+      </section>
+
+      {asked.length > 0 && (
+        <section aria-label="Recent questions" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span className="micro-label">Recent</span>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }}>
+            {asked.map(t => (
+              <li key={t.id} style={{ display: 'flex', gap: 12, alignItems: 'baseline', padding: '6px 0', borderBottom: '1px solid var(--hairline)' }}>
+                <button className="link" onClick={() => onOpen(t.id)} style={{ fontSize: '0.82rem', textAlign: 'left' }}>{t.title}</button>
+                {t.last_message_at && (
+                  <span className="mono" style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>
+                    {dayMonth(new Date(t.last_message_at))}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  )
+}
+
+/** One thing Prax answers from: a micro-label, the figure, and where it lives. */
+function Known({ label, value, link }: { label: string; value: string; link: { to: string; text: string } }) {
+  return (
+    <div className="card no-mark" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <span className="micro-label">{label}</span>
+      <span className="mono" style={{ fontSize: '1rem', fontWeight: 600 }}>{value}</span>
+      <Link to={link.to} style={{ fontSize: '0.75rem' }}>{link.text} →</Link>
     </div>
   )
 }

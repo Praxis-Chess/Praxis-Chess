@@ -1,10 +1,13 @@
 import { useState } from 'react'
+import { Tabs, tabId, tabPanelId } from '../components/Tabs'
+import { StaticBoard } from '../components/StaticBoard'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { GameSummary } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
-import { praxInteract, PraxAnchor } from '../prax/PraxHost'
+import { praxInteract } from '../prax/PraxHost'
+import { dayMonth, drillLink } from '../components/report/ReportParts'
 
 type Tab = 'games' | 'drills'
 
@@ -22,14 +25,12 @@ function statusDot(status: string) {
 const outOfScope = (g: GameSummary) => g.analysis_status !== 'ANALYZED' && g.in_analysis_scope === false
 
 function GameRow({ g }: { g: GameSummary }) {
-  const date = g.played_at ? new Date(g.played_at).toLocaleDateString() : '—'
+  // One date format everywhere (principle 7): "6 Sep 2026", never the locale's "9/6/2026".
+  const date = g.played_at ? `${dayMonth(new Date(g.played_at))} ${new Date(g.played_at).getFullYear()}` : '—'
   const resultColor = g.result === 'win' ? 'var(--gain)' : g.result === 'loss' ? 'var(--red)' : 'var(--text-muted)'
   return (
     <Link to={`/games/${g.id}`} style={{ textDecoration: 'none' }} onClick={() => praxInteract('GAME_SELECTED')}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                    borderRadius: 6, cursor: 'pointer', transition: 'background 0.12s' }}
-           onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+      <div className="row-link" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer' }}>
         {outOfScope(g)
           ? <span title="Not analysed: outside your analysed time controls (Settings)" style={{
               width: 7, height: 7, borderRadius: '50%', border: '1px solid var(--text-muted)',
@@ -100,7 +101,7 @@ function GamesList() {
         {totalFiltered} game{totalFiltered !== 1 ? 's' : ''}
       </div>
 
-      {/* Unanalyzed games float to the top */}
+      {/* Unanalysed games float to the top */}
       {filteredUnanalyzed.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{
@@ -135,27 +136,36 @@ function DrillArchive() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>
         {drills.length} drill{drills.length !== 1 ? 's' : ''} from your analysed games.{' '}
-        <Link to="/drills" style={{ color: 'var(--orchid)' }}>Go to drill mode →</Link>
+        <Link to="/drills">Go to drill mode →</Link>
       </p>
-      {drills.map(d => (
-        <div key={d.id} className="card" style={{ padding: '10px 14px', display: 'flex',
-                                                   alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 7px', borderRadius: 10,
-                         color: d.severity === 'BLUNDER' ? 'var(--red)' : d.severity === 'MISTAKE' ? 'var(--yellow)' : 'var(--text-muted)',
-                         border: `1px solid ${d.severity === 'BLUNDER' ? 'var(--red)' : d.severity === 'MISTAKE' ? 'var(--yellow)' : 'var(--hairline)'}` }}>
-            {d.severity}
-          </span>
-          <div style={{ flex: 1, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            Move {d.move_played} · {d.game_phase?.toLowerCase() ?? '—'}
-            {d.tactical_motif ? ` · ${d.tactical_motif.replace(/_/g, ' ').toLowerCase()}` : ''}
-          </div>
-          {d.game_id && (
-            <Link to={`/games/${d.game_id}`} style={{ fontSize: '0.75rem', color: 'var(--orchid)' }}>
-              View game
-            </Link>
-          )}
-        </div>
-      ))}
+      {/* U4: each drill is its position, so the list is a gallery of boards. */}
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 12,
+                   gridTemplateColumns: 'repeat(auto-fit, minmax(176px, 1fr))' }}>
+        {drills.map(d => (
+          <li key={d.id} aria-label={`Drill: ${d.move_played}`} className="card no-mark"
+              style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
+            <StaticBoard fen={d.fen} size={152} />
+            <span style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', fontSize: '0.8rem' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '1px 6px', borderRadius: 10,
+                             color: d.severity === 'BLUNDER' ? 'var(--red)' : d.severity === 'MISTAKE' ? 'var(--yellow)' : 'var(--text-muted)',
+                             border: `1px solid ${d.severity === 'BLUNDER' ? 'var(--red)' : d.severity === 'MISTAKE' ? 'var(--yellow)' : 'var(--hairline)'}` }}>
+                {d.severity}
+              </span>
+              <span className="mono">{d.move_played}</span>
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {d.game_phase?.toLowerCase() ?? '—'}
+              {d.tactical_motif ? ` · ${d.tactical_motif.replace(/_/g, ' ').toLowerCase()}` : ''}
+            </span>
+            {d.game_id && (
+              <span style={{ display: 'flex', gap: 12, fontSize: '0.75rem' }}>
+                {d.ply != null && <Link to={drillLink([{ game_id: d.game_id, ply: d.ply }])}>Drill this</Link>}
+                <Link to={`/games/${d.game_id}`}>View game</Link>
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -164,37 +174,19 @@ export function Library() {
   const [tab, setTab] = useState<Tab>('games')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720 }}>
-      <div>
-        <h1 style={{ fontSize: '1.35rem', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>
-          Library
-        </h1>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* The nav names this page; the heading stays for screen readers and tests, not the eye. */}
+      <h1 className="sr-only">Library</h1>
 
-      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--hairline)', paddingBottom: 0 }}>
-        {(['games', 'drills'] as Tab[]).map(t => (
-          <button
-            key={t}
-            onClick={() => { setTab(t); praxInteract('SECONDARY_ACTION') }}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '8px 16px', fontSize: '0.85rem', fontWeight: tab === t ? 600 : 400,
-              color: tab === t ? 'var(--orchid)' : 'var(--text-muted)',
-              borderBottom: tab === t ? '2px solid var(--orchid)' : '2px solid transparent',
-              textTransform: 'capitalize',
-            }}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      <Tabs label="Library sections" idBase="library" active={tab}
+            items={[{ key: 'games', label: 'Games' }, { key: 'drills', label: 'Drills' }]}
+            onSelect={t => { setTab(t as Tab); praxInteract('SECONDARY_ACTION') }} />
 
-      <div>
+      <div role="tabpanel" id={tabPanelId('library', tab)} aria-labelledby={tabId('library', tab)}>
         {tab === 'games' ? <GamesList /> : <DrillArchive />}
       </div>
 
       {/* Right of the list, vertically centred — Contract §4. */}
-      <PraxAnchor x={0.72} y={0.45} />
     </div>
   )
 }

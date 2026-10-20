@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { praxBus } from '../core/events'
-import { anchorRegistry } from '../anchor/registry'
 
 /**
  * Contract §2 — React Router fires useLocation once, AFTER the route commits;
@@ -23,7 +22,8 @@ export function usePraxRouterBridge(): void {
       praxBus.emit({
         type: 'NAVIGATION_END',
         to: pathname,
-        hasAnchor: anchorRegistry.hasAnchor(),
+        // No particle body any more, so no page anchors Prax.
+        hasAnchor: false,
       })
     })
 

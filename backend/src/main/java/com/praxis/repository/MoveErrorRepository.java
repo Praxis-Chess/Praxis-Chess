@@ -38,6 +38,11 @@ public interface MoveErrorRepository extends JpaRepository<MoveError, UUID> {
 
     List<MoveError> findByGameId(UUID gameId);
 
+    /** [gameId, severity, count] for these games, in one query: practice history rows (Play). */
+    @Query("SELECT me.game.id, me.severity, COUNT(me) FROM MoveError me WHERE me.game.id IN :gameIds "
+         + "GROUP BY me.game.id, me.severity")
+    List<Object[]> countBySeverity(@Param("gameIds") java.util.Collection<UUID> gameIds);
+
     @Query("""
         SELECT me FROM MoveError me
         JOIN me.game g

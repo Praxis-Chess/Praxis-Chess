@@ -38,7 +38,9 @@ test.describe('Full analysis of a practice game', () => {
 
     await review.move('Nc6?').click()
 
-    await expect(review.main).toContainText('d7d5')
+    // In SAN, like every move a player reads (principle 7), not the engine's UCI.
+    await expect(review.main).toContainText('Engine best: d5')
+    await expect(review.main).not.toContainText('d7d5')
     // Phase 12 (D2): the old per-move text is kept in the database, never shown.
     await expect(review.main).not.toContainText('blocks the c-pawn')
     await expect(review.main).toContainText('Not diagnosed yet')
@@ -87,9 +89,10 @@ test.describe('Practice history', () => {
 
     await expect(play.historyPanel).toBeVisible()
     // Three FINISHED rows; the IN_PROGRESS and ABANDONED rows are not history.
-    await expect(play.main.getByText('Nimzovich-Larsen Attack')).toHaveCount(4) // 3 rows + opponent card
-    await expect(play.main.getByText('Won')).toBeVisible()
-    await expect(play.main.getByText('Lost')).toHaveCount(2)
+    const rows = play.historyPanel.getByRole('row').filter({ hasNot: play.page.getByRole('columnheader') })
+    await expect(rows).toHaveCount(3)
+    await expect(rows.filter({ hasText: /^Won/ })).toHaveCount(1)
+    await expect(rows.filter({ hasText: /^Lost/ })).toHaveCount(2)
   })
 
   /**

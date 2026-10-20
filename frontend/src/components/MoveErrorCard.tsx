@@ -21,6 +21,18 @@ export const SEVERITY_COLOR: Record<string, string> = {
   INACCURACY: 'var(--yellow)',
 }
 
+
+/** Same words, ignoring case, spacing and underscores ("POSITIONAL" and "Positional"). */
+function sameLabel(a: string | null | undefined, b: string | null | undefined) {
+  const n = (x: string) => x.toLowerCase().replace(/[_\s]+/g, ' ').trim()
+  return !!a && !!b && n(a) === n(b)
+}
+
+/** The same sentence, ignoring case, spacing and punctuation. */
+function sameText(a: string, b: string) {
+  const n = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  return n(a) === n(b)
+}
 export function MoveErrorCard({ error, isSelected, onClick }: Props) {
   const symbol = SEVERITY_SYMBOL[error.severity] ?? '?'
   const severityClass = `badge badge-${error.severity.toLowerCase()}`
@@ -66,15 +78,21 @@ export function MoveErrorCard({ error, isSelected, onClick }: Props) {
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: error.verified.passed ? 'var(--green)' : 'var(--orange)' }}>
               {error.verified.passed ? '✓ Verified' : 'Unverified'}
             </span>
-            <span className="badge">{CONSEQUENCE[error.verified.consequence] ?? error.verified.consequence}</span>
-            {MECHANISM[error.verified.mechanism] && <span className="badge">{MECHANISM[error.verified.mechanism]}</span>}
+            {/* N7: a badge that repeats the motif badge above says nothing new. */}
+            {!sameLabel(CONSEQUENCE[error.verified.consequence] ?? error.verified.consequence, error.tactical_motif) && (
+              <span className="badge">{CONSEQUENCE[error.verified.consequence] ?? error.verified.consequence}</span>
+            )}
+            {MECHANISM[error.verified.mechanism] && !sameLabel(MECHANISM[error.verified.mechanism], error.tactical_motif) && (
+              <span className="badge">{MECHANISM[error.verified.mechanism]}</span>
+            )}
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.5 }}>{error.verified.explanation}</p>
         </div>
       )}
       {/* Phase 9b: the trained model's commentary, shown only when every claim of it
           passed the verifier. It replaces the old LLM's text, which checks nothing. */}
-      {error.verified?.commentary ? (
+      {/* N7: the checked commentary only when it says something the diagnosis did not. */}
+      {error.verified?.commentary && !sameText(error.verified.commentary, error.verified.explanation) ? (
         <p aria-label="AI commentary" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
           <span style={{ fontWeight: 600 }}>AI commentary</span>
           <span style={{ color: 'var(--green)', fontWeight: 600 }}> · checked</span>: {error.verified.commentary}

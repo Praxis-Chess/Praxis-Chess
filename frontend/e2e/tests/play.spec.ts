@@ -10,11 +10,11 @@ test.describe('Play & Improve', () => {
     const play = new PlayPage(page)
     await play.open()
 
-    await expect(play.opponentPanel).toBeVisible()
     // The feature's whole claim is that the opponent comes from measured history,
-    // so the counts must actually reach the screen.
-    await expect(play.main).toContainText('Nimzovich-Larsen Attack')
-    await expect(play.main).toContainText('97 of them')
+    // so the figures must reach the screen, each next to its baseline.
+    await expect(play.takeaway).toHaveText('Next game: Center Game as Black · engine skill 9 of 20')
+    await expect(play.opponentPanel).toContainText(/Center Game · 6\.0 vs your 4\.7 serious mistakes per game · 5 games/)
+    await expect(play.opponentPanel).toContainText(/9 of 20 · from your 68% average accuracy/)
     await expect(play.startButton).toBeEnabled()
   })
 
@@ -175,5 +175,92 @@ test.describe('analysis progress', () => {
     await expect
       .poll(async () => parseInt((await clock.textContent()) ?? '0', 10), { timeout: 15_000 })
       .toBeGreaterThan(first)
+  })
+})
+
+/** The Play redesign (docs/design/PLAY_PLAN.md): each test names the finding or principle it holds. */
+test.describe('Play & Improve: the next game first', () => {
+  test('principle 10: Start is the only solid button, above the fold', async ({ page }) => {
+    const play = new PlayPage(page)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await play.open()
+    await expect(play.main.locator('button.solid')).toHaveCount(1)
+    await expect(play.startButton).toHaveClass(/solid/)
+    await expect(play.startButton).toBeInViewport()
+  })
+
+  test('finding 2: the weaker colour is named, with the figures that decided it', async ({ page }) => {
+    const play = new PlayPage(page)
+    await play.open()
+    await expect(play.colourSelect).toContainText('Weaker colour: Black')
+    await expect(play.main).toContainText('Black · accuracy 64.9% vs 70.1% as White · 43 and 58 games')
+  })
+
+  test('finding 7: a strength at the cap says it is the cap', async ({ page, api }) => {
+    api.json(/^\/api\/play\/preview/, {
+      ...data.opponentProfile, skill_level: 14,
+      skill: { level: 14, scale: 20, min: 1, max: 14, calibrated: 15, capped: true, requested: false, accuracy: 83 },
+    })
+    const play = new PlayPage(page)
+    await play.open()
+    await expect(play.opponentPanel).toContainText('14 of 20 · the cap; your 83% average maps to 15')
+  })
+
+  test('finding 15: watch for is the report\'s, labelled as not targeted, one tap away', async ({ page }) => {
+    const play = new PlayPage(page)
+    await play.open()
+    const watch = play.main.getByRole('group', { name: 'Watch for' })
+    await expect(watch.getByText(/17\.6 vs 13\.6 per 100 moves/)).toBeHidden()
+    await watch.getByText('Watch for').click()
+    await expect(watch).toContainText(/middlegame · 17\.6 vs 13\.6 per 100 moves/)
+    await expect(watch).toContainText("Ignoring your opponent's threat · 32 of 145 (22%)")
+    await expect(watch).toContainText(/doesn't aim at these/)
+    await expect(watch.getByRole('link', { name: /Pattern Report/ })).toHaveAttribute('href', '/insights/patterns')
+  })
+
+  test('I1: a chosen strength is sent with the game, the recommended one preselected', async ({ page, api }) => {
+    const starts: unknown[] = []
+    api.set('/api/play/session', req => { starts.push(req.postDataJSON()); return { status: 200, body: data.playSession } })
+    const play = new PlayPage(page)
+    await play.open()
+    await expect(play.strengthSelect).toHaveValue('')
+    await expect(play.strengthSelect).toContainText('Strength: recommended (9)')
+    await play.strengthSelect.selectOption('12')
+    await play.startButton.click()
+    await expect.poll(() => starts.length).toBe(1)
+    expect(starts[0]).toMatchObject({ skill: 12 })
+  })
+
+  test('I2: after a game, drill exactly that game\'s mistakes', async ({ page, api }) => {
+    api.json(/^\/api\/play\/report\//, data.analysedReport)
+    const play = new PlayPage(page)
+    await play.open()
+    await play.startButton.click()
+    await play.resignButton.click()
+    const drill = play.main.getByRole('link', { name: /Drill this game's mistakes \(1\)/ })
+    await expect(drill).toHaveAttribute('href', `/drills?positions=${encodeURIComponent(`${data.PRACTICE_GAME_ID}:4`)}`)
+  })
+
+  test('a new player sees what will shape the opponent, and where their games are', async ({ page, api }) => {
+    api.json(/^\/api\/play\/preview/, {
+      ...data.opponentProfile, personalised: false, opening: null, watch_for: null, skill_level: 5,
+      skill: { level: 5, scale: 20, min: 1, max: 14, calibrated: null, capped: false, requested: false, accuracy: null },
+      colour: { weaker: 'white', basis: 'too few games', min_games: 5,
+                white: { games: 0, accuracy: null, win_pct: 0 }, black: { games: 0, accuracy: null, win_pct: 0 } },
+    })
+    const play = new PlayPage(page)
+    await play.open()
+    await expect(play.takeaway).toHaveText('Next game: default opponent as White · engine skill 5 of 20')
+    await expect(play.main.getByRole('link', { name: 'Your games →' })).toHaveAttribute('href', '/library')
+    await expect(play.opponentPanel).toHaveCount(0)
+  })
+
+  test.describe('on a phone', () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
+    test('principle 10: Start is above the fold at 390px', async ({ page }) => {
+      const play = new PlayPage(page)
+      await play.open()
+      await expect(play.startButton).toBeInViewport()
+    })
   })
 })

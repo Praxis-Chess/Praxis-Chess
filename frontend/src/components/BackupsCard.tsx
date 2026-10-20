@@ -91,12 +91,12 @@ export function BackupsCard() {
 
   return (
     <section id="backups" className="card" aria-labelledby="backups-title">
-      <h2 id="backups-title" style={{ fontSize: '1rem', marginBottom: 6 }}>Backups</h2>
+      <h2 id="backups-title" style={{ fontSize: 'var(--fs-section)', marginBottom: 6 }}>Backups</h2>
 
       {!b.service_running ? (
         <div role="status" style={{
-          margin: '4px 0 10px', padding: '10px 12px', borderLeft: '2px solid var(--warn)',
-          background: 'rgba(229, 176, 75, 0.08)', ...muted,
+          margin: '4px 0 10px', padding: '10px 12px', borderLeft: '2px solid var(--loss-soft)',
+          background: 'rgba(201, 129, 114, 0.08)', ...muted,
         }}>
           {b.count === 0 ? 'No backups yet: ' : `The last backup was ${ago(b.last_check_at)}, and `}
           the backup service is not running. Start it with{' '}

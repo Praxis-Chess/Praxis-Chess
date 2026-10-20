@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures/test'
 import * as reports from '../fixtures/reports'
 import { drill } from '../fixtures/parity/states'
+import * as data from '../fixtures/data'
 
 /**
  * Phase 12: the Pattern Report and Training Plan, computed in code, as tabs
@@ -35,14 +36,73 @@ test.describe('Pattern Report', () => {
     api.json('/api/patterns', reports.pattern)
     await page.goto('/insights/patterns')
 
-    const causes = page.getByRole('region', { name: 'What goes wrong' })
-    await expect(causes).toContainText(/the rest:.*unclear 17.*no cause found 40/i)
-    const tactics = page.getByRole('region', { name: 'Tactics your opponent got' })
-    await expect(tactics).toContainText(/the rest:.*pins 5/i)
-    // How many have no proven tactic stays visible: it changes how the counts read.
-    await expect(tactics).toContainText(/96 of 145/)
-    // One mistake can be both: the overlap is stated, visibly, not left to look like a duplicate.
-    await expect(tactics.getByRole('listitem', { name: 'Forks' })).toContainText(/1 of 14 also under.*ignoring your opponent's threat/i)
+    const causes = page.getByRole('tabpanel', { name: 'By cause' })
+    await expect(causes.getByRole('list', { name: 'The rest' })).toContainText('unclear 17')
+    // The biggest bucket can be "no cause": called out, not buried in a footnote.
+    await expect(causes).toContainText(/no cause found for 40 of 145 \(28%\)/i)
+
+    // Tactics are the same mistakes grouped another way: a second view, not a second list.
+    await page.getByRole('tab', { name: /tactic your opponent got/i }).click()
+    await expect(causes).toBeHidden()
+    const tactics = page.getByRole('tabpanel', { name: /tactic your opponent got/i })
+    await expect(tactics.getByRole('list', { name: 'The rest' })).toContainText('pins 5')
+    // What was found leads, and how much stays visible: it changes how the counts read.
+    await expect(tactics).toContainText(/a tactic proven in 49 of 145/i)
+    // One mistake can be both: the overlap is stated, one tap away, not left to look like a duplicate.
+    const forks = tactics.getByRole('listitem', { name: 'Forks' })
+    await forks.getByRole('button', { name: 'Details' }).click()
+    await expect(forks).toContainText(/1 of 14 also under.*ignoring your opponent's threat/i)
+  })
+
+  /**
+   * Hierarchy: an item has three levels. The title with one headline number,
+   * the instruction, then three positions and one action. The share, blunders
+   * and every other position are in Details.
+   */
+  test('an item reads in three levels; the rest is in its details', async ({ page, api }) => {
+    api.json('/api/patterns', reports.pattern)
+    await page.goto('/insights/patterns')
+
+    const threat = page.getByRole('listitem', { name: "Ignoring your opponent's threat" })
+    await expect(threat).toContainText('−27% each')
+    await expect(threat).toContainText('Name the threat before each move')
+    await expect(threat.getByRole('button', { name: /show the position/ })).toHaveCount(3)
+    await expect(threat).not.toContainText('32 of 145')
+    await threat.getByRole('button', { name: 'Details' }).click()
+    await expect(threat).toContainText(/32 of 145 \(22%\) · 19 blunders/)
+  })
+
+  /** Pink is the next action and the active state; links are neutral, so the button stands out. */
+  test('accent discipline: the only pink is the next action and the active tabs', async ({ page, api }) => {
+    api.json('/api/patterns', reports.pattern)
+    await page.goto('/insights/patterns')
+    await expect(page.getByRole('tab', { name: 'By cause' })).toBeVisible()
+    const pink = await page.evaluate(() => {
+      const probe = document.createElement('div'); probe.style.color = 'var(--orchid)'; document.body.appendChild(probe)
+      const rgb = getComputedStyle(probe).color; probe.remove()
+      return Array.from(document.querySelectorAll<HTMLElement>('main *'))
+        .filter(e => e.children.length === 0 && e.textContent?.trim())
+        .filter(e => getComputedStyle(e).color === rgb)
+        .map(e => e.textContent!.trim())
+    })
+    expect(pink.sort()).toEqual(['By cause', 'Pattern Report'])
+  })
+
+  test('where they happen leads with the finding, and only that bar is bright', async ({ page, api }) => {
+    api.json('/api/patterns', reports.pattern)
+    await page.goto('/insights/patterns')
+
+    const where = page.getByRole('region', { name: 'Where they happen' })
+    await expect(where).toContainText('Most in the middlegame, moves 11-20')
+    await expect(where.locator('[data-highlight]')).toHaveText([/middlegame/, /moves 11-20/])
+  })
+
+  /** Five games clear the threshold to be listed; whether the gap is more than chance is said too. */
+  test('an opening whose gap could be chance is marked low sample', async ({ page, api }) => {
+    api.json('/api/patterns', reports.pattern)
+    await page.goto('/insights/patterns')
+
+    await expect(page.getByRole('row', { name: /Center Game/ })).toContainText(/low sample/i)
   })
 
   test('recognition: a position shows its move and loss, and its context one tap away', async ({ page, api }) => {
@@ -63,7 +123,8 @@ test.describe('Pattern Report', () => {
     await expect(panel).toHaveCount(0)
     await expect(chip).toBeFocused()
 
-    await threat.getByRole('button', { name: 'Show all 5' }).click()
+    await threat.getByRole('button', { name: 'Details' }).click()
+    await threat.getByRole('button', { name: 'Show the other 2 positions' }).click()
     await expect(threat.getByRole('button', { name: /show the position/ })).toHaveCount(5)
   })
 
@@ -89,11 +150,11 @@ test.describe('Pattern Report', () => {
     await method.click()
     await expect(where.getByText(/never called the worst/)).toBeVisible()
 
-    // Drills: short by default, the full sentence for every item behind one toggle.
+    // Drills: short by default, the full sentence in the item's details.
     const threat = page.getByRole('listitem', { name: "Ignoring your opponent's threat" })
     await expect(threat).toContainText('Name the threat before each move')
     await expect(threat).not.toContainText("name what your opponent's last move threatens")
-    await page.getByRole('button', { name: 'Show full drills' }).click()
+    await threat.getByRole('button', { name: 'Details' }).click()
     await expect(threat).toContainText("name what your opponent's last move threatens")
   })
 
@@ -114,7 +175,7 @@ test.describe('Pattern Report', () => {
     api.json('/api/patterns', reports.pattern)
     await page.goto('/insights/patterns')
 
-    const drill = page.getByRole('listitem', { name: "Ignoring your opponent's threat" }).getByRole('link', { name: 'Drill these 5' })
+    const drill = page.getByRole('listitem', { name: "Ignoring your opponent's threat" }).getByRole('link', { name: 'Drill 5 →' })
     const href = await drill.getAttribute('href')
     expect(decodeURIComponent(href!.split('positions=')[1]).split(',')).toHaveLength(5)
   })
@@ -291,6 +352,64 @@ test.describe('Insights Overview', () => {
         .map(e => e.textContent?.trim() || e.outerHTML.slice(0, 60))
     })
     expect(pinkData).toEqual([])
+  })
+
+  // U6, N8: the trend chart's story, in one line, before the figures.
+  test('a takeaway says where the Elo went and whether the play went with it', async ({ page, api }) => {
+    const trend = Array.from({ length: 30 }, (_, i) => ({
+      date: `2026-07-${String(i + 1).padStart(2, '0')}`,
+      accuracy: i < 15 ? 86 : 80, moving_avg: i < 15 ? 86 : 80,
+      rating: i === 4 ? 880 : i < 15 ? 860 : 700,
+    }))
+    api.json('/api/insights', { ...data.insights, accuracy_trend: trend })
+    await page.goto('/insights')
+    const line = page.getByLabel('Takeaway')
+    await expect(line).toHaveText(/Your Elo has fallen from 880 on 5 Jul to 700, and your play with it: accuracy fell from \d+% to 80%\./)
+    await expect(line.getByRole('link', { name: 'What goes wrong →' })).toHaveAttribute('href', '/insights/patterns')
+  })
+
+  test('with too few games for a story, there is no takeaway', async ({ page }) => {
+    await page.goto('/insights')
+    await expect(page.getByRole('heading', { name: 'Time of Day' })).toBeVisible()
+    await expect(page.getByLabel('Takeaway')).toHaveCount(0)
+  })
+
+  // U6, N9: 44% beside your own 47% is your normal, not an alarm.
+  test('win rates are read against your own rate, not against 50%', async ({ page }) => {
+    await page.goto('/insights')
+    // 37 wins in 79 games across the day.
+    await expect(page.getByText('Win % · ±50 bands · line: your 46.8%').first()).toBeVisible()
+    const sicilian = page.getByRole('row', { name: /Sicilian Defense/ }).getByRole('cell', { name: '52.4%' })
+    const nimzo = page.getByRole('row', { name: /Nimzovich-Larsen/ }).getByRole('cell', { name: '33.3%' })
+    const colour = (l: typeof sicilian) => l.evaluate(e => getComputedStyle(e).color)
+    const neutral = await page.evaluate(() => getComputedStyle(document.body).color)
+    expect(await colour(sicilian)).toBe(neutral)
+    expect(await colour(nimzo)).not.toBe(neutral)
+  })
+
+  // N14: the Drill tile was a link dressed as a figure; the drill is now the thrown-away positions.
+  test('no link dressed as a stat tile: the drill is of the positions where wins slipped', async ({ page }) => {
+    await page.goto('/insights')
+    await expect(page.getByText('♟ Drill →')).toHaveCount(0)
+    await expect(page.getByText('Win % after a loss')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Drill 1 position →' }))
+      .toHaveAttribute('href', '/drills?positions=a1000000-0000-4000-8000-000000000002%3A47')
+  })
+
+  test('no voids: no card holds more than its padding of empty space', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.goto('/insights')
+    await expect(page.locator('.recharts-surface').first()).toBeVisible()
+    const voids = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('main .card')).map(c => {
+      const box = c.getBoundingClientRect()
+      let ink = box.top
+      c.querySelectorAll('*').forEach(e => {
+        const b = e.getBoundingClientRect()
+        if (e.children.length === 0 && b.height > 0) ink = Math.max(ink, b.bottom)
+      })
+      return { card: c.textContent?.slice(0, 24), gap: Math.round(box.bottom - ink) }
+    }).filter(v => v.gap > 40))
+    expect(voids).toEqual([])
   })
 })
 

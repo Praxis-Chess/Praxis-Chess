@@ -73,8 +73,13 @@ public record AnalysedGame(
         return moves.get(index).fenAfter();
     }
 
-    /** Human-facing date for evidence lines. */
+    private static final String[] MONTHS =
+            {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
+    /** Human-facing date for evidence lines: "6 Sep", as on every other page (never the locale's). */
     public String playedOn() {
-        return game.getPlayedAt() == null ? "" : game.getPlayedAt().toLocalDate().toString();
+        if (game.getPlayedAt() == null) return "";
+        var d = game.getPlayedAt().toLocalDate();
+        return d.getDayOfMonth() + " " + MONTHS[d.getMonthValue() - 1];
     }
 }

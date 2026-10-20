@@ -38,6 +38,10 @@ public class DevelopmentDelayDetector extends PerGameDetector {
              + "an attack or moving the same piece twice.";
     }
 
+    @Override public String doNow() {
+        return "Develop all four minor pieces before attacking";
+    }
+
     @Override
     protected boolean judgeable(AnalysedGame game) {
         return game.plyCount() >= MIN_PLY_TO_JUDGE;

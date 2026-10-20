@@ -37,6 +37,8 @@ export interface MoveError {
   analysis_state: AnalysisState | null  // null for legacy rows before migration
   /** The rules' verified diagnosis (Phase 9). Null until the mistake has a current one. */
   verified?: VerifiedDiagnosis | null
+  /** Winning chance this move lost (U4). Absent from older servers. */
+  win_pct_drop?: number | null
 }
 
 /** What the rules concluded from the evidence, every claim checked against it. */
@@ -78,6 +80,8 @@ export interface GameReview {
   accuracy: number | null
   analysis_status: AnalysisStatus
   moves: ReviewMove[]
+  /** Evaluation after each half-move, White's side, pawns (mate ±100), aligned with moves. Null before curves were kept (U5). */
+  evals?: (number | null)[] | null
 }
 
 export interface SyncStatus {
@@ -386,6 +390,8 @@ export interface BlownGame {
   played_at: string | null
   /** Ply of the move that let the win go; Game Analysis opens on it. Null if the game has no recorded mistakes. */
   turning_ply: number | null
+  /** The position before the turning move, for its board (U4). Absent from older servers. */
+  turning_fen?: string | null
   /** That move as written, e.g. "24.f3". */
   turning_move: string | null
 }
@@ -543,6 +549,8 @@ export interface DeckSummary {
   learning_cards: number
   review_cards: number
   suspended_cards: number
+  /** Reviews due today or overdue, plus the new cards still to introduce today (at most 10 a day). Absent from older servers. */
+  due_today?: number
 }
 
 export interface PhaseBreakdown {
@@ -621,6 +629,54 @@ export interface OpponentProfile {
   targeted_weakness: string | null
   rationale: string[]
   personalised: boolean
+  /** The report's first opening above your average; null when none qualifies. Optional: older servers lack it. */
+  opening?: OpponentOpening | null
+  skill?: OpponentSkill
+  colour?: OpponentColour
+  /** What the Pattern Report found; the opponent does not aim at these. Null without a report. */
+  watch_for?: WatchFor | null
+}
+
+/** The report's figures for the opening: serious mistakes per game, against your average. */
+export interface OpponentOpening {
+  eco: string
+  name: string
+  games: number
+  serious: number
+  serious_per_game: number
+  average: number
+  vs_average: number
+}
+
+export interface OpponentSkill {
+  level: number
+  /** Stockfish's skill scale: 20. */
+  scale: number
+  min: number
+  max: number
+  /** The level your accuracy maps to before the clamp; null without accuracy. */
+  calibrated: number | null
+  /** The clamp changed it: the level is a limit, not the calibration. */
+  capped: boolean
+  requested: boolean
+  accuracy: number | null
+}
+
+export interface ColourStats { games: number; accuracy: number | null; win_pct: number }
+
+export interface OpponentColour {
+  weaker: 'white' | 'black'
+  /** "accuracy", "win rate", or "too few games" (then White, and nothing is claimed). */
+  basis: string
+  min_games: number
+  white: ColourStats
+  black: ColourStats
+}
+
+export interface WatchFor {
+  phase: { key: string; label: string; count: number; moves: number; per_hundred: number; overall: number } | null
+  cause: { key: string; title: string; count: number; base: number; pct: number } | null
+  tactic: { key: string; title: string; count: number; base: number; pct: number } | null
 }
 
 export interface PlaySession {
@@ -692,6 +748,8 @@ export interface ImprovementReport {
   /** False when the sample is too small to claim a direction at all. */
   trend_claimable: boolean
   caveat: string | null
+  /** This game's mistakes that have an engine move: what "Drill this game's mistakes" opens. */
+  drill_plies?: number[]
 }
 
 /** Whether the sample supports stating a tendency plainly, or only hedging at it. */
@@ -712,6 +770,8 @@ export interface PracticePattern {
   why: string
   /** Authored constant: the corrective principle, not a move. */
   what_to_do: string
+  /** The same, as an imperative of at most eight words: shown by default. */
+  do_now?: string
   strength: PatternStrength
   games_affected: number
   games_considered: number
@@ -732,6 +792,10 @@ export interface PracticePatternReport {
   patterns: PracticePattern[]
   /** What this report does not look at, and why. */
   not_measured: string[]
+  /** The games threshold: patterns are named from this many analysed practice games. */
+  min_games?: number
+  /** The one opening every game in the window was aimed at, or null. */
+  aimed_at?: string | null
 }
 
 export interface PracticeGameSummary {
@@ -746,6 +810,12 @@ export interface PracticeGameSummary {
   target_opening: string | null
   rated: boolean
   analysed: boolean
+  /** The measured game's accuracy; null until analysed. */
+  accuracy?: number | null
+  /** Flagged moves by severity, as the review counts them; null until analysed. */
+  blunders?: number | null
+  mistakes?: number | null
+  inaccuracies?: number | null
 }
 
 // ── Settings ─────────────────────────────────────────────────────────────────

@@ -13,8 +13,8 @@ export function BackupFailedNotice({ error, onProceed, onCancel, busy }: {
   if (!(error instanceof BackupFailedError)) return null
   return (
     <div role="alert" style={{
-      marginTop: 10, padding: '10px 12px', borderLeft: '2px solid var(--warn)',
-      background: 'rgba(229, 176, 75, 0.08)', display: 'flex', flexDirection: 'column', gap: 8,
+      marginTop: 10, padding: '10px 12px', borderLeft: '2px solid var(--loss-soft)',
+      background: 'rgba(201, 129, 114, 0.08)', display: 'flex', flexDirection: 'column', gap: 8,
     }}>
       <span style={muted}>
         {error.message} Nothing has been changed. Re-analysis rewrites the analysis of many games, so a backup

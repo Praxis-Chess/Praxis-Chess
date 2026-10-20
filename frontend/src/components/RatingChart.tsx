@@ -58,7 +58,7 @@ export function RatingChart({ data, currentRating, ratingDelta }: Props) {
           <XAxis dataKey="date" tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} tickLine={false} axisLine={{ stroke: 'var(--hairline)' }} interval="preserveStartEnd" />
           <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
           <Tooltip
-            contentStyle={{ background: 'rgba(18,17,16,0.92)', border: '1px solid var(--hairline-lit)', borderRadius: 3 }}
+            contentStyle={{ background: 'rgba(0,0,0,0.88)', border: '1px solid var(--hairline-lit)', borderRadius: 3 }}
             labelStyle={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase' }}
             itemStyle={{ color: 'var(--orchid)', fontWeight: 500 }}
           />

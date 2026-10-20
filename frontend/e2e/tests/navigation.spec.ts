@@ -51,26 +51,30 @@ test.describe('Navigation shell', () => {
     await expect(app.main).toBeVisible()
   })
 
-  test('Prax mounts once and is hidden from assistive tech', async ({ page }) => {
+  // Skipped while the Display setting is hidden (BACKGROUND_SETTING = false): no style can be drawn. Returns with it.
+  test.skip('the background mounts once and is hidden from assistive tech', async ({ page }) => {
     const app = new AppPage(page)
+    await page.addInitScript(() => localStorage.setItem('praxis.background', JSON.stringify({ style: 'contours', motion: 'reacts' })))
     await app.goto('/')
 
-    // Decorative: a particle field has nothing to announce. The attribute sits
+    // Decorative: a moving field has nothing to announce. The attribute sits
     // on the wrapper, which is what actually removes the subtree from the a11y tree.
-    await expect(app.praxContainer.first()).toHaveAttribute('aria-hidden', 'true')
+    await expect(app.background).toHaveAttribute('aria-hidden', 'true')
   })
 
-  test('Prax survives navigation without remounting', async ({ page }) => {
+  // Skipped while the Display setting is hidden (BACKGROUND_SETTING = false): no style can be drawn. Returns with it.
+  test.skip('the background survives navigation without remounting', async ({ page }) => {
     const app = new AppPage(page)
+    await page.addInitScript(() => localStorage.setItem('praxis.background', JSON.stringify({ style: 'contours', motion: 'reacts' })))
     await app.goto('/')
 
-    // PraxHost sits outside <Routes> precisely so the particle identity persists.
-    // Tagging the element lets us prove the same node is still there afterwards.
-    await app.praxCanvas.first().evaluate(el => el.setAttribute('data-e2e-marker', 'original'))
+    // It sits outside <Routes> so the field is never rebuilt on a page change.
+    // Tagging the element proves the same node is still there afterwards.
+    await app.backgroundCanvas.evaluate(el => el.setAttribute('data-e2e-marker', 'original'))
 
     await app.navigateTo('Progress')
     await app.navigateTo('Play')
 
-    await expect(app.praxCanvas.first()).toHaveAttribute('data-e2e-marker', 'original')
+    await expect(app.backgroundCanvas).toHaveAttribute('data-e2e-marker', 'original')
   })
 })

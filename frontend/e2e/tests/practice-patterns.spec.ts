@@ -3,100 +3,114 @@ import { PlayPage } from '../pages/PlayPage'
 import { GameReviewPage } from '../pages/GameReviewPage'
 import * as data from '../fixtures/data'
 
-test.describe('My playing patterns', () => {
-  test('shows a pattern with its finding', async ({ page, api }) => {
+test.describe('Practice so far', () => {
+  test('shows a pattern with how often it recurred, and what to do now', async ({ page, api }) => {
+    api.json('/api/play/history', data.practiceHistory)
     api.json('/api/play/patterns', data.practicePatterns)
 
     const play = new PlayPage(page)
     await play.open()
 
-    await expect(play.main.getByRole('heading', { name: 'My playing patterns' })).toBeVisible()
+    const castling = play.main.getByRole('listitem', { name: 'You castle late' })
+    await expect(castling).toContainText('4 of 6 games')
+    await expect(castling).toContainText('Castle inside the first ten moves')
+  })
+
+  /**
+   * Why it costs, the full corrective principle and the finding sentence are one
+   * tap away for the whole section (PLAY_PLAN.md, P3): the count and the
+   * imperative carry the action; the reasoning is there for whoever wants it.
+   */
+  test('the finding and why it costs are one tap away, for the whole section', async ({ page, api }) => {
+    api.json('/api/play/history', data.practiceHistory)
+    api.json('/api/play/patterns', data.practicePatterns)
+
+    const play = new PlayPage(page)
+    await play.open()
+
+    await expect(play.main.getByText(/An uncastled king stays on the file/)).toHaveCount(0)
+    await play.main.getByRole('button', { name: 'Details' }).click()
+    await expect(play.main.getByText(/An uncastled king stays on the file/)).toBeVisible()
     await expect(play.main.getByText(/You castled after move 10 in 4 of 6 games/)).toBeVisible()
   })
 
   /**
-   * The difference between a diagnostic and a learning feature. A player told
-   * only "you castle late" learns nothing unless they already knew why — and
-   * one who knew would not need the detector. So these never collapse.
-   */
-  test('always shows why it costs and what to do, without expanding anything', async ({ page, api }) => {
-    api.json('/api/play/patterns', data.practicePatterns)
-
-    const play = new PlayPage(page)
-    await play.open()
-
-    await expect(play.main.getByText(/An uncastled king stays on the file/)).toBeVisible()
-    await expect(play.main.getByText(/Aim to castle inside the first ten moves/)).toBeVisible()
-  })
-
-  /**
    * A drill needs a position whose best move IS the lesson. That is true of a
-   * motif and false of castling — the engine's choice at move 10 is whatever
-   * the position demands, which is usually not "castle".
+   * motif and false of castling. The drill is the pattern's own positions (I7),
+   * never a random set: Drills reads positions, not a motif.
    */
-  test('offers a drill for the motif pattern and not for the habit pattern', async ({ page, api }) => {
+  test('drills the motif pattern\'s own positions, and offers nothing for the habit', async ({ page, api }) => {
+    api.json('/api/play/history', data.practiceHistory)
     api.json('/api/play/patterns', data.practicePatterns)
 
     const play = new PlayPage(page)
     await play.open()
 
-    await expect(play.main.getByRole('button', { name: 'Practise this' })).toHaveCount(1)
+    const drills = play.main.getByRole('link', { name: /^Drill (this position|these \d+ positions)$/ })
+    await expect(drills).toHaveCount(1)
+    await expect(drills).toHaveAttribute('href', `/drills?positions=${encodeURIComponent(`${data.PRACTICE_GAME_ID}:14`)}`)
   })
 
   test('hedges near the sample floor rather than stating a tendency flatly', async ({ page, api }) => {
+    api.json('/api/play/history', data.practiceHistory)
     api.json('/api/play/patterns', data.practicePatterns)
 
     const play = new PlayPage(page)
     await play.open()
 
     await expect(play.main.getByText('Early signal').first()).toBeVisible()
-    await expect(play.main.getByText(/on this evidence so far/).first()).toBeVisible()
   })
 
   /**
-   * All practice games are the player's weakest opening by construction, so a
-   * habit and an unfamiliar opening are indistinguishable from inside this
-   * feature. Saying so is the difference between a caveat and a false lesson.
+   * Every practice game is aimed at the player's weakest opening, so a habit and
+   * an unfamiliar opening look alike from here. Said once, as "aimed at": the
+   * opponent forces only its first moves.
    */
-  test('warns that every game is the same opening', async ({ page, api }) => {
+  test('says every game was aimed at one opening, and that games are untimed', async ({ page, api }) => {
+    api.json('/api/play/history', data.practiceHistory)
     api.json('/api/play/patterns', data.practicePatterns)
 
     const play = new PlayPage(page)
     await play.open()
 
-    await expect(play.main.getByText(/may be specific to that opening/)).toBeVisible()
+    await expect(play.historyPanel).toContainText('All aimed at the Nimzovich-Larsen Attack')
+    await expect(play.historyPanel).toContainText('Untimed: no clock')
+    // Said once, so no column repeats it on every row.
+    await expect(play.historyPanel.getByRole('columnheader', { name: 'Aimed at' })).toHaveCount(0)
   })
 
-  test('names what it did not measure', async ({ page, api }) => {
-    api.json('/api/play/patterns', data.practicePatterns)
-
-    const play = new PlayPage(page)
-    await play.open()
-
-    await expect(play.main.getByText(/practice games are untimed/)).toBeVisible()
-  })
-
-  test('below the floor it shows the counts and declines to claim', async ({ page, api }) => {
+  test('below the threshold it shows progress toward it, and claims nothing', async ({ page, api }) => {
+    api.json('/api/play/history', data.practiceHistory.slice(0, 1))
     api.json('/api/play/patterns', {
-      games_considered: 3,
-      claimable: false,
-      caveat: 'Only 3 analysed practice games so far. Here is what they show, but 5 are needed before calling anything a tendency.',
-      opening_caveat: null,
-      patterns: [],
-      not_measured: [],
+      games_considered: 1, claimable: false, caveat: null, opening_caveat: null,
+      patterns: [], not_measured: [], min_games: 5, aimed_at: null,
     })
 
     const play = new PlayPage(page)
     await play.open()
 
-    await expect(play.main.getByText(/5 are needed before calling anything a tendency/)).toBeVisible()
+    await expect(play.historyPanel).toContainText('1 of 5 games · patterns from 5')
+    await expect(play.main.getByText(/here is what they show/i)).toHaveCount(0)
+  })
+
+  test('each game shows its accuracy and what was flagged, as the review counts it', async ({ page, api }) => {
+    api.json('/api/play/history', data.practiceHistory)
+
+    const play = new PlayPage(page)
+    await play.open()
+
+    const lost = play.historyPanel.getByRole('row', { name: /^Lost/ }).first()
+    await expect(lost).toContainText('28 Aug')
+    await expect(lost).toContainText('80%')
+    await expect(lost).toContainText('1 mistake')
+    await expect(play.historyPanel.getByRole('row', { name: /^Won/ })).toContainText('1 blunder · 2 mistakes · 1 inaccuracy')
   })
 
   test('stays out of the way entirely when there are no games', async ({ page }) => {
     const play = new PlayPage(page)
     await play.open()
 
-    await expect(play.main.getByRole('heading', { name: 'My playing patterns' })).toHaveCount(0)
+    await expect(play.historyPanel).toHaveCount(0)
   })
 })
 

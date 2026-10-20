@@ -72,8 +72,8 @@ test.describe('Re-analysis takes a backup first', () => {
     await page.goto('/settings')
     const library = page.getByRole('region', { name: 'Library' })
 
-    await library.getByRole('button', { name: /Re-analyze All/ }).click()
-    await library.getByRole('button', { name: 'Yes, re-analyze all' }).click()
+    await library.getByRole('button', { name: /Re-analyse All/ }).click()
+    await library.getByRole('button', { name: 'Yes, re-analyse all' }).click()
 
     const notice = library.getByRole('alert')
     await expect(notice).toContainText('The backup service is not running.')

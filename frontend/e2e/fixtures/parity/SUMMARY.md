@@ -32,14 +32,19 @@ A section is the innermost two named scopes.
 | drills · empty | 18 | 0 | 1 | 0 | 0 |
 | drills · plan-session | 43 | 5 | 1 | 10 | 0 |
 | drill-session · default | 18 | 3 | 0 | 7 | 0 |
+| today · empty-deck | 43 | 9 | 0 | 26 | 7 |
+| progress · no-reviews | 29 | 21 | 0 | 58 | 65 |
+| library · drills | 43 | 6 | 0 | 27 | 0 |
+| game-analysis · positional-only | 159 | 8 | 6 | 26 | 0 |
+| play · in-game | 17 | 7 | 0 | 8 | 0 |
 | settings · default | 260 | 64 | 4 | 165 | 16 |
 | settings · first-run | 275 | 66 | 5 | 172 | 16 |
 
 ## Exceptions
 
-- removed: 21
-- formats: 4
-- moves: 9
+- removed: 45
+- formats: 14
+- moves: 10
 - methods: none
 
 ## today · default
@@ -494,6 +499,93 @@ Paragraphs over 15 words:
 | Section | Numbers, moves | Text data | Links |
 |---|---:|---:|---:|
 | (page) | 3 | 4 | 0 |
+
+## today · empty-deck
+
+`/`
+
+| Section | Numbers, moves | Text data | Links |
+|---|---:|---:|---:|
+| (page) | 7 | 3 | 0 |
+| 2026-08-17 — examined | 0 | 1 | 0 |
+| 2026-08-18 — examined | 0 | 1 | 0 |
+| 2026-08-19 — examined | 0 | 1 | 0 |
+| 2026-08-20 — examined | 0 | 1 | 0 |
+| 2026-08-21 — examined | 0 | 1 | 0 |
+| 2026-08-22 — upcoming | 0 | 1 | 0 |
+| 2026-08-23 — upcoming | 0 | 1 | 0 |
+| You lose material in the middlegame more than anywhere else | 4 | 4 | 1 |
+
+Hover-only (`title=`), unreachable by tap or keyboard today:
+
+- 2026-08-17 — examined: 2026-08-17 — examined
+- 2026-08-18 — examined: 2026-08-18 — examined
+- 2026-08-19 — examined: 2026-08-19 — examined
+- 2026-08-20 — examined: 2026-08-20 — examined
+- 2026-08-21 — examined: 2026-08-21 — examined
+- 2026-08-22 — upcoming: 2026-08-22 — upcoming
+- 2026-08-23 — upcoming: 2026-08-23 — upcoming
+
+## progress · no-reviews
+
+`/progress`
+
+| Section | Numbers, moves | Text data | Links |
+|---|---:|---:|---:|
+| (page) | 15 | 4 | 0 |
+| 2026-09-20 | 6 | 0 | 0 |
+| 2026-09-21 | 6 | 0 | 0 |
+| 2026-09-22 | 6 | 0 | 0 |
+| Date | 0 | 1 | 0 |
+| Practice history | 6 | 2 | 0 |
+| Days examined › Aug 2026: 2026-08-17, 2026-08-18, 2026-08-19, 2026-08-20, 20 | 6 | 1 | 0 |
+| Days examined › Jul 2026: 2026-07-28, 2026-07-29, 2026-07-30 | 4 | 1 | 0 |
+
+Hover-only (`title=`), unreachable by tap or keyboard today:
+
+- (page): 2026-09-20: 0 cards, 0% accuracy
+- (page): 2026-09-21: 0 cards, 0% accuracy
+- (page): 2026-09-22: 0 cards, 0% accuracy
+- Practice history: 2026-07-01 — no activity
+- Practice history: 2026-07-02 — no activity
+- Practice history: 2026-07-03 — no activity
+- Practice history: 2026-07-04 — no activity
+- Practice history: 2026-07-05 — no activity
+- and 57 more
+
+## library · drills
+
+`/library`
+
+| Section | Numbers, moves | Text data | Links |
+|---|---:|---:|---:|
+| (page) | 6 | 15 | 6 |
+
+## game-analysis · positional-only
+
+`/games/7c3c9a2e-1111-4a22-8b33-445566778899`
+
+Paragraphs over 15 words:
+
+- No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not cover.
+- AI commentary · checked: No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not c…
+- No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not cover.
+- AI commentary · checked: No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not c…
+- No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not cover.
+- AI commentary · checked: No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not c…
+
+| Section | Numbers, moves | Text data | Links |
+|---|---:|---:|---:|
+| (page) | 8 | 11 | 1 |
+| Verified diagnosis | 0 | 6 | 0 |
+
+## play · in-game
+
+`/play`
+
+| Section | Numbers, moves | Text data | Links |
+|---|---:|---:|---:|
+| (page) | 7 | 1 | 0 |
 
 ## settings · default
 

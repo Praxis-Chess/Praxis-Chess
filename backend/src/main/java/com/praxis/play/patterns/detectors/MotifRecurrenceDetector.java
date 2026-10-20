@@ -49,6 +49,10 @@ public class MotifRecurrenceDetector implements PatternDetector {
              + "shape before the engine has to point at it.";
     }
 
+    @Override public String doNow() {
+        return "Drill these positions until you see it";
+    }
+
     // drillMotif() is deliberately NOT overridden. Which motif dominates is a
     // property of one report, not of the detector, and this is a singleton — a
     // field holding it would leak between requests and race under concurrency.
@@ -97,7 +101,7 @@ public class MotifRecurrenceDetector implements PatternDetector {
                 + ", across " + diagnosedTotal + " diagnosed mistakes.";
 
         return Optional.of(new PracticePattern(
-                id(), title(), finding, why(), whatToDo(),
+                id(), title(), finding, why(), whatToDo(), doNow(),
                 PerGameDetector.strengthFor(window.size()),
                 hits.size(), window.size(),
                 motif.name(),

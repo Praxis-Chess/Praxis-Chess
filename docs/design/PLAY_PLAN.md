@@ -228,3 +228,22 @@ Each one ends with: parity in all play states (with `expandAll`), the full suite
 - **"Watch for" moves below the start button.** It isn't what the opponent does (finding 15), so it no longer competes with the action. It's still on the first screen at desktop width; on a phone it's below the fold.
 - **Using the stored report as the source (P2, P3)** means Play's facts are as old as the last report build. The report rebuilds after each analysis run, so the lag is at most one run. In return, Play and the report can never disagree.
 - **Moving the report's opening rule from 3 to 5 games (P1)** can drop an opening with 3–4 games from the report and plan. That's data the report shows today; the change would be recorded as a deliberate parity exception, not done silently.
+
+---
+
+## 9. Results (built, branch `feat/play-redesign`)
+
+Approved: all decisions P1–P8 as recommended; ideas I1, I2, I7.
+
+| Milestone | What shipped |
+|---|---|
+| **P1 · backend** | `report/Thresholds` (`MIN_GAMES` 5, `MIN_MISTAKES` 10, `PER_MOVES` 100) wired into the report, the opponent, practice patterns and the post-game report. `OpponentProfileService` reads the **stored Pattern Report** for the opening (its first opening above your average) and Watch for (phase rate, top cause, top proven tactic), and returns structured `opening`, `skill` (level, scale, calibrated, capped, requested), `colour` (weaker, basis, both colours' figures) and `watch_for`. The report's opening rule needs 5 games (was 3). History rows carry accuracy and blunder, mistake and inaccuracy counts (one grouped query). Practice rates are per 100 moves (direction steps 0.3 → 0.75; claim floor 1.0 → 2.5, the same thresholds). Patterns: `min_games`, `aimed_at`, a ≤ 8-word `do_now`, "6 Sep" evidence dates, no em dashes, no untrue small-sample caveat. The post-game report carries `drill_plies` |
+| **P2 · page** | Takeaway first; the only solid button above the fold (1440×900 and 390×844); colour named with its figures; This game; Watch for (closed); Practice so far table |
+| **P3 · patterns** | Rows instead of cards; one Details toggle; I7's real drill link; neutral colours; plural fix; dates |
+| **P4 · thresholds** | `DESIGN_SYSTEM.md` principle 5 rewritten with the table |
+| **P5 · spelling** | British in player-facing copy (13 patterns, 9 files); identifiers untouched |
+| **I1, I2** | Strength select (recommended preselected; sent with the game). "Drill this game's mistakes (n)" after a game |
+
+**Parity:** every Play state passes, with reviewed exceptions for the definition changes (P2/P3: the opponent's old accuracy, blunder-count and all-severity figures replaced by the report's), the de-duplicated "Aimed at" column, the untrue small-sample sentence (finding 9), and format mappings (dates, the run-together "Early signal4/6" → "4 of 6 games", the colour option, "analysed"). The harness gained partial removals (`count`) and either-or text formats.
+
+**Needs your Maven run and a restart:** `OpponentProfileService` (new constructor: report repository and ObjectMapper), `PlayController` (history counts), `MoveErrorRepository.countBySeverity`, `PracticePatternReport`/`PracticePattern` (new fields), `PatternDetector.doNow`, `ImprovementReport.drillPlies`. New tests: `OpponentProfileServiceTest`; `PgnDetectorTest` checks every `doNow`.

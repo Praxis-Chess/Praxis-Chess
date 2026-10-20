@@ -19,19 +19,19 @@ import java.util.Optional;
  * game's middlegame bad?" per game and counting would answer a different
  * question and need a second threshold to do it.
  *
- * Rates are per 40 player moves, matching ImprovementService, so a long game is
- * not mistaken for a bad one.
+ * Rates are per 100 player moves, the Pattern Report's unit (Thresholds.PER_MOVES),
+ * so a long game is not mistaken for a bad one.
  */
 @Component
 public class PhaseWeaknessDetector implements PatternDetector {
 
-    private static final int PER_MOVES = 40;
+    private static final int PER_MOVES = com.praxis.report.Thresholds.PER_MOVES;
 
     /** How much worse one phase must be than the mean of the others. */
     private static final double DOMINANCE = 1.5;
 
-    /** Below this the rate is too jumpy to compare — one blunder swings it. */
-    private static final double MIN_RATE_TO_CLAIM = 1.0;
+    /** Below this the rate is too jumpy to compare: one blunder swings it. (1.0 per 40 moves, as it was.) */
+    private static final double MIN_RATE_TO_CLAIM = 2.5;
 
     @Override public String id()    { return "phase-weakness"; }
     @Override public String title() { return "One phase costs you most"; }
@@ -43,7 +43,11 @@ public class PhaseWeaknessDetector implements PatternDetector {
 
     @Override public String whatToDo() {
         return "Work on the phase that is losing the points, not the one that feels "
-             + "hardest — they are often different.";
+             + "hardest; they are often different.";
+    }
+
+    @Override public String doNow() {
+        return "Train the phase that loses the points";
     }
 
     @Override
@@ -111,7 +115,7 @@ public class PhaseWeaknessDetector implements PatternDetector {
                 + " moves, against " + round1(othersMean) + " elsewhere.";
 
         return Optional.of(new PracticePattern(
-                id(), title(), finding, why(), whatToDo(),
+                id(), title(), finding, why(), whatToDo(), doNow(),
                 PerGameDetector.strengthFor(window.size()),
                 evidence.size(), window.size(),
                 null,   // no single motif to drill — a phase is not a position

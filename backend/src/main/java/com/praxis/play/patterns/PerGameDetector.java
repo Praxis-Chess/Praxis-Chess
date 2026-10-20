@@ -17,8 +17,8 @@ public abstract class PerGameDetector implements PatternDetector {
     /** A tendency seen twice is a thing that happened twice, not a pattern. */
     public static final int MIN_RECURRENCE = 3;
 
-    /** Below this many games the report names no tendency at all. */
-    public static final int MIN_SAMPLE = 5;
+    /** Below this many games the report names no tendency at all (the games threshold). */
+    public static final int MIN_SAMPLE = com.praxis.report.Thresholds.MIN_GAMES;
 
     /** Enough games to state a tendency plainly rather than hedge. */
     public static final int ESTABLISHED_AT = 10;
@@ -62,7 +62,7 @@ public abstract class PerGameDetector implements PatternDetector {
         return Optional.of(new PracticePattern(
                 id(), title(),
                 finding(hits.size(), judged.size(), hits),
-                why(), whatToDo(),
+                why(), whatToDo(), doNow(),
                 strengthFor(judged.size()),
                 hits.size(), judged.size(),
                 drillMotif(),

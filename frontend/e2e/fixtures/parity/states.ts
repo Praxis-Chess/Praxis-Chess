@@ -22,6 +22,8 @@ export interface ParityState {
   state: string
   path: string
   setup?: (api: ApiMock) => void
+  /** Steps after the page loads, to reach a state no URL opens (a live game, a tab). */
+  act?: (page: Page) => Promise<void>
 }
 
 // The current model line-up: qwen2.5:7b is retired, per-move explanations are off.
@@ -80,23 +82,68 @@ const oldShapePlan: TrainingPlan = {
 }
 
 // ── Play & Improve: the states the page's text differs in ─────────────────────
-const UNTIMED = 'Time and decision-making — practice games are untimed, so no clock is recorded and none can be reconstructed.'
-const centreCaveat = 'Every one of these games is the Center Game, because your opponent is built to play your weakest ' +
-  'opening. Some of what follows may be specific to that opening rather than a habit you carry everywhere.'
+// As the server writes them since the Play redesign.
+const UNTIMED = 'Untimed: no clock'
+const centreCaveat = 'All aimed at the Center Game'
 /** One analysed practice game, below the patterns threshold: the screen in the review that prompted the redesign. */
 const oneGameHistory = [{
   id: '77777777-7777-4777-8777-777777777777', game_id: data.PRACTICE_GAME_ID,
   started_at: '2026-10-01T18:20:00Z', finished_at: '2026-10-01T18:41:00Z', status: 'FINISHED' as const,
   result: 'loss', skill_level: 14, target_opening: 'Center Game', rated: true, analysed: true,
+  accuracy: 80, blunders: 0, mistakes: 1, inaccuracies: 0,
 }]
 const oneGamePatterns = {
   games_considered: 1, claimable: false, opening_caveat: centreCaveat,
-  caveat: 'Only 1 analysed practice game so far. Here is what they show, but 5 are needed before calling anything a tendency.',
-  patterns: [], not_measured: [UNTIMED],
+  caveat: null, patterns: [], not_measured: [UNTIMED], min_games: 5, aimed_at: 'Center Game',
 }
 const newPlayer = { ...data.opponentProfile, personalised: false, target_eco: null, target_opening: null,
   target_phase: null, target_motif: null, targeted_weakness: null, skill_level: 5,
-  rationale: ['No analysed games yet, so this opponent is not shaped by your play. Sync and analyse some games and it will be.'] }
+  rationale: ['No analysed games yet: a default opponent, engine skill 5 of 20'],
+  opening: null, watch_for: null,
+  skill: { level: 5, scale: 20, min: 1, max: 14, calibrated: null, capped: false, requested: false, accuracy: null },
+  colour: { weaker: 'white' as const, basis: 'too few games', min_games: 5,
+            white: { games: 0, accuracy: null, win_pct: 0 }, black: { games: 0, accuracy: null, win_pct: 0 } } }
+
+// ── Polish U0: the states the screenshots show and the fixtures did not ──────
+// docs/design/POLISH_PLAN.md, section 5, item 3.
+
+const noCards = { total_cards: 0, new_cards: 0, learning_cards: 0, review_cards: 0, suspended_cards: 0 }
+/** 124 of 130 games analysed, 50 drills, and a review deck nobody has filled (N1). */
+const emptyDeck = (api: ApiMock) => {
+  api.json('/api/progress', { deck_summary: noCards, history: [] })
+  api.json('/api/sync/new-count', { count: 16 })
+}
+/** Reviews exist, but none in the last 7 days (N2: no data must not be drawn as failure). */
+const noRecentReviews = (api: ApiMock) => {
+  const day = (date: string) => ({ date, reviewed: 0, correct: 0, again: 0, accuracy: 0, avg_interval_days: 0,
+    phases: { opening_correct: 0, opening_total: 0, middlegame_correct: 0, middlegame_total: 0, endgame_correct: 0, endgame_total: 0 } })
+  api.json('/api/progress', { deck_summary: noCards, history: [day('2026-09-20'), day('2026-09-21'), day('2026-09-22')] })
+  api.json('/api/sync/new-count', { count: 16 })
+}
+/** Every mistake positional: the diagnosis and the checked commentary say the same sentence (N7). */
+const POSITIONAL = 'No material or mate changes hands within the horizon; the difference is positional, which this diagnosis does not cover.'
+const positionalMistake = (i: number, move: string, better: string, severity: string) => ({
+  ...data.scholarsMistake, id: `e222222${i}-1111-1111-1111-111111111111`, move_number: 4 + 2 * i, player_color: 'black',
+  move_played: move, better_move: better, severity, tactical_motif: 'POSITIONAL', explanation: POSITIONAL,
+  verified: { consequence: 'POSITIONAL', mechanism: 'NONE', motif: 'POSITIONAL', explanation: POSITIONAL, passed: true,
+              commentary: POSITIONAL, commentary_model: 'praxis-grid-2b-r3' },
+})
+const positionalOnly = [
+  positionalMistake(1, 'Nc6', 'g8f6', 'INACCURACY'),
+  positionalMistake(2, 'fxe4', 'g8f6', 'INACCURACY'),
+  positionalMistake(3, 'Bf5', 'd7d5', 'MISTAKE'),
+]
+/** A live practice game a few moves in. */
+const liveGame = { ...data.playSession, san_moves: 'e4 e5 Nf3 Nc6', target_eco: 'C21', target_opening: 'Center Game',
+  fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3' }
+/** The Drills tab of the Library, with a page of drills. */
+const drillPage: Drill[] = [
+  drill('d1', 'Rxf8', 36),
+  { ...drill('d2', 'exd5', 27), severity: 'MISTAKE', tactical_motif: 'POSITIONAL' },
+  { ...drill('d3', 'Qd4', 12), severity: 'INACCURACY', tactical_motif: 'OTHER', game_phase: 'OPENING' },
+  { ...drill('d4', 'Nb5', 41), tactical_motif: 'BACK_RANK' },
+  { ...drill('d5', 'Nd4', 33), tactical_motif: 'PIN' },
+]
 
 const base = (api: ApiMock) => {
   api.json('/api/settings/ai', ai)
@@ -114,8 +161,9 @@ export const STATES: ParityState[] = [
   { screen: 'today', state: 'first-run', path: '/', setup: api => { api.json('/api/setup/status', fresh); api.json('/api/settings/player', data.playerNone) } },
   { screen: 'progress', state: 'default', path: '/progress' },
   { screen: 'library', state: 'default', path: '/library' },
+  // U4: the page opens on its costliest mistake, so its Why? is there to open.
   { screen: 'game-analysis', state: 'default', path: `/games/${data.WHY_GAME_ID}`,
-    setup: api => api.json(/^\/api\/analysis\/[0-9a-f-]+$/, [data.scholarsMistakeVerified]) },
+    setup: api => { api.json(/^\/api\/analysis\/[0-9a-f-]+$/, [data.scholarsMistakeVerified]); api.json(/^\/api\/diagnosis\/why\//, data.scholarsWhy) } },
   { screen: 'play', state: 'default', path: '/play' },
   { screen: 'play', state: 'new-player', path: '/play', setup: api => api.json(/^\/api\/play\/preview/, newPlayer) },
   { screen: 'play', state: 'one-game', path: '/play', setup: api => {
@@ -148,6 +196,14 @@ export const STATES: ParityState[] = [
         completed: false, started_at: '2026-08-22T09:00:00Z', completed_at: null })
       api.json(`/api/sessions/${SESSION}/next`, card)
     } },
+  { screen: 'today', state: 'empty-deck', path: '/', setup: emptyDeck },
+  { screen: 'progress', state: 'no-reviews', path: '/progress', setup: noRecentReviews },
+  { screen: 'library', state: 'drills', path: '/library', setup: api => api.json(/^\/api\/drills/, drillPage),
+    act: async page => { await page.getByRole('tab', { name: 'Drills' }).click() } },
+  { screen: 'game-analysis', state: 'positional-only', path: `/games/${data.WHY_GAME_ID}`,
+    setup: api => { api.json(/^\/api\/analysis\/[0-9a-f-]+$/, positionalOnly); api.json(/^\/api\/diagnosis\/why\//, data.scholarsWhy) } },
+  { screen: 'play', state: 'in-game', path: '/play', setup: api => api.json('/api/play/session', liveGame),
+    act: async page => { await page.getByRole('button', { name: 'Start a game' }).click() } },
   { screen: 'settings', state: 'default', path: '/settings' },
   { screen: 'settings', state: 'first-run', path: '/settings', setup: api => { api.json('/api/setup/status', fresh); api.json('/api/settings/player', data.playerNone) } },
 ]
@@ -161,6 +217,11 @@ export async function open(page: Page, api: ApiMock, s: ParityState) {
   await page.waitForLoadState('networkidle')
   // The pages settle on a second query (the setup status, the sync banner).
   await page.waitForTimeout(600)
+  if (s.act) {
+    await s.act(page)
+    await page.waitForLoadState('networkidle')
+    await page.waitForTimeout(400)
+  }
 }
 
 // ── Text data ──────────────────────────────────────────────────────────────

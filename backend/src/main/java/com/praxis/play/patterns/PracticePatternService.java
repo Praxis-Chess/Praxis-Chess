@@ -42,9 +42,8 @@ public class PracticePatternService {
      */
     public static final int WINDOW = 20;
 
-    private static final String UNTIMED_NOTE =
-            "Time and decision-making — practice games are untimed, so no clock is "
-          + "recorded and none can be reconstructed.";
+    /** Practice games are untimed: no clock is recorded and none can be reconstructed. */
+    private static final String UNTIMED_NOTE = "Untimed: no clock";
 
     private final PracticeGameRepository practiceGames;
     private final GameRepository games;
@@ -74,12 +73,13 @@ public class PracticePatternService {
 
         List<String> notMeasured = List.of(UNTIMED_NOTE);
 
+        // Below the games threshold nothing is claimed, and nothing is said to be
+        // shown: the page shows progress toward the threshold (n of minGames).
         if (window.size() < PerGameDetector.MIN_SAMPLE) {
             return new PracticePatternReport(
-                    window.size(), false,
-                    caveatForSmallSample(window.size()),
+                    window.size(), false, null,
                     openingCaveat(window),
-                    List.of(), notMeasured);
+                    List.of(), notMeasured, PerGameDetector.MIN_SAMPLE, aimedAt(window));
         }
 
         List<PracticePattern> found = new ArrayList<>();
@@ -96,7 +96,7 @@ public class PracticePatternService {
         return new PracticePatternReport(
                 window.size(), true, null,
                 openingCaveat(window),
-                List.copyOf(found), notMeasured);
+                List.copyOf(found), notMeasured, PerGameDetector.MIN_SAMPLE, aimedAt(window));
     }
 
     /**
@@ -138,13 +138,6 @@ public class PracticePatternService {
                 pg, game, parsed, moveErrors.findByGameId(game.getId()), verified.forGame(game.getId())));
     }
 
-    private static String caveatForSmallSample(int n) {
-        if (n == 0) return "No analysed practice games yet — play one and this fills in.";
-        return "Only " + n + " analysed practice game" + (n == 1 ? "" : "s")
-             + " so far. Here is what they show, but "
-             + PerGameDetector.MIN_SAMPLE + " are needed before calling anything a tendency.";
-    }
-
     /**
      * The opponent steers to the player's weakest opening, so a window is
      * usually all one ECO — and then a habit and an unfamiliar opening look
@@ -152,19 +145,25 @@ public class PracticePatternService {
      * notice.
      */
     private static String openingCaveat(List<AnalysedGame> window) {
-        if (window.isEmpty()) return null;
+        String opening = aimedAt(window);
+        return opening == null ? null : "All aimed at the " + opening;
+    }
 
+    /**
+     * The one opening every game in the window was aimed at, or null.
+     *
+     * "Aimed at", not "played": the opponent forces only its first moves from a
+     * book, and a practice game is filed under its target opening whether or not
+     * the game reached it (PLAY_PLAN.md, finding 10).
+     */
+    static String aimedAt(List<AnalysedGame> window) {
+        if (window.isEmpty()) return null;
         Set<String> openings = new LinkedHashSet<>();
         for (AnalysedGame g : window) {
             String name = g.game().getOpeningName() != null
                     ? g.game().getOpeningName() : g.game().getOpeningEco();
             if (name != null && !name.isBlank()) openings.add(name);
         }
-        if (openings.size() != 1) return null;
-
-        return "Every one of these games is the " + openings.iterator().next()
-             + ", because your opponent is built to play your weakest opening. "
-             + "Some of what follows may be specific to that opening rather than "
-             + "a habit you carry everywhere.";
+        return openings.size() == 1 ? openings.iterator().next() : null;
     }
 }

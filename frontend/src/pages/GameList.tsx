@@ -5,7 +5,6 @@ import { api } from '../api/client'
 import { useAnalysisProgress } from '../hooks/useAnalysisProgress'
 import type { AnalysisStatus, GameSummary } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
-import { PraxAnchor } from '../prax/PraxHost'
 
 type FilterKey = 'wins' | 'losses' | 'blunders' | 'white' | 'black' | 'rapid' | 'bullet' | 'blitz' | 'last30'
 
@@ -95,7 +94,7 @@ export function GameList() {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 16 }}>
-        <h1 style={{ fontSize: '1.3rem', fontWeight: 700 }}>
+        <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700 }}>
           Games{' '}
           <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '1rem' }}>
             ({displayed.length}{displayed.length !== games.length ? ` of ${games.length}` : ''})
@@ -120,7 +119,7 @@ export function GameList() {
                 color: on ? 'var(--accent)' : 'var(--text-muted)',
                 cursor: 'pointer',
                 fontWeight: on ? 600 : 400,
-                transition: 'all 0.15s',
+                transition: 'background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out)',
               }}
             >
               {label}
@@ -166,15 +165,7 @@ export function GameList() {
                 style={{
                   borderBottom: '1px solid var(--border)',
                   cursor: g.analysis_status === 'ANALYZED' ? 'pointer' : 'default',
-                  transition: 'background 0.1s',
                   opacity: g.analysis_status === 'ANALYZING' ? 0.7 : 1,
-                }}
-                onMouseEnter={(e) => {
-                  if (g.analysis_status === 'ANALYZED')
-                    (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = ''
                 }}
               >
                 <td style={{ padding: '10px 16px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
@@ -213,7 +204,6 @@ export function GameList() {
           the registry falls back to a fixed 0.68/0.46, which on this
           layout is directly on top of the content. */}
       {/* Right of the table. */}
-      <PraxAnchor x={0.95} y={0.45} />
     </div>
   )
 }

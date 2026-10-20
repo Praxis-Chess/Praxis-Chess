@@ -43,11 +43,8 @@ const position = {
 /**
  * Opens the Prax card and asks something.
  *
- * Opened through the dev-only `window.__prax.ask` handle rather than by clicking
- * Prax: the hit target tracks the particle body's PROJECTED screen position,
- * which does not advance while the render loop is frozen under reduced-motion.
- * These tests are about what the card CONTAINS, and should not also be a test of
- * WebGL projection geometry.
+ * Opened through the dev-only `window.__prax.ask` handle: the particle body you
+ * used to click is retired, and these tests are about what the card CONTAINS.
  */
 async function ask(page: import('@playwright/test').Page, question = "What's my weakness?") {
   await page.waitForFunction(() => !!(window as never as Record<string, never>).__prax)
@@ -59,6 +56,7 @@ async function ask(page: import('@playwright/test').Page, question = "What's my 
   await page.getByRole('button', { name: /^Ask$/ }).click()
 }
 
+
 test.describe('Prax artifacts', () => {
   test('renders a chessboard for a CHESS_POSITION artifact', async ({ page, api }) => {
     api.json('/api/prax/ask', answerWith([position]))
@@ -67,8 +65,10 @@ test.describe('Prax artifacts', () => {
     await app.goto('/')
     await ask(page)
 
-    // react-chessboard renders one element per square.
+    // react-chessboard renders one element per square, in the app's one board theme (N5).
     await expect(page.locator('[data-square="e2"]').first()).toBeVisible()
+    await expect(page.locator('[data-board] [data-square="e2"]').first()).toHaveCSS('background-color', 'rgb(227, 219, 209)')
+    await expect(page.locator('[data-board] [data-square="e1"]').first()).toHaveCSS('background-color', 'rgb(74, 67, 64)')
     await expect(page.getByText('The position when it went wrong')).toBeVisible()
     await expect(page.getByText('Played a3; engine prefers e4.')).toBeVisible()
   })

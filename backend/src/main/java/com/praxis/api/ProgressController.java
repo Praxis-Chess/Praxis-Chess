@@ -1,10 +1,12 @@
 package com.praxis.api;
 
+import com.praxis.config.PraxisClock;
 import com.praxis.domain.enums.CardStatus;
 import com.praxis.dto.ProgressDto;
 import com.praxis.dto.ProgressDto.*;
 import com.praxis.repository.CardRepository;
 import com.praxis.repository.MetricSnapshotRepository;
+import com.praxis.service.drills.DeckRule;
 import com.praxis.service.settings.PlayerIdentity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,29 +26,38 @@ public class ProgressController {
     private final CardRepository cardRepository;
     private final MetricSnapshotRepository snapshotRepository;
     private final PlayerIdentity player;
+    private final PraxisClock clock;
 
     public ProgressController(CardRepository cardRepository,
                               MetricSnapshotRepository snapshotRepository,
-                              PlayerIdentity player) {
+                              PlayerIdentity player,
+                              PraxisClock clock) {
         this.cardRepository = cardRepository;
         this.snapshotRepository = snapshotRepository;
         this.player = player;
+        this.clock = clock;
     }
 
     @GetMapping
     public ResponseEntity<ProgressDto> getProgress() {
         String username = player.username();
 
+        long newCards = cardRepository.countByUsernameAndStatus(username, CardStatus.NEW);
+        LocalDate today = clock.today();
+        long introduced = cardRepository.countIntroducedSince(username,
+                today.atStartOfDay(clock.zone()).toOffsetDateTime());
+        long newToday = Math.min(newCards, Math.max(0, DeckRule.NEW_PER_DAY - introduced));
         DeckSummary deck = new DeckSummary(
                 cardRepository.countActiveByUsername(username),
-                cardRepository.countByUsernameAndStatus(username, CardStatus.NEW),
+                newCards,
                 cardRepository.countByUsernameAndStatus(username, CardStatus.LEARNING) +
                 cardRepository.countByUsernameAndStatus(username, CardStatus.RELEARNING),
                 cardRepository.countByUsernameAndStatus(username, CardStatus.REVIEW),
-                cardRepository.countByUsernameAndStatus(username, CardStatus.SUSPENDED)
+                cardRepository.countByUsernameAndStatus(username, CardStatus.SUSPENDED),
+                cardRepository.countDueReviews(username, today) + newToday
         );
 
-        LocalDate cutoff = LocalDate.now().minusDays(30);
+        LocalDate cutoff = today.minusDays(30);
         List<DailyStat> history = snapshotRepository
                 .findByUsernameOrderBySnapshotDateDesc(username)
                 .stream()

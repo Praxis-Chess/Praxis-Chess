@@ -261,7 +261,8 @@ public class InsightsService {
                             g.getResult(),
                             g.getPlayedAt() != null ? g.getPlayedAt().toLocalDate().toString() : null,
                             turn == null ? null : turn.getMoveNumber(),
-                            turn == null ? null : moveLabel(turn));
+                            turn == null ? null : moveLabel(turn),
+                            turn == null ? null : turn.getFenPosition());
                 })
                 .toList();
 
@@ -331,17 +332,23 @@ public class InsightsService {
 
     // --- Openings ---
 
+    /**
+     * One row per opening NAME (N13): the ECO table gives one name to several codes
+     * (Center Game is C21 and C22), and a player thinks in names. The row lists its
+     * codes, sorted; a game with no name is grouped by its code.
+     */
     private List<OpeningInsight> openings(List<Game> games) {
         return games.stream()
                 .filter(g -> g.getOpeningEco() != null)
-                .collect(Collectors.groupingBy(Game::getOpeningEco))
+                .collect(Collectors.groupingBy(g -> g.getOpeningName() != null && !g.getOpeningName().isBlank()
+                        ? g.getOpeningName() : g.getOpeningEco()))
                 .entrySet().stream()
                 .map(e -> {
                     List<Game> gs = e.getValue();
                     int wins = (int) gs.stream().filter(g -> "win".equals(g.getResult())).count();
-                    String name = gs.stream().map(Game::getOpeningName)
-                            .filter(Objects::nonNull).findFirst().orElse(e.getKey());
-                    return new OpeningInsight(e.getKey(), name, gs.size(), pct(wins, gs.size()), avgAccuracy(gs));
+                    String codes = gs.stream().map(Game::getOpeningEco).distinct().sorted()
+                            .collect(Collectors.joining(", "));
+                    return new OpeningInsight(codes, e.getKey(), gs.size(), pct(wins, gs.size()), avgAccuracy(gs));
                 })
                 .sorted(Comparator.comparingInt(OpeningInsight::games).reversed())
                 .limit(12)

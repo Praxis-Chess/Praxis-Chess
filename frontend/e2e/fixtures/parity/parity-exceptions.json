@@ -142,6 +142,212 @@
       "token": "~win",
       "reason": "M6: 'a game you can lose, not one you cannot win' described the calibration's intent and held no figure; the calibration itself (9 of 20, to your 68% average accuracy) stays.",
       "decision": "audit: Play"
+    },
+    {
+      "screen": "play",
+      "state": "default",
+      "token": "49%",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2/P3"
+    },
+    {
+      "screen": "play",
+      "state": "default",
+      "token": "97",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2/P3"
+    },
+    {
+      "screen": "play",
+      "state": "default",
+      "token": "~blunders",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2/P3"
+    },
+    {
+      "screen": "play",
+      "state": "default",
+      "token": "12",
+      "count": 1,
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2"
+    },
+    {
+      "screen": "play",
+      "state": "default",
+      "token": "~nimzovich-larsen attack",
+      "count": 1,
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic. Practice games aimed at it are still listed by name.",
+      "decision": "P2"
+    },
+    {
+      "screen": "play",
+      "state": "one-game",
+      "token": "49%",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2/P3"
+    },
+    {
+      "screen": "play",
+      "state": "one-game",
+      "token": "97",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2/P3"
+    },
+    {
+      "screen": "play",
+      "state": "one-game",
+      "token": "~blunders",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2/P3"
+    },
+    {
+      "screen": "play",
+      "state": "one-game",
+      "token": "12",
+      "count": 1,
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2"
+    },
+    {
+      "screen": "play",
+      "state": "one-game",
+      "token": "~nimzovich-larsen attack",
+      "count": 1,
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic. Practice games aimed at it are still listed by name.",
+      "decision": "P2"
+    },
+    {
+      "screen": "play",
+      "state": "six-games",
+      "token": "49%",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2/P3"
+    },
+    {
+      "screen": "play",
+      "state": "six-games",
+      "token": "97",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2/P3"
+    },
+    {
+      "screen": "play",
+      "state": "six-games",
+      "token": "~blunders",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2/P3"
+    },
+    {
+      "screen": "play",
+      "state": "six-games",
+      "token": "12",
+      "count": 1,
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P2"
+    },
+    {
+      "screen": "play",
+      "state": "six-games",
+      "token": "~nimzovich-larsen attack",
+      "count": 1,
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic. Practice games aimed at it are still listed by name.",
+      "decision": "P2"
+    },
+    {
+      "screen": "play",
+      "state": "one-game",
+      "token": "63",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P3/D6"
+    },
+    {
+      "screen": "play",
+      "state": "one-game",
+      "token": "~hanging piece",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P3/D6"
+    },
+    {
+      "screen": "play",
+      "state": "six-games",
+      "token": "63",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P3/D6"
+    },
+    {
+      "screen": "play",
+      "state": "six-games",
+      "token": "~hanging piece",
+      "reason": "Play redesign, P2/P3: the opponent's facts now come from the stored Pattern Report (the same source as the report and plan pages). 'You score 49% accuracy in the Nimzovich-Larsen Attack across 12 games', 'Most of your blunders land in the middlegame (97 of them)' and 'Most frequent tactic: hanging piece, 63 times' used other definitions (lowest accuracy; raw blunder counts; every severity) and are replaced by the report's opening above your average, its rate per 100 moves and its top cause and proven tactic.",
+      "decision": "P3/D6"
+    },
+    {
+      "screen": "play",
+      "state": "one-game",
+      "token": "~analysed",
+      "reason": "Play redesign, finding 9: 'Across your last 1 analysed practice game' and 'Only 1 analysed practice game so far. Here is what they show, but 5 are needed…' (which showed nothing) became the progress label '1 of 5 games · patterns from 5'; its numbers stay.",
+      "decision": "finding 9"
+    },
+    {
+      "screen": "play",
+      "state": "six-games",
+      "token": "~analysed",
+      "count": 1,
+      "reason": "Play redesign: 'Across your last 6 analysed practice games' became the progress label '6 games · patterns from 5'.",
+      "decision": "finding 9"
+    },
+    {
+      "screen": "play",
+      "state": "six-games",
+      "token": "~nimzovich-larsen attack",
+      "count": 2,
+      "reason": "Play redesign: when every practice game was aimed at one opening, the 'Aimed at' column repeated it on every row; the note 'All aimed at the Nimzovich-Larsen Attack' now says it once.",
+      "decision": "P2, repetition"
+    },
+    {
+      "screen": "pattern-report",
+      "scope": "Tactics your opponent got",
+      "token": "96",
+      "reason": "Hierarchy pass: 'No proven tactic in 96 of 145' read backwards; it leads with what was found, 'A tactic proven in 49 of 145'. The same fact: 145 − 49.",
+      "decision": "User review, 20 Oct"
+    },
+    {
+      "screen": "settings",
+      "scope": "What to sync and analyse",
+      "token": "~analysed",
+      "reason": "'Only ticked speeds are analysed.' moved into the speeds ⓘ help beside the checkboxes (one tap away), to make room in the reading budget for Display → Show Prax body.",
+      "decision": "User request, 20 Oct: add Show Prax body to Settings"
+    },
+    {
+      "screen": "progress",
+      "state": "default",
+      "token": "71%",
+      "reason": "POLISH U2 (N2): '7-day recall' counted the last 7 entries, not the last 7 days. The fixture's reviews are from August and the clock is 16 Oct, so there are no reviews in the last 7 days: it now says so, with a dash.",
+      "decision": "POLISH_PLAN.md U2"
+    },
+    {
+      "screen": "progress",
+      "state": "no-reviews",
+      "token": "0%",
+      "count": 1,
+      "reason": "POLISH U2 (N2): no reviews is not 0% recall; the 7-day figure is a dash with 'No reviews in the last 7 days'.",
+      "decision": "POLISH_PLAN.md U2"
+    },
+    {
+      "screen": "progress",
+      "state": "no-reviews",
+      "token": "0/0",
+      "reason": "POLISH U2 (N2): a phase with nothing reviewed reads 'none' beside an empty track, not '0% · 0/0' in red.",
+      "decision": "POLISH_PLAN.md U2"
+    },
+    {
+      "screen": "game-analysis",
+      "state": "positional-only",
+      "scope": "Verified diagnosis",
+      "token": "~positional",
+      "reason": "POLISH U5 (N7): a mistake card said POSITIONAL twice, as its motif badge and again as the verified consequence badge. The motif badge stays; the repeat goes. (The checked commentary that repeated the diagnosis word for word also goes; it is prose, so parity does not count it.)",
+      "decision": "POLISH_PLAN.md U5"
     }
   ],
   "formats": [
@@ -168,6 +374,96 @@
       "from": "g7g6",
       "to": "g6",
       "reason": "M6: principle 7, moves read in SAN everywhere; the engine's best move was shown in UCI."
+    },
+    {
+      "screen": "play",
+      "from": "~your weaker colour",
+      "to": "weaker colour: black | weaker colour: white",
+      "reason": "Play redesign, finding 2: the colour option names the weaker colour instead of hiding it."
+    },
+    {
+      "screen": "play",
+      "from": "10/1/2026",
+      "to": "1 Oct",
+      "reason": "Principle 7: dates read '1 Oct', never the locale's 1/10/2026 (finding 11)."
+    },
+    {
+      "screen": "play",
+      "from": "8/26/2026",
+      "to": "26 Aug",
+      "reason": "Principle 7 (finding 11)."
+    },
+    {
+      "screen": "play",
+      "from": "8/27/2026",
+      "to": "27 Aug",
+      "reason": "Principle 7 (finding 11)."
+    },
+    {
+      "screen": "play",
+      "from": "8/28/2026",
+      "to": "28 Aug",
+      "reason": "Principle 7 (finding 11)."
+    },
+    {
+      "screen": "play",
+      "from": "2026-08-27",
+      "to": "27 Aug",
+      "reason": "Principle 7: pattern evidence dates come from the server as '27 Aug' (AnalysedGame.playedOn)."
+    },
+    {
+      "screen": "play",
+      "from": "2026-08-28",
+      "to": "28 Aug",
+      "reason": "Principle 7: pattern evidence dates come from the server as '28 Aug'."
+    },
+    {
+      "screen": "play",
+      "from": "signal4/6",
+      "to": "4 · 6",
+      "reason": "Finding 19: 'Early signal' and '4/6' ran together; the row says '4 of 6 games'."
+    },
+    {
+      "screen": "play",
+      "from": "signal5/6",
+      "to": "5 · 6",
+      "reason": "Finding 19, as above."
+    },
+    {
+      "screen": "*",
+      "from": "~analyzed",
+      "to": "analysed",
+      "reason": "Play redesign, P7: British spelling everywhere, matching 'colour' and 'practise'."
+    },
+    {
+      "screen": "play",
+      "from": "9/20",
+      "to": "9 20",
+      "reason": "POLISH U1 (N6): the live game's panel says the engine skill the way the pre-game page does, \"9 of 20\" (principle 7, one format per fact). Mapped to its numbers: \"of\" is not a tracked word."
+    },
+    {
+      "screen": "library",
+      "from": "8/19/2026",
+      "to": "19 Aug 2026",
+      "reason": "POLISH U2 (N11): one date format, never the locale's."
+    },
+    {
+      "screen": "library",
+      "from": "8/20/2026",
+      "to": "20 Aug 2026",
+      "reason": "POLISH U2 (N11): one date format, never the locale's."
+    },
+    {
+      "screen": "settings",
+      "from": "8/21/2026",
+      "to": "21 Aug",
+      "reason": "POLISH U2 (N18): the last sync in the app's date format."
+    },
+    {
+      "screen": "settings",
+      "from": "7:36:48",
+      "to": "07:36",
+      "reason": "POLISH U2 (N18): the last sync to the minute, 24-hour."
     }
   ],
   "moves": [
@@ -228,6 +524,12 @@
       "from": "!",
       "to": "…",
       "reason": "M5: '!' means a good move in chess, so 'needs attention' is marked with an ellipsis; the setup rows are named by their mark."
+    },
+    {
+      "screen": "pattern-report",
+      "from": "Tactics your opponent got",
+      "to": "By tactic your opponent got",
+      "reason": "Hierarchy pass: causes and tactics count the same mistakes on two axes, so tactics became the second tab of 'What goes wrong' instead of a second list. Every fact is in the tab's panel."
     }
   ],
   "methods": []

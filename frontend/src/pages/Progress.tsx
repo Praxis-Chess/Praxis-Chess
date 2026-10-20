@@ -4,7 +4,6 @@ import { api } from '../api/client'
 import type { DailyStat } from '../api/types'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { monthsFrom } from '../components/practiceDates'
-import { PraxAnchor } from '../prax/PraxHost'
 import { Disclose } from '../components/report/ReportParts'
 
 function pct(n: number, d: number) {
@@ -99,7 +98,7 @@ function AccuracyBar({ value, max = 100 }: { value: number; max?: number }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <div style={{ flex: 1, height: 6, background: 'var(--surface-2)', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${w}%`, background: color, borderRadius: 3, transition: 'width 0.4s' }} />
+        <div style={{ height: '100%', width: `${w}%`, background: color, borderRadius: 3, transition: 'width var(--dur-fill) var(--ease-out)' }} />
       </div>
       <span style={{ fontSize: '0.8rem', fontWeight: 600, color, minWidth: 36, textAlign: 'right' }}>
         {value}%
@@ -120,9 +119,15 @@ function PhaseBreakdown({ stat }: { stat: DailyStat }) {
         <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', minWidth: 80 }}>{label}</span>
           <div style={{ flex: 1 }}>
-            <AccuracyBar value={pct(c, t)} />
+            {t > 0
+              ? <AccuracyBar value={pct(c, t)} />
+              // Nothing reviewed in this phase: an empty track and a dash, never a red 0% (N2).
+              : <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1, height: 6, background: 'var(--surface-2)', borderRadius: 3 }} />
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', minWidth: 36, textAlign: 'right' }}>—</span>
+                </div>}
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minWidth: 40 }}>{c}/{t}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minWidth: 40 }}>{t > 0 ? `${c}/${t}` : 'none'}</span>
         </div>
       ))}
     </div>
@@ -136,7 +141,8 @@ function MiniChart({ history }: { history: DailyStat[] }) {
       {history.slice(-30).map((s, i) => {
         const h = Math.max(4, (s.reviewed / max) * 80)
         const acc = s.accuracy
-        const color = acc >= 80 ? 'var(--gain)' : acc >= 60 ? 'var(--yellow)' : 'var(--red)'
+        // A day with no reviews is no data, not a red 0% (N2).
+        const color = s.reviewed === 0 ? 'var(--grey-3)' : acc >= 80 ? 'var(--gain)' : acc >= 60 ? 'var(--yellow)' : 'var(--red)'
         return (
           <div key={i} title={`${s.date}: ${s.reviewed} cards, ${s.accuracy}% accuracy`}
                style={{ flex: 1, height: h, background: color, borderRadius: '2px 2px 0 0',
@@ -160,27 +166,28 @@ export function Progress() {
   if (!progress) return null
 
   const { deck_summary: d, history } = progress
-  const recentStats = history.slice(-7)
+  // The last 7 calendar days, not the last 7 entries: a month-old review is not "7-day" recall.
+  const since = new Date(); since.setDate(since.getDate() - 6)
+  const sinceIso = `${since.getFullYear()}-${String(since.getMonth() + 1).padStart(2, '0')}-${String(since.getDate()).padStart(2, '0')}`
+  const recentStats = history.filter(s => s.date >= sinceIso)
   const totalRecent = recentStats.reduce((s, r) => s + r.reviewed, 0)
   const correctRecent = recentStats.reduce((s, r) => s + r.correct, 0)
   const recentAcc = pct(correctRecent, totalRecent)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 720 }}>
-      <div>
-        <h1 style={{ fontSize: '1.35rem', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>
-          Progress
-        </h1>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* The nav names this page; the heading stays for screen readers and tests, not the eye. */}
+      <h1 className="sr-only">Progress</h1>
 
       {/* Deck summary */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         {[
-          { label: 'Total', value: d.total_cards, color: 'var(--text)' },
-          { label: 'New', value: d.new_cards, color: 'var(--text-muted)' },
-          { label: 'Learning', value: d.learning_cards, color: 'var(--yellow)' },
-          { label: 'Review', value: d.review_cards, color: 'var(--gain)' },
-          { label: 'Suspended', value: d.suspended_cards, color: 'var(--red)' },
+          // Neutral counts: no colour means good or bad here (N16).
+          { label: 'Total', value: d.total_cards, color: 'var(--text-primary)' },
+          { label: 'New', value: d.new_cards, color: 'var(--text-primary)' },
+          { label: 'Learning', value: d.learning_cards, color: 'var(--text-primary)' },
+          { label: 'Review', value: d.review_cards, color: 'var(--text-primary)' },
+          { label: 'Suspended', value: d.suspended_cards, color: 'var(--text-primary)' },
         ].map(({ label, value, color }) => (
           <div key={label} className="card" style={{ padding: '14px 18px', textAlign: 'center', minWidth: 90 }}>
             <div style={{ fontSize: '1.4rem', fontWeight: 700, color }}>{value}</div>
@@ -194,10 +201,18 @@ export function Progress() {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4 }}>7-day recall</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 700,
-                          color: recentAcc >= 80 ? 'var(--gain)' : recentAcc >= 60 ? 'var(--yellow)' : 'var(--red)' }}>
-              {recentAcc}%
-            </div>
+            {totalRecent > 0 ? (
+              <div style={{ fontSize: '1.8rem', fontWeight: 700,
+                            color: recentAcc >= 80 ? 'var(--gain)' : recentAcc >= 60 ? 'var(--yellow)' : 'var(--red)' }}>
+                {recentAcc}%
+              </div>
+            ) : (
+              // No reviews is not 0% recall (N2): say so, in neutral.
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-tertiary)' }}>—</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>No reviews in the last 7 days</div>
+              </div>
+            )}
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4 }}>Cards reviewed</div>
@@ -262,7 +277,6 @@ export function Progress() {
       <PracticeHistory />
 
       {/* Right of the analytics column — Contract §4. */}
-      <PraxAnchor x={0.74} y={0.45} />
     </div>
   )
 }

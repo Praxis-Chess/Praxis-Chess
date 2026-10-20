@@ -17,8 +17,8 @@ test.describe('Why? panel', () => {
   })
 
   async function openWhy(page: import('@playwright/test').Page) {
+    // U4: the page opens on the costliest mistake, already selected.
     await page.goto(`/games/${data.WHY_GAME_ID}`)
-    await page.getByText('3.Nf6??').click()
     await page.getByRole('button', { name: 'Why?' }).click()
     return page.getByRole('region', { name: 'Why this was a mistake' })
   }
@@ -26,11 +26,14 @@ test.describe('Why? panel', () => {
   test('is offered only for the selected mistake, and fetches nothing until opened', async ({ page, api }) => {
     await page.goto(`/games/${data.WHY_GAME_ID}`)
     await expect(page.getByText(/mistakes? identified/i)).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Why?' })).toHaveCount(0)
-
-    await page.getByText('3.Nf6??').click()
+    // U4: the costliest mistake is selected on arrival; its Why? is offered, not fetched.
+    await expect(page.getByText('Position before move 3.Nf6')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Why?' })).toBeVisible()
     expect(api.requestsMatching(WHY)).toHaveLength(0)
+
+    // Deselected, the offer goes with it.
+    await page.getByText('3.Nf6??').click()
+    await expect(page.getByRole('button', { name: 'Why?' })).toHaveCount(0)
   })
 
   test('opened at a move (?ply=), that mistake is selected and named', async ({ page }) => {

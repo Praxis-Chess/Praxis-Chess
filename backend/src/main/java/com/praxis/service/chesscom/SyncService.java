@@ -1,5 +1,7 @@
 package com.praxis.service.chesscom;
 
+import com.praxis.service.OpeningFromPgn;
+import com.praxis.service.EcoTable;
 import com.praxis.service.settings.PlayerIdentity;
 import com.praxis.service.settings.SyncWindow;
 import com.praxis.service.settings.SettingsService;
@@ -42,6 +44,7 @@ public class SyncService {
     private final PlayerIdentity player;
     private final SettingsService settings;
     private final PraxisClock clock;
+    private final EcoTable ecoTable;
 
     // In-memory sync state
     private volatile boolean syncing = false;
@@ -66,7 +69,8 @@ public class SyncService {
                        AnalysisProgressTracker progressTracker,
                        PlayerIdentity player,
                        SettingsService settings,
-                       PraxisClock clock) {
+                       PraxisClock clock,
+                       EcoTable ecoTable) {
         this.apiClient = apiClient;
         this.gameRepository = gameRepository;
         this.syncHistoryRepository = syncHistoryRepository;
@@ -75,6 +79,7 @@ public class SyncService {
         this.player = player;
         this.settings = settings;
         this.clock = clock;
+        this.ecoTable = ecoTable;
     }
 
     @Transactional
@@ -223,7 +228,7 @@ public class SyncService {
         String username = player.username();
         if (username.isEmpty()) return 0;
         if (now - newGamesCacheTimestamp >= NEW_GAMES_CACHE_TTL_MS || !username.equals(cachedRemoteUser)) {
-            LocalDate today = LocalDate.now();
+            LocalDate today = clock.today();
             try {
                 Set<String> remote = new HashSet<>();
                 for (ChessComGame g : apiClient.fetchGames(username, today.getYear(), today.getMonthValue())) {
@@ -261,6 +266,8 @@ public class SyncService {
         OffsetDateTime playedAt = OffsetDateTime.ofInstant(Instant.ofEpochSecond(cg.endTime()), ZoneOffset.UTC);
 
         Double accuracy = playerIsWhite ? cg.white().accuracy() : cg.black().accuracy();
+        // The opening from the PGN header now, not only after analysis (N11).
+        String eco = OpeningFromPgn.eco(cg.pgn());
 
         return Game.builder()
                 .chessComId(cg.uuid())
@@ -274,6 +281,8 @@ public class SyncService {
                 .whiteRating(cg.white().rating())
                 .blackRating(cg.black().rating())
                 .accuracy(accuracy)
+                .openingEco(eco)
+                .openingName(ecoTable.lookup(eco))
                 .analysisStatus(AnalysisStatus.PENDING)
                 .build();
     }

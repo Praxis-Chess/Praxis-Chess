@@ -1,5 +1,15 @@
 # Meet PRAX
 
+> **The particle body is retired (Oct 2026, polish work U1).** There is no
+> WebGL canvas, no `three` dependency and no on-screen body any more. What
+> remains of Prax in the frontend is its **runtime** (the state machine and the
+> event bus, whose state the ambient background in `src/background/` reads for
+> its energy), its **voice**, the **motion model** the runtime uses, and its **glass cards** (analysis
+> progress and the question card), which show on Today, Progress and Library
+> when the margin beside the page has room (`anchor/cardPlacement.ts`). The
+> current files are in §3. Sections 1, 2 and 4 onward describe the body as it
+> was, kept as the reference for its design; they do not describe running code.
+
 ```
 A visual presence that thinks, reacts, and moves with what’s happening around it. Its motion is more than decoration; it’s how Prax shows what it’s noticing, doing, and feeling in the moment.
 ```
@@ -57,52 +67,38 @@ If you find yourself reaching two layers down, the design has drifted.
 
 ## 3. File map
 
+What is in `frontend/src/prax/` now. The body's renderer, geometry, anchors,
+hit target, debug panel and pointer tracking were removed with it.
+
 ```
 prax/
-  PraxHost.tsx          everything Prax mounts + the public export surface
+  PraxHost.tsx          starts the runtime and voice; the cards on Today, Progress, Library
   core/
-    constants.ts        ALL tunables. Start here when adjusting feel.
+    constants.ts        tunables
     events.ts           PraxEvent union + praxBus
-    random.ts           mulberry32 — seeded, so the form is reproducible
-  geometry/
-    generate.ts         particle positions, clusters, seeds, sizes
   motion/
     integrate.ts        Spring, Envelope, EnvelopeFollower
-    model.ts            STATE_TARGETS, MotionModel, the channels
+    model.ts            STATE_TARGETS, the channels, and the PraxState type
   state/
     runtime.ts          the FSM, presence, praxRuntime singleton
-    renderPolicy.ts     full / reduced / frozen
     routerBridge.ts     navigation → events
     narrationStore.ts   the current progress message
     progressNarrator.ts deterministic narration + practice/milestone lines
     usePracticeSignal.ts detects the day's first activity, app-wide
-  renderer/
-    PraxCanvas.tsx      the render loop; the only place uniforms are written
-    createPraxPoints.ts geometry + material + uniform declarations
-    shaders.ts          GLSL. Vertex assembly order is a contract.
-    screenPos.ts        render loop → DOM bridge (mutable, not state)
   anchor/
-    registry.ts         where each page wants Prax
-    AnchorController.ts smooth relocation between anchors
-    viewport.ts         the ONLY screen→world conversion
-    cardPlacement.ts    where the DOM cards go (gutter -> right -> below)
+    cardPlacement.ts    a card in the margin beside the page, only when it fits
   interaction/
-    pointer.ts          pointer position + dwell
     interactions.ts     semantic UI interactions → events
     useFocusIntent.ts   hover-with-intent hook for page elements
   ui/
-    PraxStack.tsx       the single positioned column beside Prax
+    PraxStack.tsx       the column of cards in the margin
     PraxAsk.tsx         ask a question, render the answer
     PraxProgress.tsx    narration during analysis
-    PraxThought.tsx     insight card — CURRENTLY UNMOUNTED (see §11)
-    PraxHitTarget.tsx   invisible click disc over the body
-    PraxDebugPanel.tsx  force states and fire events by hand
+    PraxThought.tsx     insight card, CURRENTLY UNMOUNTED (see PraxStack)
     thoughts.ts         insight content registry
-  voice/
-    index.ts            praxSpeak / stopSpeaking / band stepping
-    KokoroVoice.ts      POSTs /api/voice/speak
-    MockVoice.ts        silent fallback
-    audioGraph.ts       WebAudio analyser → low/mid/high bands
+    workingWords.ts     the words shown while Prax works
+  artifacts/            what an answer can carry: positions, stat cards
+  voice/                Kokoro (local TTS) and a mock, behind PraxVoice
 ```
 
 ---

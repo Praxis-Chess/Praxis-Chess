@@ -169,13 +169,20 @@ public class GameAnalysisTransactionService {
         List<Double> scores = positionEvaluator.evaluateAll(
                 parsedGame.moves(), profile.sweepMoveTimeMs(), progress);
         long sweepMs = System.currentTimeMillis() - sweepStartedAt;
+        // Kept for Game Analysis's eval graph (U5): the curve this analysis measured.
+        if (!scores.isEmpty()) {
+            game.setEvalCurve(scores.stream()
+                    .map(v -> v == null ? "" : String.valueOf(Math.round(v * 100.0) / 100.0))
+                    .collect(java.util.stream.Collectors.joining(",")));
+        }
 
-        // `!hasAccuracy()` rather than `== null`: a stored 0.0 is a failed
-        // measurement from an earlier run, and `0.0 != null` meant re-analysis
-        // could never replace it — the reason Re-analyze All never cleared the
-        // zeros. computeAccuracy now returns null when it cannot measure, so a
-        // failure stays visibly absent instead of masquerading as a score.
-        if (!game.hasAccuracy() && !scores.isEmpty()) {
+        // Every analysis measures accuracy again (N23). It used to be set only when
+        // a game had none, so values computed before the 17 Aug sign fix (the eval
+        // flipped every ply, driving accuracy to single digits) survived every
+        // re-analysis. Chess.com supplies none of these accuracies, so nothing is
+        // lost by replacing them. computeAccuracy returns null when it cannot
+        // measure; then the stored value stays rather than being blanked.
+        if (!scores.isEmpty()) {
             Double computed = computeAccuracy(parsedGame, scores);
             if (computed != null) game.setAccuracy(computed);
         }

@@ -1,22 +1,14 @@
 import { useSyncExternalStore, useEffect, useState, useRef, useLayoutEffect } from 'react'
 import { narrationStore } from '../state/narrationStore'
-import { getPraxScreenPos } from '../renderer/screenPos'
-import {
-  placePraxCard,
-  PRAX_GUTTER_PX,
-  PRAX_NARROW_PX,
-  type CardPlacement,
-} from '../anchor/cardPlacement'
+import { marginPraxCard, type CardPlacement } from '../anchor/cardPlacement'
 import { PraxProgress } from './PraxProgress'
 import { PraxAsk, praxAsk } from './PraxAsk'
 
 /**
- * The single positioned column beside Prax.
- *
- * Progress and thought cards previously each anchored themselves to the
- * organism's projected position, so whenever both were live they rendered on
- * top of each other. Position is owned here exactly once and the cards flow
- * inside it — running status first, findings beneath.
+ * Prax's single card column, in the margin beside the centred page, bottom
+ * right, and only where that margin can hold it (marginPraxCard). Position is
+ * owned here exactly once, with the cards flowing inside it: running status
+ * first, the question beneath.
  */
 export function PraxStack() {
   const narration = useSyncExternalStore(narrationStore.subscribe, narrationStore.get)
@@ -24,12 +16,8 @@ export function PraxStack() {
 
   const ref = useRef<HTMLDivElement>(null)
   const heightRef = useRef(0)
-  const [place, setPlace] = useState<CardPlacement>({
-    left: -9999,
-    top: -9999,
-    width: 300,
-    maxHeight: 480,
-  })
+  // Null: no room beside the page, so no card.
+  const [place, setPlace] = useState<CardPlacement | null>(null)
 
   // PraxThought (the insight card with Listen / Examine / Dismiss) is unmounted
   // for now — its Listen action only makes sense once speech is built. The
@@ -49,50 +37,31 @@ export function PraxStack() {
     })
     ro.observe(el)
     return () => ro.disconnect()
-  }, [visible])
+    // Re-measure when the card first renders: it is not mounted while there is no room.
+  }, [visible, place === null])
 
-  /**
-   * Reserve the strip the card will occupy, so page content moves aside instead
-   * of being covered by a pointer-events:auto overlay.
-   *
-   * Only above PRAX_NARROW_PX: a phone has no room to give, and there the card
-   * docks to the bottom edge instead (see computePlacement).
-   */
-  useEffect(() => {
-    const root = document.documentElement
-    const apply = () => {
-      const reserve = visible && window.innerWidth >= PRAX_NARROW_PX ? PRAX_GUTTER_PX : 0
-      root.style.setProperty('--prax-gutter', `${reserve}px`)
-    }
-    apply()
-    window.addEventListener('resize', apply)
-    return () => {
-      window.removeEventListener('resize', apply)
-      root.style.setProperty('--prax-gutter', '0px')
-    }
-  }, [visible])
-
-  // Follow Prax only while something is showing.
+  // Re-place while something is showing: the card grows as an answer streams.
   useEffect(() => {
     if (!visible) return
     let raf = 0
     const tick = () => {
       raf = requestAnimationFrame(tick)
-      const next = placePraxCard(getPraxScreenPos(), heightRef.current)
+      const next = marginPraxCard(heightRef.current, asking)
       setPlace((prev) =>
-        prev.left === next.left &&
-        prev.top === next.top &&
-        prev.width === next.width &&
-        prev.maxHeight === next.maxHeight
+        prev === next || (prev && next &&
+          prev.left === next.left &&
+          prev.top === next.top &&
+          prev.width === next.width &&
+          prev.maxHeight === next.maxHeight)
           ? prev // identical object keeps React from re-rendering every frame
           : next,
       )
     }
     tick()
     return () => cancelAnimationFrame(raf)
-  }, [visible])
+  }, [visible, asking])
 
-  if (!visible) return null
+  if (!visible || !place) return null
 
   return (
     <div
@@ -101,7 +70,7 @@ export function PraxStack() {
         position: 'fixed',
         left: place.left,
         top: place.top,
-        zIndex: 60, // above the canvas (50), below the nav (100)
+        zIndex: 60, // above the page, below the nav (100)
         width: place.width,
         maxHeight: place.maxHeight,
         // Tall answers scroll inside the column rather than off the viewport.

@@ -3,7 +3,7 @@ import { praxInteract } from '../prax/PraxHost'
 import { useLibraryActions } from '../hooks/useLibraryActions'
 import { BackupFailedNotice } from './BackupFailedNotice'
 import { SetupChecklist } from './SetupChecklist'
-import { useHelp } from './report/ReportParts'
+import { dayMonth, useHelp } from './report/ReportParts'
 
 const muted: React.CSSProperties = { color: 'var(--text-secondary)', fontSize: '0.78rem', lineHeight: 1.5 }
 
@@ -12,6 +12,11 @@ const muted: React.CSSProperties = { color: 'var(--text-secondary)', fontSize: '
  * and the setup checklist folded into one line underneath.
  */
 /** `primary`: Sync Now is the page's one solid button (Settings makes Save solid while the form has changes). */
+
+/** "21 Aug, 13:06": the app's date format (principle 7), with the time a sync needs (N18). */
+function syncedAt(d: Date) {
+  return `${dayMonth(d)}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
 export function LibraryCard({ primary = true }: { primary?: boolean }) {
   const lib = useLibraryActions()
   const { status, isBusy, pending, newGames } = lib
@@ -22,15 +27,15 @@ export function LibraryCard({ primary = true }: { primary?: boolean }) {
   </>)
 
   const lastSync = !status ? '…'
-    : status.last_synced_at === 'Never' ? 'never' : new Date(status.last_synced_at).toLocaleString()
+    : status.last_synced_at === 'Never' ? 'never' : syncedAt(new Date(status.last_synced_at))
 
   return (
     <section className="card" aria-labelledby="library-card-title">
-      <h2 id="library-card-title" style={{ fontSize: '1rem', marginBottom: 6 }}>Library</h2>
+      <h2 id="library-card-title" style={{ fontSize: 'var(--fs-section)', marginBottom: 6 }}>Library</h2>
       <p style={muted}>
-        <span className="mono">{status?.games_analyzed ?? 0}</span> analyzed
+        <span className="mono">{status?.games_analyzed ?? 0}</span> analysed
         {pending > 0 && <> · <span className="mono" style={{ color: 'var(--yellow)' }}>{pending}</span> pending</>}
-        {newGames > 0 && <> · <span className="mono" style={{ color: 'var(--orchid)' }}>{newGames}</span> new on Chess.com</>}
+        {newGames > 0 && <> · <span className="mono" style={{ color: 'var(--text-primary)' }}>{newGames}</span> new on Chess.com</>}
         {' · last sync '}{lastSync}
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' }}>
@@ -42,17 +47,17 @@ export function LibraryCard({ primary = true }: { primary?: boolean }) {
         </button>
         <button className="secondary" disabled={isBusy || pending === 0}
                 onClick={() => { praxInteract('PRIMARY_ACTION'); lib.analyzePending.mutate() }}>
-          {lib.analyzePending.isPending ? 'Queuing…' : `▶ Analyze Pending${pending > 0 ? ` (${pending})` : ''}`}
+          {lib.analyzePending.isPending ? 'Queuing…' : `▶ Analyse Pending${pending > 0 ? ` (${pending})` : ''}`}
         </button>
         {!confirmAll ? (
           <button className="secondary" disabled={isBusy} onClick={() => setConfirmAll(true)}>
-            {lib.reanalyzeAll.isPending ? 'Backing up, then queuing…' : '⟳ Re-analyze All'}
+            {lib.reanalyzeAll.isPending ? 'Backing up, then queuing…' : '⟳ Re-analyse All'}
           </button>
         ) : (
           <>
             <span style={muted}>Re-analyses every game in range. Drill cards keep their history.</span>
             <button disabled={isBusy} onClick={() => { setConfirmAll(false); praxInteract('PRIMARY_ACTION'); lib.reanalyzeAll.mutate(false) }}>
-              Yes, re-analyze all
+              Yes, re-analyse all
             </button>
             <button className="secondary" onClick={() => setConfirmAll(false)}>Cancel</button>
           </>

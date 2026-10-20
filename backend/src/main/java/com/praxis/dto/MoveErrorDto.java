@@ -19,7 +19,9 @@ public record MoveErrorDto(
     Integer clockRemaining,
     String analysisState,
     /** The rules' verified diagnosis (Phase 9); null until the mistake has a current one. */
-    Verified verified
+    Verified verified,
+    /** Winning chance lost by this move (U4: Game Analysis opens on the costliest). */
+    Double winPctDrop
 ) {
     /**
      * What the rules concluded from the evidence, every claim checked against it.
@@ -60,6 +62,7 @@ public record MoveErrorDto(
                 e.getGamePhase() != null ? e.getGamePhase().name() : null,
                 e.getClockRemaining(),
                 e.getAnalysisState() != null ? e.getAnalysisState().name() : null,
-                evidence == null ? null : Verified.of(evidence));
+                evidence == null ? null : Verified.of(evidence),
+                e.getWinPctDrop());
     }
 }
